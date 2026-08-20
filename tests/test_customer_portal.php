@@ -145,7 +145,7 @@ $orderModel = new Order($db);
 // Retrieve or create standard test customer
 $testCustomer = $userModel->findByEmail('customer@lpg.com');
 if (!$testCustomer) {
-    $custPass = password_hash('Customer@2026', PASSWORD_BCRYPT, ['cost' => 12]);
+    $custPass = password_hash('password', PASSWORD_BCRYPT, ['cost' => 12]);
     $stmt = $db->prepare("
         INSERT INTO users (full_name, email, password, role, phone, address, status, created_at, updated_at)
         VALUES ('Janister Singson', 'customer@lpg.com', ?, 'customer', '09171234567', 'Block 5 Lot 12, Mahogany St, Quezon City', 'active', NOW(), NOW())
@@ -645,7 +645,7 @@ it('profile.php handles password updates with current password verification and 
     $_SERVER['REQUEST_METHOD'] = 'POST';
     $_POST['csrf_token'] = $token;
     $_POST['action'] = 'change_password';
-    $_POST['current_password'] = 'Customer@2026';
+    $_POST['current_password'] = 'password';
     $_POST['new_password'] = 'weak';
     $_POST['confirm_new_password'] = 'weak';
 
@@ -661,7 +661,7 @@ it('profile.php handles password updates with current password verification and 
     $_SERVER['REQUEST_METHOD'] = 'POST';
     $_POST['csrf_token'] = $token;
     $_POST['action'] = 'change_password';
-    $_POST['current_password'] = 'Customer@2026';
+    $_POST['current_password'] = 'password';
     $_POST['new_password'] = $newPass;
     $_POST['confirm_new_password'] = $newPass;
 
@@ -677,7 +677,7 @@ it('profile.php handles password updates with current password verification and 
     assert_true(password_verify($newPass, $updatedUser['password']));
 
     // Restore original password for ongoing test repeatability
-    $userModel->updatePassword($customerId, 'Customer@2026');
+    $userModel->updatePassword($customerId, 'password');
 });
 
 // =========================================================================

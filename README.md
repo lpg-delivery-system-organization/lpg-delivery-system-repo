@@ -275,9 +275,9 @@ The database comes pre-populated with active demonstration accounts for each rol
 
 | Role | Email Address | Password | Description & Permissions |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin@lpg.com` | `Admin@2026!` | Full dashboard analytics, order approval/assignment, inventory pricing & stock, KYC ID verification |
-| **Rider** | `rider@lpg.com` | `Rider@2026!` | Claim available orders, update delivery status (Picked Up $\rightarrow$ Out for Delivery $\rightarrow$ Delivered), view earnings |
-| **Customer** | `customer@lpg.com` | `Customer@2026` | Browse catalog, place orders with price snapshotting, cancel pending orders, live order tracking |
+| **Admin** | `admin@lpg.com` | `password` | Full dashboard analytics, order approval/assignment, inventory pricing & stock, KYC ID verification |
+| **Rider** | `rider@lpg.com` | `password` | Claim available orders, update delivery status (Picked Up $\rightarrow$ Out for Delivery $\rightarrow$ Delivered), view earnings |
+| **Customer** | `customer@lpg.com` | `password` | Browse catalog, place orders with price snapshotting, cancel pending orders, live order tracking |
 
 ---
 

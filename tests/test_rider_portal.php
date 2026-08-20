@@ -144,7 +144,7 @@ $orderModel = new Order($db);
 // Retrieve or create standard test rider 1
 $testRider = $userModel->findByEmail('rider@lpg.com');
 if (!$testRider) {
-    $riderPass = password_hash('Rider@2026!', PASSWORD_BCRYPT, ['cost' => 12]);
+    $riderPass = password_hash('password', PASSWORD_BCRYPT, ['cost' => 12]);
     $stmt = $db->prepare("
         INSERT INTO users (full_name, email, password, role, phone, address, status, created_at, updated_at)
         VALUES ('Pedro Reyes', 'rider@lpg.com', ?, 'rider', '09351112222', '456 Mabini Ave, Caloocan City', 'active', NOW(), NOW())
@@ -157,7 +157,7 @@ $riderId = (int)$testRider['id'];
 // Retrieve or create secondary test rider 2 (for concurrency testing)
 $testRider2 = $userModel->findByEmail('rider2@lpg.com');
 if (!$testRider2) {
-    $rider2Pass = password_hash('Rider2@2026!', PASSWORD_BCRYPT, ['cost' => 12]);
+    $rider2Pass = password_hash('password', PASSWORD_BCRYPT, ['cost' => 12]);
     $stmt = $db->prepare("
         INSERT INTO users (full_name, email, password, role, phone, address, status, created_at, updated_at)
         VALUES ('Juan Dela Cruz', 'rider2@lpg.com', ?, 'rider', '09359998888', '789 Rizal Ave, Manila', 'active', NOW(), NOW())
@@ -170,7 +170,7 @@ $rider2Id = (int)$testRider2['id'];
 // Retrieve or create test customer
 $testCustomer = $userModel->findByEmail('customer@lpg.com');
 if (!$testCustomer) {
-    $custPass = password_hash('Customer@2026', PASSWORD_BCRYPT, ['cost' => 12]);
+    $custPass = password_hash('password', PASSWORD_BCRYPT, ['cost' => 12]);
     $stmt = $db->prepare("
         INSERT INTO users (full_name, email, password, role, phone, address, status, created_at, updated_at)
         VALUES ('Janister Singson', 'customer@lpg.com', ?, 'customer', '09171234567', '123 Rizal St, Caloocan City', 'active', NOW(), NOW())
@@ -654,7 +654,7 @@ it('profile.php validates phone format and complexity rules for password change'
     $_SERVER['REQUEST_METHOD'] = 'POST';
     $_POST['csrf_token'] = $token;
     $_POST['action'] = 'change_password';
-    $_POST['current_password'] = 'Rider@2026!';
+    $_POST['current_password'] = 'password';
     $_POST['new_password'] = 'weak';
     $_POST['confirm_new_password'] = 'weak';
 
@@ -670,7 +670,7 @@ it('profile.php validates phone format and complexity rules for password change'
     $_SERVER['REQUEST_METHOD'] = 'POST';
     $_POST['csrf_token'] = $token;
     $_POST['action'] = 'change_password';
-    $_POST['current_password'] = 'Rider@2026!';
+    $_POST['current_password'] = 'password';
     $_POST['new_password'] = $newPass;
     $_POST['confirm_new_password'] = $newPass;
 
@@ -686,7 +686,7 @@ it('profile.php validates phone format and complexity rules for password change'
     assert_true(password_verify($newPass, $updatedRider['password']));
 
     // Restore original password for repeatable test runs
-    $userModel->updatePassword($riderId, 'Rider@2026!');
+    $userModel->updatePassword($riderId, 'password');
 });
 
 // =========================================================================

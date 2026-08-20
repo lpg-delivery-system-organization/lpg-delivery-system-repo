@@ -182,7 +182,7 @@ it('index.php blocks POST login when CSRF token is missing or invalid', function
 
     $_SERVER['REQUEST_METHOD'] = 'POST';
     $_POST['email'] = 'customer@lpg.com';
-    $_POST['password'] = 'Customer@2026';
+    $_POST['password'] = 'password';
     $_POST['csrf_token'] = 'invalid_csrf_token_here';
 
     $errors = [];
@@ -255,7 +255,7 @@ it('index.php successfully authenticates valid customer credentials and establis
 
     $user = $userModel->findByEmail('customer@lpg.com');
     assert_not_empty($user);
-    assert_true(password_verify('Customer@2026', $user['password']));
+    assert_true(password_verify('password', $user['password']));
     assert_equals('active', $user['status']);
 
     login_user($user);

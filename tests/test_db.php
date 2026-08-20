@@ -256,17 +256,17 @@ it("seed user passwords verify with password_verify() and cost 12 bcrypt", funct
     $stmt = $pdo->prepare("SELECT password FROM `users` WHERE email = ?");
     $stmt->execute(['admin@lpg.com']);
     $adminHash = $stmt->fetchColumn();
-    assert_true(password_verify('Admin@2026!', $adminHash), "Admin password verification failed");
+    assert_true(password_verify('password', $adminHash), "Admin password verification failed");
 
     // Verify Rider
     $stmt->execute(['rider@lpg.com']);
     $riderHash = $stmt->fetchColumn();
-    assert_true(password_verify('Rider@2026!', $riderHash), "Rider password verification failed");
+    assert_true(password_verify('password', $riderHash), "Rider password verification failed");
 
     // Verify Customer
     $stmt->execute(['customer@lpg.com']);
     $custHash = $stmt->fetchColumn();
-    assert_true(password_verify('Customer@2026', $custHash), "Customer password verification failed");
+    assert_true(password_verify('password', $custHash), "Customer password verification failed");
 
     return true;
 });

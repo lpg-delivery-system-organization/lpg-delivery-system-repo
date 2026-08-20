@@ -160,7 +160,7 @@ $orderModel = new Order($db);
 // Retrieve or seed standard test accounts
 $testAdmin = $userModel->findByEmail('admin@lpg.com');
 if (!$testAdmin) {
-    $adminPass = password_hash('Admin@2026!', PASSWORD_BCRYPT, ['cost' => 12]);
+    $adminPass = password_hash('password', PASSWORD_BCRYPT, ['cost' => 12]);
     $stmt = $db->prepare("
         INSERT INTO users (full_name, email, password, role, phone, address, status, created_at, updated_at)
         VALUES ('Maria Santos', 'admin@lpg.com', ?, 'admin', '09289876543', 'Admin HQ, Quezon City', 'active', NOW(), NOW())
@@ -171,7 +171,7 @@ if (!$testAdmin) {
 
 $testRider = $userModel->findByEmail('rider@lpg.com');
 if (!$testRider) {
-    $riderPass = password_hash('Rider@2026!', PASSWORD_BCRYPT, ['cost' => 12]);
+    $riderPass = password_hash('password', PASSWORD_BCRYPT, ['cost' => 12]);
     $stmt = $db->prepare("
         INSERT INTO users (full_name, email, password, role, phone, address, status, created_at, updated_at)
         VALUES ('Pedro Reyes', 'rider@lpg.com', ?, 'rider', '09351112222', '456 Mabini Ave, Caloocan City', 'active', NOW(), NOW())
@@ -183,7 +183,7 @@ if (!$testRider) {
 // Second rider for rider permission checks
 $testRider2 = $userModel->findByEmail('rider2@lpg.com');
 if (!$testRider2) {
-    $riderPass = password_hash('Rider2@2026!', PASSWORD_BCRYPT, ['cost' => 12]);
+    $riderPass = password_hash('password', PASSWORD_BCRYPT, ['cost' => 12]);
     $stmt = $db->prepare("
         INSERT INTO users (full_name, email, password, role, phone, address, status, created_at, updated_at)
         VALUES ('Juan Rider Two', 'rider2@lpg.com', ?, 'rider', '09353334444', '789 Rizal St, Pasay City', 'active', NOW(), NOW())
@@ -194,7 +194,7 @@ if (!$testRider2) {
 
 $testCustomer = $userModel->findByEmail('customer@lpg.com');
 if (!$testCustomer) {
-    $custPass = password_hash('Customer@2026', PASSWORD_BCRYPT, ['cost' => 12]);
+    $custPass = password_hash('password', PASSWORD_BCRYPT, ['cost' => 12]);
     $stmt = $db->prepare("
         INSERT INTO users (full_name, email, password, role, phone, address, status, created_at, updated_at)
         VALUES ('Janister Singson', 'customer@lpg.com', ?, 'customer', '09171234567', '123 Rizal St, Caloocan City', 'active', NOW(), NOW())

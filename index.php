@@ -211,15 +211,15 @@ require_once __DIR__ . '/templates/header.php';
                 <div class="row g-2 extra-small">
                     <div class="col-12 border-bottom pb-1">
                         <span class="badge bg-primary me-1">Admin</span>
-                        <code>admin@lpg.com</code> / <code>Admin@2026!</code>
+                        <code>admin@lpg.com</code> / <code>password</code>
                     </div>
                     <div class="col-12 border-bottom pb-1">
                         <span class="badge bg-success me-1">Rider</span>
-                        <code>rider@lpg.com</code> / <code>Rider@2026!</code>
+                        <code>rider@lpg.com</code> / <code>password</code>
                     </div>
                     <div class="col-12">
                         <span class="badge bg-info text-dark me-1">Customer</span>
-                        <code>customer@lpg.com</code> / <code>Customer@2026</code>
+                        <code>customer@lpg.com</code> / <code>password</code>
                     </div>
                 </div>
             </div>

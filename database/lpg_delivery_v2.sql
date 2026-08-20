@@ -92,13 +92,14 @@ CREATE TABLE IF NOT EXISTS `password_resets` (
 -- ==========================================================
 
 -- Seed Users (Bcrypt cost 12 hashes)
--- Admin: admin@lpg.com / Admin@2026!
--- Rider: rider@lpg.com / Rider@2026!
--- Customer: customer@lpg.com / Customer@2026
+-- Password for all default accounts: password
+-- Admin: admin@lpg.com / password
+-- Rider: rider@lpg.com / password
+-- Customer: customer@lpg.com / password
 INSERT INTO `users` (`id`, `full_name`, `email`, `password`, `role`, `phone`, `address`, `valid_id_path`, `status`) VALUES
-(1, 'Maria Santos', 'admin@lpg.com', '$2y$12$y03f/8WkJD1Btk2aWDWiA.EUtcaJ5OE4TgUfdsKQ5dCs68p1M4EvO', 'admin', '09289876543', 'Admin HQ, Quezon City', NULL, 'active'),
-(2, 'Pedro Reyes', 'rider@lpg.com', '$2y$12$v9M6iwKvrWDa2dY6AC1yX.Kmqf3W7VVnAu.GmLT2os4gfslMCS2Xu', 'rider', '09351112222', '456 Mabini Ave, Caloocan City', NULL, 'active'),
-(3, 'Janister Singson', 'customer@lpg.com', '$2y$12$4WPd8RTR/0mnPWWZmoRggu4zNAgw.mSEXwkGPkedctgvFjOnB7s1S', 'customer', '09171234567', '123 Rizal St, Caloocan City', NULL, 'active')
+(1, 'Maria Santos', 'admin@lpg.com', '$2y$12$15QLNpW9lmVDUKq.xhULUeHe/ow7ZCnz8wrUpOj8BpmMFZIzUtoqy', 'admin', '09289876543', 'Admin HQ, Quezon City', NULL, 'active'),
+(2, 'Pedro Reyes', 'rider@lpg.com', '$2y$12$15QLNpW9lmVDUKq.xhULUeHe/ow7ZCnz8wrUpOj8BpmMFZIzUtoqy', 'rider', '09351112222', '456 Mabini Ave, Caloocan City', NULL, 'active'),
+(3, 'Janister Singson', 'customer@lpg.com', '$2y$12$15QLNpW9lmVDUKq.xhULUeHe/ow7ZCnz8wrUpOj8BpmMFZIzUtoqy', 'customer', '09171234567', '123 Rizal St, Caloocan City', NULL, 'active')
 ON DUPLICATE KEY UPDATE
     `full_name` = VALUES(`full_name`),
     `password` = VALUES(`password`),
