@@ -10,7 +10,7 @@ if (file_exists(__DIR__ . '/../config/app.php')) {
 }
 
 if (!defined('BASE_URL')) {
-    define('BASE_URL', '/lpg-delivery-system-repo-2');
+    define('BASE_URL', '/lpg-delivery-system-repo');
 }
 if (!defined('UPLOAD_PATH')) {
     define('UPLOAD_PATH', dirname(__DIR__) . '/uploads');
@@ -37,7 +37,7 @@ function url(string $path = ''): string {
         return $path;
     }
 
-    $baseUrl = defined('BASE_URL') ? BASE_URL : '/lpg-delivery-system-repo-2';
+    $baseUrl = defined('BASE_URL') ? BASE_URL : '/lpg-delivery-system-repo';
     $trimmedBase = rtrim($baseUrl, '/');
 
     if ($path === '/' || $path === '') {

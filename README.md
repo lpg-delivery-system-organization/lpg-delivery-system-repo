@@ -106,7 +106,7 @@ The legacy Version 1 codebase was a client-heavy, non-transactional prototype la
 ## Directory & File Structure
 
 ```
-lpg-delivery-system-repo-2/
+lpg-delivery-system-repo/
 ├── .htaccess                 # Main Apache configuration (URL rewrites, headers)
 ├── README.md                 # Project documentation
 ├── index.php                 # Landing page & user login form
@@ -207,13 +207,13 @@ lpg-delivery-system-repo-2/
 Clone or extract the project folder into your XAMPP web root directory:
 ```bash
 # macOS XAMPP path
-/Applications/XAMPP/xamppfiles/htdocs/lpg-delivery-system-repo-2
+/Applications/XAMPP/xamppfiles/htdocs/lpg-delivery-system-repo
 
 # Windows XAMPP path
-C:\xampp\htdocs\lpg-delivery-system-repo-2
+C:\xampp\htdocs\lpg-delivery-system-repo
 
 # Linux XAMPP path
-/opt/lampp/htdocs/lpg-delivery-system-repo-2
+/opt/lampp/htdocs/lpg-delivery-system-repo
 ```
 
 ### 3. Database Import
@@ -224,7 +224,7 @@ C:\xampp\htdocs\lpg-delivery-system-repo-2
 5. Alternatively, run via command line:
    ```bash
    mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS lpg_delivery_v2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-   mysql -u root -p lpg_delivery_v2 < /Applications/XAMPP/xamppfiles/htdocs/lpg-delivery-system-repo-2/database/lpg_delivery_v2.sql
+   mysql -u root -p lpg_delivery_v2 < /Applications/XAMPP/xamppfiles/htdocs/lpg-delivery-system-repo/database/lpg_delivery_v2.sql
    ```
 
 ### 4. Configuration
@@ -246,7 +246,7 @@ Review and edit configuration files in the `config/` directory if your environme
   ```php
   return [
       'app_name' => 'LPG Delivery System',
-      'base_url' => 'http://localhost/lpg-delivery-system-repo-2',
+      'base_url' => 'http://localhost/lpg-delivery-system-repo',
       'session_timeout' => 1800, // 30 minutes
       'env'      => 'development'
   ];
@@ -258,13 +258,13 @@ Review and edit configuration files in the `config/` directory if your environme
 ### 5. Verify Permissions
 Ensure the upload directory is writable by the web server:
 ```bash
-chmod -R 775 uploads/kyc_ids/
+chmod -R 775 uploads/ids/
 ```
 
 ### 6. Accessing the Application
 Open your web browser and navigate to:
 ```
-http://localhost/lpg-delivery-system-repo-2/
+http://localhost/lpg-delivery-system-repo/
 ```
 
 ---

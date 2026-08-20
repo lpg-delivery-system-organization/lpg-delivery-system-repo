@@ -4,7 +4,7 @@
  * LPG Delivery System v2
  */
 
-$baseUrl = '/lpg-delivery-system-repo-2';
+$baseUrl = '/lpg-delivery-system-repo';
 $appName = 'LPG Delivery System';
 $uploadPath = dirname(__DIR__) . '/uploads';
 

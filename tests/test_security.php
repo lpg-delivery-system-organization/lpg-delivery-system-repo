@@ -479,9 +479,9 @@ it('e helper escapes XSS payloads and handles null values', function () {
 });
 
 it('url helper formats paths and preserves absolute URLs', function () {
-    assert_equals('/lpg-delivery-system-repo-2/customer/orders.php', url('/customer/orders.php'));
-    assert_equals('/lpg-delivery-system-repo-2/login.php', url('login.php'));
-    assert_equals('/lpg-delivery-system-repo-2/', url('/'));
+    assert_equals('/lpg-delivery-system-repo/customer/orders.php', url('/customer/orders.php'));
+    assert_equals('/lpg-delivery-system-repo/login.php', url('login.php'));
+    assert_equals('/lpg-delivery-system-repo/', url('/'));
     assert_equals('https://maps.googleapis.com/maps/api', url('https://maps.googleapis.com/maps/api'));
     assert_equals('http://example.com/webhook', url('http://example.com/webhook'));
 });

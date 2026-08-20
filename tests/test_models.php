@@ -651,7 +651,7 @@ it("Mailer::sendResetEmail formats HTML and includes token link", function() use
     Mailer::clearSentLogs();
     $token = bin2hex(random_bytes(32));
 
-    $sent = $mailer->sendResetEmail('janister@example.com', $token, 'Janister', 'http://localhost/lpg-delivery-system-repo-2');
+    $sent = $mailer->sendResetEmail('janister@example.com', $token, 'Janister', 'http://localhost/lpg-delivery-system-repo');
     assert_true($sent, "sendResetEmail must return true");
 
     $last = Mailer::getLastSent();
