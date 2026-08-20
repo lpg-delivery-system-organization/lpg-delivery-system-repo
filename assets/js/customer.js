@@ -219,18 +219,166 @@
             e.preventDefault();
             const orderId = $(this).data('order-id');
             $('#cancelModalOrderId').val(orderId);
+            $('#cancel_order_id').val(orderId);
             $('#cancelModalOrderNumber').text('#' + orderId);
+            $('#cancelOrderModalDisplayId').text('#' + orderId);
 
             const modalEl = document.getElementById('cancelOrderModal');
             if (modalEl && window.bootstrap && window.bootstrap.Modal) {
-                const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
-                modal.show();
+                const cancelModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                cancelModal.show();
+            }
+        });
+
+        // Initialize Live GPS Maps
+        initLiveTrackingMaps();
+    }
+
+    // =========================================================================
+    // 2.1 Live GPS Map Tracking (Leaflet Integration)
+    // =========================================================================
+    const activeMapInstances = {};
+    const activeMapIntervals = {};
+
+    function initLiveTrackingMaps() {
+        if (typeof window.L === 'undefined') {
+            return;
+        }
+
+        $('.order-live-map').each(function () {
+            const $mapEl = $(this);
+            const orderId = parseInt($mapEl.data('map-order-id'), 10);
+            if (!orderId || activeMapInstances[orderId]) {
+                return;
+            }
+
+            const mapContainerId = 'map-' + orderId;
+            const $statusText = $('#map-status-text-' + orderId);
+            const riderName = $mapEl.data('rider-name') || 'Delivery Rider';
+            const customerAddress = $mapEl.data('customer-address') || 'Delivery Address';
+            const orderStatus = ($mapEl.data('status') || '').toLowerCase();
+
+            // Pseudo-random deterministic coords based on orderId around Manila / QC
+            const offset = (orderId % 10) * 0.004;
+            const customerCoord = [14.6091 + offset, 120.9822 + offset];
+            let riderCoord = [14.5950 + offset, 120.9680 + offset];
+
+            // If already picked up or out for delivery, set initial map view
+            const map = L.map(mapContainerId, {
+                zoomControl: true,
+                scrollWheelZoom: false
+            }).setView(customerCoord, 14);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Custom Customer Destination Marker
+            const customerIcon = L.divIcon({
+                className: 'customer-marker-wrapper',
+                html: '<div class="customer-marker-icon" style="width:34px;height:34px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:16px;">📍</div>',
+                iconSize: [34, 34],
+                iconAnchor: [17, 34],
+                popupAnchor: [0, -30]
+            });
+
+            const customerMarker = L.marker(customerCoord, { icon: customerIcon })
+                .addTo(map)
+                .bindPopup('<strong>📍 Delivery Destination</strong><br>' + $('<div>').text(customerAddress).html());
+
+            // Custom Rider Marker
+            const riderIcon = L.divIcon({
+                className: 'rider-marker-wrapper',
+                html: '<div class="rider-marker-icon" style="width:36px;height:36px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:18px;">🚴</div>',
+                iconSize: [36, 36],
+                iconAnchor: [18, 18],
+                popupAnchor: [0, -20]
+            });
+
+            const riderMarker = L.marker(riderCoord, { icon: riderIcon })
+                .addTo(map)
+                .bindPopup('<strong>🚴 ' + $('<div>').text(riderName).html() + '</strong><br>En route with your LPG cylinder')
+                .openPopup();
+
+            // Route Polyline
+            const routeLine = L.polyline([riderCoord, customerCoord], {
+                color: '#2563eb',
+                weight: 4,
+                opacity: 0.85,
+                dashArray: '8, 8',
+                lineCap: 'round'
+            }).addTo(map);
+
+            // Fit bounds nicely
+            const bounds = L.latLngBounds([riderCoord, customerCoord]);
+            map.fitBounds(bounds, { padding: [40, 40] });
+
+            activeMapInstances[orderId] = map;
+
+            // Live Animated Rider Movement Simulation
+            function stepRiderMovement() {
+                const latDiff = customerCoord[0] - riderCoord[0];
+                const lngDiff = customerCoord[1] - riderCoord[1];
+                const distanceRemaining = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+                if (distanceRemaining < 0.0006) {
+                    if (activeMapIntervals[orderId]) {
+                        clearInterval(activeMapIntervals[orderId]);
+                    }
+                    riderMarker.setLatLng(customerCoord);
+                    routeLine.setLatLngs([customerCoord, customerCoord]);
+                    riderMarker.bindPopup('<strong>✅ Rider has arrived!</strong><br>' + $('<div>').text(riderName).html() + ' is at your doorstep.').openPopup();
+                    if ($statusText.length) {
+                        $statusText.removeClass('text-primary').addClass('text-success fw-bold').html('<i class="bi bi-check-circle-fill me-1"></i>Rider has arrived at your location!');
+                    }
+                    return;
+                }
+
+                // Advance rider 4.5% of remaining distance per tick
+                riderCoord[0] += latDiff * 0.045;
+                riderCoord[1] += lngDiff * 0.045;
+
+                riderMarker.setLatLng(riderCoord);
+                routeLine.setLatLngs([riderCoord, customerCoord]);
+
+                if ($statusText.length) {
+                    const progressPercent = Math.min(95, Math.round((1 - (distanceRemaining / 0.022)) * 100));
+                    $statusText.html('<i class="bi bi-bicycle me-1"></i>' + $('<div>').text(riderName).html() + ' is on the way (' + Math.max(5, progressPercent) + '% arrived)');
+                }
+            }
+
+            activeMapIntervals[orderId] = setInterval(stepRiderMovement, 1200);
+        });
+
+        // Toggle map view collapse button
+        $(document).on('click', '.btn-toggle-order-map', function (e) {
+            e.preventDefault();
+            const targetSelector = $(this).data('target');
+            const $target = $(targetSelector);
+            const $icon = $(this).find('i');
+
+            if ($target.hasClass('show')) {
+                $target.collapse('hide');
+                $icon.removeClass('bi-chevron-up').addClass('bi-chevron-down');
+            } else {
+                $target.collapse('show');
+                $icon.removeClass('bi-chevron-down').addClass('bi-chevron-up');
+                
+                // Invalidate leaflet size after animation
+                setTimeout(function () {
+                    for (const id in activeMapInstances) {
+                        if (activeMapInstances[id]) {
+                            activeMapInstances[id].invalidateSize();
+                        }
+                    }
+                }, 350);
             }
         });
     }
 
     // =========================================================================
-    // 3. Profile Page: Password Checklist & Phone Input Formatter
+    // 3. Customer Profile Interactivity
     // =========================================================================
     function initProfileInteractivity() {
         const $profileForm = $('#customerProfileForm');
@@ -238,10 +386,11 @@
 
         // Philippine mobile number formatter / validation feedback
         $('#phone').on('input', function () {
-            const val = $(this).val().replace(/\D/g, '');
+            let val = $(this).val().replace(/\D/g, '');
+            if (val.length > 11) val = val.substring(0, 11);
             $(this).val(val);
-            const isValid = /^09\d{9}$/.test(val);
-            if (val.length === 11 && isValid) {
+
+            if (val.length === 11 && val.startsWith('09')) {
                 $(this).removeClass('is-invalid').addClass('is-valid');
             } else if (val.length > 0) {
                 $(this).removeClass('is-valid').addClass('is-invalid');

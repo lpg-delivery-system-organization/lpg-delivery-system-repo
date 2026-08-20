@@ -282,6 +282,41 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Live GPS Delivery Tracking Map (for In-Transit Orders) -->
+                        <?php if ($isInTransit): ?>
+                            <div class="mt-4 pt-3 border-top">
+                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="live-pulse-dot"></span>
+                                        <strong class="text-dark small"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Live Delivery Tracking</strong>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle extra-small">
+                                            <?= $status === 'picked_up' ? 'Rider Picked Up Cylinder' : 'Out for Delivery' ?>
+                                        </span>
+                                    </div>
+                                    <div class="small text-muted">
+                                        <span>Rider: <strong><?= e($riderName ?: 'Assigned Rider') ?></strong></span>
+                                        <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 ms-2 btn-toggle-order-map" data-target="#map-collapse-<?= $orderId ?>">
+                                            <i class="bi bi-chevron-up"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="collapse show" id="map-collapse-<?= $orderId ?>">
+                                    <div id="map-<?= $orderId ?>" 
+                                         class="order-live-map shadow-sm"
+                                         data-map-order-id="<?= $orderId ?>"
+                                         data-rider-name="<?= e($riderName ?: 'Delivery Rider') ?>"
+                                         data-customer-address="<?= e($deliveryAddress) ?>"
+                                         data-status="<?= e($status) ?>">
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mt-2 px-1 extra-small text-muted">
+                                        <span><i class="bi bi-info-circle me-1"></i>Live simulated rider dispatch to <?= e($deliveryAddress) ?></span>
+                                        <span id="map-status-text-<?= $orderId ?>" class="fw-semibold text-primary">🚴 Rider is en route...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Card Footer -->

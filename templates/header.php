@@ -49,6 +49,9 @@ if ($loggedIn) {
     <!-- Bootstrap Icons 1.11.3 CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
+    <!-- Leaflet Map CSS CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
     <!-- Custom Application CSS -->
     <link rel="stylesheet" href="<?= asset('assets/css/app.css') ?>">
 </head>
