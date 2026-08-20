@@ -82,6 +82,26 @@ function redirect(string $path): void {
 }
 
 /**
+ * Redirect an authenticated user to their role-appropriate portal / dashboard
+ *
+ * @param string|null $role
+ * @return void
+ */
+function redirect_by_role(?string $role = null): void {
+    if ($role === null) {
+        $role = function_exists('current_user_role') ? current_user_role() : ($_SESSION['user_role'] ?? 'customer');
+    }
+
+    if ($role === 'admin') {
+        redirect('/pages/admin/dashboard.php');
+    } elseif ($role === 'rider') {
+        redirect('/pages/rider/deliveries.php');
+    } else {
+        redirect('/pages/customer/shop.php');
+    }
+}
+
+/**
  * Set a flash notification message in the session
  *
  * @param string $type ('success', 'error', 'warning', 'info')
