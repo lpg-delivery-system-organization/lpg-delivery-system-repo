@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LPG Delivery</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <!-- ADD THIS inside <head> (below fonts) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+
+  <!-- ============================
+     SCREEN 1: ROLE SELECT
+============================= -->
+  <div id="screen-role" class="screen">
+    <div class="role-logo">🔥</div>
+    <div class="role-title">LPG Delivery</div>
+    <div class="role-sub">Select your role to continue</div>
+    <div class="role-cards">
+      <div class="role-card" onclick="selectRole('customer')">
+        <div class="role-icon customer">👤</div>
+        <div class="role-info">
+          <h3>Customer</h3>
+          <p>Order LPG for delivery</p>
+        </div>
+      </div>
+      <div class="role-card" onclick="selectRole('admin')">
+        <div class="role-icon admin">🛡️</div>
+        <div class="role-info">
+          <h3>Admin</h3>
+          <p>Manage orders &amp; inventory</p>
+        </div>
+      </div>
+      <div class="role-card" onclick="selectRole('rider')">
+        <div class="role-icon rider">🚴</div>
+        <div class="role-info">
+          <h3>Rider</h3>
+          <p>Deliver LPG to customers</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================
+     SCREEN 2: AUTH
+============================= -->
+  <div id="screen-auth" class="screen active">
+    <div class="auth-back" onclick="goBack()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M19 12H5M5 12l7 7M5 12l7-7" />
+      </svg>
+      Back
+    </div>
+    <div class="auth-body">
+      <div class="auth-role-badge" id="auth-role-badge">👤</div>
+      <div class="auth-title" id="auth-title">Welcome Back</div>
+      <div class="auth-sub" id="auth-sub">Sign in to your account</div>
+
+      <div class="auth-form">
+        <div class="auth-error" id="auth-error"></div>
+
+        <!-- REGISTER ONLY -->
+        <div class="field reg-extra" id="reg-name-field">
+          <label>Full Name</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="7" r="4" />
+              <path d="M5.5 21a8.38 8.38 0 0113 0" />
+            </svg>
+            <input type="text" id="reg-name" placeholder="Your full name" />
+          </div>
+        </div>
+        <div class="field reg-extra" id="reg-phone-field">
+          <label>Phone Number</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 .99h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7a2 2 0 011.72 2.02z" />
+            </svg>
+            <input type="text" id="reg-phone" placeholder="e.g. 09171234567" />
+          </div>
+        </div>
+        <div class="field reg-extra" id="reg-address-field">
+          <label>Delivery Address</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <input type="text" id="reg-address" placeholder="Your delivery address" />
+          </div>
+        </div>
+        <div class="field reg-extra" id="reg-id-field">
+          <label>Upload Valid ID</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M7 9h.01M17 9h.01M7 13h4M17 13h.01" />
+            </svg>
+            <input type="file" id="reg-id" accept="image/*,.pdf" placeholder="Upload your valid ID (Image or PDF)" />
+          </div>
+        </div>
+
+        <!-- ALWAYS -->
+        <div class="field">
+          <label>Email</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M2 8l10 6 10-6" />
+            </svg>
+            <input type="email" id="auth-email" placeholder="your@email.com" />
+          </div>
+        </div>
+        <div class="field" id="password-field">
+          <label>Password</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+            <input type="password" id="auth-password" placeholder="••••••••" />
+            <button type="button" class="eye-btn" id="eye-btn" onclick="togglePasswordVisibility()" aria-label="Show password">
+              <svg id="eye-icon-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg id="eye-icon-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+<!-- PASSWORD STRENGTH CHECKLIST (show during register) -->
+        <div class="pw-checklist reg-extra" id="pw-checklist">
+          <div class="pw-checklist-title">Password must contain:</div>
+          <div class="pw-req" id="pw-req-len"><span class="pw-check">○</span> At least 8 characters</div>
+          <div class="pw-req" id="pw-req-upper"><span class="pw-check">○</span> One uppercase letter (A-Z)</div>
+          <div class="pw-req" id="pw-req-lower"><span class="pw-check">○</span> One lowercase letter (a-z)</div>
+          <div class="pw-req" id="pw-req-num"><span class="pw-check">○</span> One number (0-9)</div>
+          <div class="pw-req" id="pw-req-special"><span class="pw-check">○</span> One special character (!@#$%^&*)</div>
+        </div>
+
+        <!-- FORGOT PASSWORD ONLY -->
+        <div class="field forgot-extra" id="forgot-email-field">
+          <label>Email</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M2 8l10 6 10-6" />
+            </svg>
+            <input type="email" id="forgot-email" placeholder="your@email.com" />
+          </div>
+        </div>
+        <!-- FORGOT STEP 2: VERIFICATION CODE -->
+        <div class="field forgot-role" id="forgot-code-field">
+          <label>Verification Code</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+            <input type="text" id="forgot-code" placeholder="6-digit code from your email" maxlength="6" />
+          </div>
+          <div style="font-size:14px;color:var(--text-muted);margin-top:6px;">Check your email for the 6-digit verification code.</div>
+        </div>
+        <!-- FORGOT STEP 3: NEW PASSWORD -->
+        <div class="field forgot-role" id="forgot-password-field">
+          <label>New Password</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+            <input type="password" id="forgot-newpass" placeholder="Enter a new password (min 6 chars)" />
+          </div>
+        </div>
+        <div class="field forgot-role" id="forgot-confirm-field">
+          <label>Confirm New Password</label>
+          <div class="input-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+            <input type="password" id="forgot-confirm" placeholder="Re-enter your new password" />
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="auth-btn" onclick="handleAuth()">Login</button>
+        <div class="auth-link" id="auth-toggle-link" style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:var(--blue); font-weight:600; cursor:pointer;" onclick="toggleForgotMode()">Forgot Password?</span>
+          <span onclick="toggleAuthMode()">Sign Up</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================
+     SCREEN 3: APP
+============================= -->
+  <div id="screen-app" class="screen">
+    <!-- TOP NAV -->
+    <nav class="topnav">
+      <div class="nav-brand">
+        <div class="nav-brand-icon">🔥</div>
+        LPG Delivery
+      </div>
+      <div class="nav-right">
+        <div class="nav-user">
+          <div class="nav-avatar" id="nav-avatar">J</div>
+          <span id="nav-username">User</span>
+        </div>
+        <button class="nav-logout" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <!-- TABS -->
+    <div class="tabs" id="app-tabs"></div>
+
+    <!-- CONTENT -->
+    <div class="app-content">
+
+      <!-- ===== CUSTOMER PANELS ===== -->
+      <div id="panel-shop" class="panel">
+        <div class="page-title">Order LPG</div>
+        <div class="page-sub">Choose a product to order</div>
+        <div class="products-grid" id="products-grid"></div>
+        <div class="order-panel" id="order-panel" style="display:none">
+          <h3>📦 Order Details</h3>
+          <div style="margin-bottom:14px; font-size:16px; color:var(--text-muted)">Selected: <strong
+              id="sel-product-name">—</strong></div>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty(-1)">−</button>
+            <span class="qty-val" id="qty-val">1</span>
+            <button class="qty-btn" onclick="changeQty(1)">+</button>
+            <span style="font-size:15px; color:var(--text-muted)">cylinders</span>
+          </div>
+          <div class="order-summary">
+            <div class="order-sum-row"><span>Unit Price</span><span id="sum-unit">₱0</span></div>
+            <div class="order-sum-row"><span>Quantity</span><span id="sum-qty">x1</span></div>
+            <div class="order-sum-row total"><span>Total</span><span id="sum-total">₱0</span></div>
+          </div>
+          <div class="payment-section">
+            <label>💳 Mode of Payment</label>
+            <div class="payment-options">
+              <div class="payment-opt selected" id="pay-cod" onclick="selectPayment('cod')">
+                <div class="payment-opt-icon">💵</div>
+                <div class="payment-opt-info">
+                  <div class="payment-opt-name">Cash on Delivery</div>
+                  <div class="payment-opt-desc">Pay when delivered</div>
+                </div>
+                <div class="payment-opt-check"></div>
+              </div>
+              <div class="payment-opt" id="pay-gcash" onclick="selectPayment('gcash')">
+                <div class="payment-opt-icon">📱</div>
+                <div class="payment-opt-info">
+                  <div class="payment-opt-name">GCash</div>
+                  <div class="payment-opt-desc">Mobile wallet</div>
+                </div>
+                <div class="payment-opt-check"></div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="placeOrder()">Place Order</button>
+        </div>
+      </div>
+
+      <div id="panel-my-orders" class="panel">
+        <div class="page-title">My Orders</div>
+        <div class="page-sub">Track your LPG deliveries</div>
+        <div id="my-orders-list"></div>
+      </div>
+
+      <div id="panel-c-profile" class="panel">
+        <div class="page-title">My Profile</div>
+        <div class="page-sub">Your account information</div>
+        <div id="c-profile-content"></div>
+      </div>
+
+      <!-- ===== ADMIN PANELS ===== -->
+      <div id="panel-dashboard" class="panel">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Overview of operations</div>
+        <div class="stats-grid" id="admin-stats"></div>
+        <div class="table-wrap">
+          <div class="table-head">
+            <h3>Recent Orders</h3>
+          </div>
+          <div style="overflow-x:auto">
+            <table id="admin-recent-table"></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-orders" class="panel">
+        <div class="page-title">All Orders</div>
+        <div class="page-sub">Manage and update order statuses</div>
+        <div class="table-wrap">
+          <div style="overflow-x:auto">
+            <table id="admin-orders-table"></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-inventory" class="panel">
+        <div class="page-title">Inventory</div>
+        <div class="page-sub">Manage LPG stock levels</div>
+        <div class="table-wrap">
+          <div style="overflow-x:auto">
+            <table id="inventory-table"></table>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-users" class="panel">
+        <div class="page-title">Users</div>
+        <div class="page-sub">Registered accounts</div>
+        <div class="table-wrap">
+          <div style="overflow-x:auto">
+            <table id="users-table"></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== RIDER PANELS ===== -->
+      <div id="panel-assignments" class="panel">
+        <div class="page-title">My Deliveries</div>
+        <div class="page-sub">Orders assigned to you</div>
+        <div id="rider-assignments"></div>
+      </div>
+
+      <div id="panel-available" class="panel">
+        <div class="page-title">Available Orders</div>
+        <div class="page-sub">Pick up an order to deliver</div>
+        <div id="rider-available"></div>
+      </div>
+
+      <div id="panel-r-profile" class="panel">
+        <div class="page-title">My Profile</div>
+        <div class="page-sub">Your rider information</div>
+        <div id="r-profile-content"></div>
+      </div>
+
+    </div><!-- /app-content -->
+  </div><!-- /screen-app -->
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <span class="modal-icon" id="modal-icon">✅</span>
+      <div class="modal-title" id="modal-title">Success</div>
+      <div class="modal-msg" id="modal-msg"></div>
+      <div class="modal-btns" id="modal-btns"></div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
