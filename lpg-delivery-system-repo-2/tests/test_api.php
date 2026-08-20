@@ -726,7 +726,7 @@ it('Admin retrieves order details (get_order)', function () use ($ordersApi, $te
     assert_equals(200, $res['code']);
     assert_true($res['data']['success'] ?? false);
     assert_equals($orderId, (int)$res['data']['data']['id']);
-    assert_equals('Janister Singson', $res['data']['data']['customer_name']);
+    assert_equals($testCustomer['full_name'], $res['data']['data']['customer_name']);
 });
 
 // =========================================================================
