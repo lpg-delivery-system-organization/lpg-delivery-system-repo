@@ -1,0 +1,24 @@
+# LPG Delivery System v2 - API Security Configuration
+# Disables directory listings, denies access to dotfiles, and attaches security headers
+
+# Disable directory indexing
+Options -Indexes
+
+# Protect hidden files (e.g. .htaccess, .env, .git)
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Security HTTP Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
