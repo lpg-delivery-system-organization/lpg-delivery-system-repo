@@ -38,14 +38,27 @@ function url(string $path = ''): string {
     }
 
     $baseUrl = defined('BASE_URL') ? BASE_URL : '/lpg-delivery-system-repo';
+
+    // Adaptively detect if running under virtualhost root or subfolder
+    if (isset($_SERVER['SCRIPT_NAME']) && isset($_SERVER['HTTP_HOST'])) {
+        $scriptPath = $_SERVER['SCRIPT_NAME'];
+        if (str_starts_with($scriptPath, '/lpg-delivery-system-repo')) {
+            $baseUrl = '/lpg-delivery-system-repo';
+        } elseif (str_starts_with($scriptPath, '/pages/')) {
+            $baseUrl = '';
+        } elseif ($scriptPath === '/index.php' || $scriptPath === '/register.php' || $scriptPath === '/forgot-password.php' || $scriptPath === '/logout.php') {
+            $baseUrl = '';
+        }
+    }
+
     $trimmedBase = rtrim($baseUrl, '/');
 
     if ($path === '/' || $path === '') {
-        return $trimmedBase . ($path === '/' ? '/' : '');
+        return $trimmedBase !== '' ? $trimmedBase . '/' : '/';
     }
 
     $trimmedPath = ltrim($path, '/');
-    return $trimmedBase . '/' . $trimmedPath;
+    return ($trimmedBase !== '' ? $trimmedBase . '/' : '/') . $trimmedPath;
 }
 
 /**

@@ -1,0 +1,3 @@
+[      41ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8888/lpg-delivery-system-repo/assets/css/app.css:0
+[      42ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8888/lpg-delivery-system-repo/assets/js/app.js:0
+[     277ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8888/favicon.ico:0

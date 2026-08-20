@@ -325,7 +325,19 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <span class="text-muted small">Total Amount:</span>
                             <span class="fs-5 fw-bold text-dark"><?= e(format_currency($totalAmount)) ?></span>
                         </div>
-                        <div class="d-flex gap-2">
+                        <div class="d-flex gap-2 flex-wrap">
+                            <?php if ($isInTransit): ?>
+                                <button type="button" 
+                                        class="btn btn-primary btn-sm px-3 btn-track-live-map shadow-sm" 
+                                        data-order-id="<?= $orderId ?>"
+                                        data-rider-name="<?= e($riderName ?: 'Pedro Reyes (Rider)') ?>"
+                                        data-customer-address="<?= e($deliveryAddress ?: 'Delivery Address') ?>"
+                                        data-status="<?= e($status) ?>"
+                                        data-status-label="<?= $status === 'picked_up' ? 'Picked Up & En Route' : ($status === 'out_for_delivery' ? 'Out for Delivery' : 'Delivery in Progress') ?>">
+                                    <i class="bi bi-geo-alt-fill me-1"></i>Track Live Map
+                                </button>
+                            <?php endif; ?>
+
                             <?php if ($isPending): ?>
                                 <button type="button" 
                                         class="btn btn-outline-danger btn-sm btn-open-cancel-modal px-3" 
@@ -378,6 +390,48 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <button type="submit" class="btn btn-danger px-4 fw-semibold">Yes, Cancel Order</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Live Delivery Tracking Map Modal -->
+<div class="modal fade" id="liveTrackingMapModal" tabindex="-1" aria-labelledby="liveTrackingMapModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+            <div class="modal-header bg-dark text-white py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="live-pulse-dot"></span>
+                    <h5 class="modal-title fw-bold mb-0" id="liveTrackingMapModalLabel">
+                        <i class="bi bi-geo-alt-fill text-danger me-2"></i>Live Delivery Tracking &bull; Order <span id="modalOrderDisplayId" class="text-warning">#0</span>
+                    </h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Status & Rider Header -->
+                <div class="p-3 bg-light border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="p-2 bg-primary text-white rounded-circle fs-4 d-flex align-items-center justify-content-center" style="width: 46px; height: 46px;">
+                            <i class="bi bi-bicycle"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark fs-6" id="modalRiderName">Assigned Rider: Pedro Reyes</div>
+                            <div class="extra-small text-muted" id="modalDeliveryAddress">Destination: 123 Rizal St, Caloocan City</div>
+                        </div>
+                    </div>
+                    <div class="text-md-end">
+                        <span id="modalStatusBadge" class="badge bg-primary fs-6 px-3 py-2">In Transit</span>
+                        <div id="modalEtaText" class="extra-small text-muted mt-1 fw-semibold text-primary">🚴 Rider is en route to your location...</div>
+                    </div>
+                </div>
+
+                <!-- Leaflet Map Container -->
+                <div id="modal-live-map" style="height: 420px; width: 100%; position: relative; z-index: 1;"></div>
+            </div>
+            <div class="modal-footer bg-light py-2 px-3 d-flex justify-content-between align-items-center">
+                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Real-time GPS simulation powered by OpenStreetMap & Leaflet</small>
+                <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>

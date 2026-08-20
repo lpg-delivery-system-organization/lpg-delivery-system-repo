@@ -375,6 +375,140 @@
                 }, 350);
             }
         });
+
+        // Dedicated Modal Live Tracking Map Handler
+        let modalMapInstance = null;
+        let modalMapInterval = null;
+
+        $(document).on('click', '.btn-track-live-map', function (e) {
+            e.preventDefault();
+            const $btn = $(this);
+            const orderId = $btn.data('order-id');
+            const riderName = $btn.data('rider-name') || 'Pedro Reyes (Rider)';
+            const customerAddress = $btn.data('customer-address') || 'Delivery Address';
+            const status = ($btn.data('status') || '').toLowerCase();
+            const statusLabel = $btn.data('status-label') || 'In Transit';
+
+            $('#modalOrderDisplayId').text('#' + orderId);
+            $('#modalRiderName').text('Assigned Rider: ' + riderName);
+            $('#modalDeliveryAddress').text('Destination: ' + customerAddress);
+            $('#modalStatusBadge').text(statusLabel);
+            $('#modalEtaText').text('🚴 ' + riderName + ' is en route...');
+
+            const modalEl = document.getElementById('liveTrackingMapModal');
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            }
+
+            // Also open inline collapsible if present
+            const targetCollapse = $btn.data('target');
+            if (targetCollapse && $(targetCollapse).length) {
+                $(targetCollapse).collapse('show');
+            }
+
+            // Setup modal map once modal is shown
+            $('#liveTrackingMapModal').one('shown.bs.modal', function () {
+                if (typeof window.L === 'undefined') return;
+
+                if (modalMapInterval) {
+                    clearInterval(modalMapInterval);
+                    modalMapInterval = null;
+                }
+                if (modalMapInstance) {
+                    modalMapInstance.remove();
+                    modalMapInstance = null;
+                }
+
+                const offset = (orderId % 10) * 0.004;
+                const customerCoord = [14.6091 + offset, 120.9822 + offset];
+                let riderCoord = [14.5950 + offset, 120.9680 + offset];
+
+                modalMapInstance = L.map('modal-live-map', {
+                    zoomControl: true
+                }).setView(customerCoord, 14);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(modalMapInstance);
+
+                const customerIcon = L.divIcon({
+                    className: 'customer-marker-wrapper',
+                    html: '<div class="customer-marker-icon" style="width:36px;height:36px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:18px;">📍</div>',
+                    iconSize: [36, 36],
+                    iconAnchor: [18, 36],
+                    popupAnchor: [0, -32]
+                });
+
+                const customerMarker = L.marker(customerCoord, { icon: customerIcon })
+                    .addTo(modalMapInstance)
+                    .bindPopup('<strong>📍 Delivery Destination</strong><br>' + $('<div>').text(customerAddress).html());
+
+                const riderIcon = L.divIcon({
+                    className: 'rider-marker-wrapper',
+                    html: '<div class="rider-marker-icon" style="width:40px;height:40px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:20px;">🚴</div>',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20],
+                    popupAnchor: [0, -22]
+                });
+
+                const riderMarker = L.marker(riderCoord, { icon: riderIcon })
+                    .addTo(modalMapInstance)
+                    .bindPopup('<strong>🚴 ' + $('<div>').text(riderName).html() + '</strong><br>LPG Cylinder En Route')
+                    .openPopup();
+
+                const routeLine = L.polyline([riderCoord, customerCoord], {
+                    color: '#2563eb',
+                    weight: 5,
+                    opacity: 0.85,
+                    dashArray: '8, 8',
+                    lineCap: 'round'
+                }).addTo(modalMapInstance);
+
+                const bounds = L.latLngBounds([riderCoord, customerCoord]);
+                modalMapInstance.fitBounds(bounds, { padding: [50, 50] });
+
+                modalMapInstance.invalidateSize();
+
+                function stepModalRiderMovement() {
+                    const latDiff = customerCoord[0] - riderCoord[0];
+                    const lngDiff = customerCoord[1] - riderCoord[1];
+                    const distanceRemaining = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+                    if (distanceRemaining < 0.0006) {
+                        if (modalMapInterval) {
+                            clearInterval(modalMapInterval);
+                            modalMapInterval = null;
+                        }
+                        riderMarker.setLatLng(customerCoord);
+                        routeLine.setLatLngs([customerCoord, customerCoord]);
+                        riderMarker.bindPopup('<strong>✅ Rider has arrived!</strong><br>' + $('<div>').text(riderName).html() + ' is at your doorstep.').openPopup();
+                        $('#modalEtaText').removeClass('text-primary').addClass('text-success fw-bold').html('<i class="bi bi-check-circle-fill me-1"></i>Rider has arrived at your location!');
+                        $('#modalStatusBadge').removeClass('bg-primary').addClass('bg-success').text('Arrived at Destination');
+                        return;
+                    }
+
+                    riderCoord[0] += latDiff * 0.05;
+                    riderCoord[1] += lngDiff * 0.05;
+
+                    riderMarker.setLatLng(riderCoord);
+                    routeLine.setLatLngs([riderCoord, customerCoord]);
+
+                    const progressPercent = Math.min(95, Math.round((1 - (distanceRemaining / 0.022)) * 100));
+                    $('#modalEtaText').html('<i class="bi bi-bicycle me-1"></i>' + $('<div>').text(riderName).html() + ' is moving closer (' + Math.max(5, progressPercent) + '% arrived)');
+                }
+
+                modalMapInterval = setInterval(stepModalRiderMovement, 1000);
+            });
+
+            $('#liveTrackingMapModal').on('hidden.bs.modal', function () {
+                if (modalMapInterval) {
+                    clearInterval(modalMapInterval);
+                    modalMapInterval = null;
+                }
+            });
+        });
     }
 
     // =========================================================================
