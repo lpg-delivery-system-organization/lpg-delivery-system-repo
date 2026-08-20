@@ -91,8 +91,10 @@ if ($loggedIn) {
                                 <div class="text-muted extra-small"><?= e($userEmail) ?></div>
                             </li>
                             <?php if ($userRole === 'customer'): ?>
-                                <li><a class="dropdown-item py-2" href="<?= url('pages/customer/profile.php') ?>"><i class="bi bi-person me-2 text-primary"></i>My Profile</a></li>
+                                <li><a class="dropdown-item py-2" href="<?= url('pages/customer/dashboard.php') ?>"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</a></li>
+                                <li><a class="dropdown-item py-2" href="<?= url('pages/customer/shop.php') ?>"><i class="bi bi-shop me-2 text-primary"></i>Shop Products</a></li>
                                 <li><a class="dropdown-item py-2" href="<?= url('pages/customer/orders.php') ?>"><i class="bi bi-receipt me-2 text-primary"></i>My Orders</a></li>
+                                <li><a class="dropdown-item py-2" href="<?= url('pages/customer/profile.php') ?>"><i class="bi bi-person me-2 text-primary"></i>My Profile</a></li>
                             <?php elseif ($userRole === 'rider'): ?>
                                 <li><a class="dropdown-item py-2" href="<?= url('pages/rider/profile.php') ?>"><i class="bi bi-person me-2 text-primary"></i>My Profile</a></li>
                                 <li><a class="dropdown-item py-2" href="<?= url('pages/rider/deliveries.php') ?>"><i class="bi bi-truck me-2 text-primary"></i>My Deliveries</a></li>

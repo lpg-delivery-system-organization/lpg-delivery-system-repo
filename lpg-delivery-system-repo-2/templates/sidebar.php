@@ -18,6 +18,12 @@ $initial = strtoupper(substr($userName, 0, 1));
 $menus = [
     'customer' => [
         [
+            'key'   => 'dashboard',
+            'label' => 'Dashboard',
+            'url'   => url('pages/customer/dashboard.php'),
+            'icon'  => 'bi-speedometer2'
+        ],
+        [
             'key'   => 'shop',
             'label' => 'Shop Products',
             'url'   => url('pages/customer/shop.php'),
