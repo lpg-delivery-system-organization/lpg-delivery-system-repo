@@ -338,7 +338,7 @@ it('require_login intercepts unauthenticated web request with 302 and flash erro
     } catch (AuthException $e) {
         $caught = true;
         assert_equals(302, $e->getStatusCode());
-        assert_equals(url('/login.php'), $e->getRedirectUrl());
+        assert_equals(url('/index.php'), $e->getRedirectUrl());
     }
 
     assert_true($caught, 'AuthException must be thrown in test mode for unauthenticated web request');
@@ -387,7 +387,7 @@ it('require_role allows permitted user and blocks unpermitted user', function ()
     } catch (AuthException $e) {
         $caughtWeb = true;
         assert_equals(403, $e->getStatusCode());
-        assert_equals(url('/customer/dashboard.php'), $e->getRedirectUrl());
+        assert_equals(url('/pages/customer/shop.php'), $e->getRedirectUrl());
     }
     assert_true($caughtWeb, 'Customer attempting admin role should be redirected with 403');
     assert_true(has_flash(), 'Flash error should be set for denied role');
@@ -422,9 +422,9 @@ it('require_guest allows unauthenticated visitor and redirects authenticated use
     } catch (AuthException $e) {
         $caught = true;
         assert_equals(302, $e->getStatusCode());
-        assert_equals(url('/rider/dashboard.php'), $e->getRedirectUrl());
+        assert_equals(url('/pages/rider/deliveries.php'), $e->getRedirectUrl());
     }
-    assert_true($caught, 'Authenticated rider should be redirected to rider dashboard');
+    assert_true($caught, 'Authenticated rider should be redirected to rider deliveries');
 });
 
 it('require_csrf validates matching token and denies invalid token', function () {

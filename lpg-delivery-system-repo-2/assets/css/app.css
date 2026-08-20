@@ -1,0 +1,392 @@
+/**
+ * LPG Delivery System v2 - Custom Application Stylesheet
+ * Integrates with Bootstrap 5.3.3 tokens and component architecture.
+ */
+
+:root {
+    --app-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --app-primary: #2563eb;
+    --app-primary-dark: #1d4ed8;
+    --app-primary-light: #eff6ff;
+    --app-flame: #ea580c;
+    --app-flame-light: #fff7ed;
+    --app-bg-body: #f8fafc;
+    --app-surface: #ffffff;
+    --app-border: #e2e8f0;
+    --app-text-main: #1e293b;
+    --app-text-muted: #64748b;
+    --app-sidebar-width: 260px;
+    --app-header-height: 60px;
+}
+
+/* =========================================================================
+   1. Base & Layout
+   ========================================================================= */
+
+body.app-body {
+    font-family: var(--app-font-sans);
+    background-color: var(--app-bg-body);
+    color: var(--app-text-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.extra-small {
+    font-size: 0.75rem;
+}
+
+/* App Navbar */
+.app-navbar {
+    min-height: var(--app-header-height);
+    background-color: #0f172a !important;
+    z-index: 1030;
+}
+
+.app-logo-badge {
+    width: 32px;
+    height: 32px;
+}
+
+/* User Avatar Initial Circle */
+.user-avatar-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Layout Split */
+.app-layout {
+    min-height: calc(100vh - var(--app-header-height));
+    position: relative;
+}
+
+.app-main-wrapper {
+    min-width: 0;
+    background-color: var(--app-bg-body);
+}
+
+.app-main {
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* =========================================================================
+   2. Sidebar Navigation
+   ========================================================================= */
+
+.app-sidebar {
+    width: var(--app-sidebar-width);
+    flex-shrink: 0;
+    background-color: var(--app-surface);
+    border-right: 1px solid var(--app-border);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1025;
+}
+
+.app-sidebar-inner {
+    position: sticky;
+    top: var(--app-header-height);
+    height: calc(100vh - var(--app-header-height));
+}
+
+.app-sidebar .nav-link {
+    color: var(--app-text-muted);
+    font-weight: 500;
+    font-size: 0.925rem;
+    border-radius: 0.5rem;
+    padding: 0.65rem 0.9rem;
+    transition: all 0.15s ease-in-out;
+    border-left: 3px solid transparent;
+}
+
+.app-sidebar .nav-link:hover {
+    color: var(--app-text-main);
+    background-color: #f1f5f9;
+}
+
+.app-sidebar .nav-link.active {
+    color: var(--app-primary);
+    background-color: var(--app-primary-light);
+    font-weight: 600;
+    border-left: 3px solid var(--app-primary);
+}
+
+.app-sidebar .nav-link i {
+    width: 24px;
+    text-align: center;
+}
+
+/* Mobile Sidebar Drawer */
+@media (max-width: 767.98px) {
+    .app-sidebar {
+        position: fixed;
+        top: var(--app-header-height);
+        left: calc(-1 * var(--app-sidebar-width));
+        bottom: 0;
+        width: var(--app-sidebar-width);
+        box-shadow: none;
+    }
+
+    body.sidebar-open .app-sidebar {
+        left: 0;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .sidebar-backdrop {
+        position: fixed;
+        top: var(--app-header-height);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(2px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        z-index: 1020;
+    }
+
+    body.sidebar-open .sidebar-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+/* =========================================================================
+   3. Status Badges
+   ========================================================================= */
+
+.app-status-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 0.4em 0.75em;
+    border-radius: 9999px;
+    text-transform: uppercase;
+}
+
+.badge-status-pending {
+    background-color: #fef3c7 !important;
+    color: #92400e !important;
+    border: 1px solid #fde68a;
+}
+
+.badge-status-approved {
+    background-color: #e0f2fe !important;
+    color: #0369a1 !important;
+    border: 1px solid #bae6fd;
+}
+
+.badge-status-ready_for_delivery {
+    background-color: #dbeafe !important;
+    color: #1e40af !important;
+    border: 1px solid #bfdbfe;
+}
+
+.badge-status-picked_up {
+    background-color: #ede9fe !important;
+    color: #5b21b6 !important;
+    border: 1px solid #ddd6fe;
+}
+
+.badge-status-out_for_delivery {
+    background-color: #ffedd5 !important;
+    color: #9a3412 !important;
+    border: 1px solid #fed7aa;
+}
+
+.badge-status-delivered {
+    background-color: #dcfce7 !important;
+    color: #166534 !important;
+    border: 1px solid #bbf7d0;
+}
+
+.badge-status-cancelled {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+    border: 1px solid #fecaca;
+}
+
+/* =========================================================================
+   4. Stat Cards & Dashboards
+   ========================================================================= */
+
+.app-stat-card {
+    background-color: var(--app-surface);
+    border-radius: 0.75rem;
+    border: 1px solid var(--app-border);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.app-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.stat-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+/* =========================================================================
+   5. Product Catalog Cards
+   ========================================================================= */
+
+.app-product-card {
+    border-radius: 0.75rem;
+    border: 1px solid var(--app-border);
+    background-color: var(--app-surface);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+}
+
+.app-product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.08);
+}
+
+.app-product-img-wrapper {
+    height: 180px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.app-product-img-wrapper img {
+    max-height: 140px;
+    max-width: 80%;
+    object-fit: contain;
+}
+
+/* =========================================================================
+   6. Order Cards & Timelines
+   ========================================================================= */
+
+.app-order-card {
+    border-radius: 0.75rem;
+    border: 1px solid var(--app-border);
+    background-color: var(--app-surface);
+}
+
+.app-product-icon {
+    width: 48px;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Stepper / Timeline */
+.app-order-timeline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    margin: 1.5rem 0;
+}
+
+.app-order-timeline::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    right: 20px;
+    height: 3px;
+    background-color: var(--app-border);
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+.timeline-step {
+    position: relative;
+    z-index: 2;
+    background: var(--app-surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.timeline-step-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: var(--app-surface);
+    border: 2px solid var(--app-border);
+    color: var(--app-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.timeline-step.completed .timeline-step-icon {
+    background-color: #10b981;
+    border-color: #10b981;
+    color: #ffffff;
+}
+
+.timeline-step.active .timeline-step-icon {
+    background-color: var(--app-primary);
+    border-color: var(--app-primary);
+    color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+.timeline-step-label {
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+    margin-top: 0.35rem;
+    font-weight: 500;
+}
+
+.timeline-step.active .timeline-step-label {
+    color: var(--app-primary);
+    font-weight: 600;
+}
+
+/* =========================================================================
+   7. Form Controls, Tables & Utilities
+   ========================================================================= */
+
+.form-control:focus, .form-select:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.15);
+}
+
+.table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: var(--app-text-muted);
+    background-color: #f8fafc;
+}
+
+.btn-primary {
+    background-color: var(--app-primary);
+    border-color: var(--app-primary);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--app-primary-dark);
+    border-color: var(--app-primary-dark);
+}

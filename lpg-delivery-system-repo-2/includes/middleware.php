@@ -104,7 +104,7 @@ function require_login(): void {
         }
 
         set_flash('error', 'Please log in to continue.');
-        $redirectUrl = url('/login.php');
+        $redirectUrl = url('/index.php');
 
         if (!empty($GLOBALS['TEST_MODE'])) {
             $GLOBALS['LAST_HTTP_CODE'] = 302;
@@ -112,7 +112,7 @@ function require_login(): void {
             throw new AuthException('Authentication required. Redirect to login.', 302, $redirectUrl);
         }
 
-        redirect('/login.php');
+        redirect('/index.php');
     }
 }
 
@@ -154,11 +154,11 @@ function require_role(string ...$roles): void {
 
         set_flash('error', 'Access denied. You do not have permission to access this page.');
 
-        $targetDashboard = '/customer/dashboard.php';
+        $targetDashboard = '/pages/customer/shop.php';
         if ($userRole === 'admin') {
-            $targetDashboard = '/admin/dashboard.php';
+            $targetDashboard = '/pages/admin/dashboard.php';
         } elseif ($userRole === 'rider') {
-            $targetDashboard = '/rider/dashboard.php';
+            $targetDashboard = '/pages/rider/deliveries.php';
         }
 
         $redirectUrl = url($targetDashboard);
@@ -186,11 +186,11 @@ function require_role(string ...$roles): void {
 function require_guest(): void {
     if (is_logged_in()) {
         $userRole = current_user_role();
-        $targetDashboard = '/customer/dashboard.php';
+        $targetDashboard = '/pages/customer/shop.php';
         if ($userRole === 'admin') {
-            $targetDashboard = '/admin/dashboard.php';
+            $targetDashboard = '/pages/admin/dashboard.php';
         } elseif ($userRole === 'rider') {
-            $targetDashboard = '/rider/dashboard.php';
+            $targetDashboard = '/pages/rider/deliveries.php';
         }
 
         if (is_ajax()) {
