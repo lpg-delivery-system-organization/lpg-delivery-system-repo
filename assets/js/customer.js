@@ -170,9 +170,6 @@
     // 2. Orders Page: Filter Tabs & Cancellation Modal
     // =========================================================================
     function initOrdersInteractivity() {
-        const $ordersContainer = $('#customerOrdersContainer');
-        if ($ordersContainer.length === 0) return;
-
         // Filter tabs
         $('.order-filter-btn').on('click', function (e) {
             e.preventDefault();
@@ -214,24 +211,187 @@
             }
         });
 
-        // Cancel order modal population
-        $(document).on('click', '.btn-open-cancel-modal', function (e) {
-            e.preventDefault();
-            const orderId = $(this).data('order-id');
-            $('#cancelModalOrderId').val(orderId);
-            $('#cancel_order_id').val(orderId);
-            $('#cancelModalOrderNumber').text('#' + orderId);
-            $('#cancelOrderModalDisplayId').text('#' + orderId);
-
-            const modalEl = document.getElementById('cancelOrderModal');
-            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
-                const cancelModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-                cancelModal.show();
+        // Clickable order cards navigation
+        $(document).on('click', '.customer-order-item.app-clickable-card', function (e) {
+            if ($(e.target).closest('a, button, form, input').length) {
+                return;
+            }
+            const href = $(this).data('href');
+            if (href) {
+                window.location.href = href;
             }
         });
 
-        // Initialize Live GPS Maps
+        // Cancel order modal population & AJAX cancellation
+        $(document).on('click', '.btn-open-cancel-modal', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const orderId = $(this).data('order-id');
+            const csrfToken = $('meta[name="csrf-token"]').attr('content') || '';
+
+            window.confirmAction({
+                title: 'Cancel Order #' + orderId,
+                message: 'Are you sure you want to cancel this pending order? Reserved LPG cylinders will be returned to inventory.',
+                icon: 'bi-exclamation-triangle-fill',
+                iconBg: 'bg-danger-subtle',
+                iconColor: 'text-danger',
+                confirmText: 'Yes, Cancel Order',
+                confirmClass: 'btn-danger',
+                onConfirm: function (closeModal) {
+                    window.ajaxAction({
+                        url: window.location.href,
+                        data: {
+                            action: 'cancel_order',
+                            order_id: orderId,
+                            csrf_token: csrfToken
+                        },
+                        onSuccess: function (res) {
+                            closeModal();
+                            window.showToast('Order #' + orderId + ' cancelled successfully.', 'success');
+                            setTimeout(function () { window.location.reload(); }, 600);
+                        },
+                        onError: function () {
+                            closeModal();
+                        }
+                    });
+                }
+            });
+        });
+
+        // Cancel order from order detail page
+        $(document).on('click', '.btn-cancel-order-detail', function (e) {
+            e.preventDefault();
+            const orderId = $(this).data('order-id');
+            const csrfToken = $(this).data('csrf') || $('meta[name="csrf-token"]').attr('content') || '';
+
+            window.confirmAction({
+                title: 'Cancel Order #' + orderId,
+                message: 'Are you sure you want to cancel this order? This action cannot be undone.',
+                icon: 'bi-exclamation-triangle-fill',
+                iconBg: 'bg-danger-subtle',
+                iconColor: 'text-danger',
+                confirmText: 'Yes, Cancel Order',
+                confirmClass: 'btn-danger',
+                onConfirm: function (closeModal) {
+                    window.ajaxAction({
+                        url: window.location.href,
+                        data: {
+                            action: 'cancel_order',
+                            order_id: orderId,
+                            csrf_token: csrfToken
+                        },
+                        onSuccess: function (res) {
+                            closeModal();
+                            window.showToast('Order #' + orderId + ' cancelled successfully.', 'success');
+                            setTimeout(function () { window.location.reload(); }, 600);
+                        },
+                        onError: function () {
+                            closeModal();
+                        }
+                    });
+                }
+            });
+        });
+
+        // Initialize Live GPS Maps & Detail Page Maps
         initLiveTrackingMaps();
+        initDetailTrackingMap();
+    }
+
+    // Initialize map on order detail page
+    function initDetailTrackingMap() {
+        if (typeof window.L === 'undefined') return;
+
+        $('.order-detail-map').each(function () {
+            const $mapEl = $(this);
+            const orderId = $mapEl.data('order-id');
+            const address = $mapEl.data('address') || 'Manila';
+            const riderName = $mapEl.data('rider-name') || 'Delivery Rider';
+            const status = ($mapEl.data('status') || '').toLowerCase();
+            const mapContainerId = $mapEl.attr('id');
+
+            if (!mapContainerId || $('#' + mapContainerId).data('initialized')) return;
+            $('#' + mapContainerId).data('initialized', true);
+
+            const offset = (orderId % 10) * 0.004;
+            const customerCoord = [14.6091 + offset, 120.9822 + offset];
+            let riderCoord = [14.5950 + offset, 120.9680 + offset];
+
+            const map = L.map(mapContainerId, {
+                zoomControl: true,
+                scrollWheelZoom: false
+            }).setView(customerCoord, 14);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            const customerIcon = L.divIcon({
+                className: 'customer-marker-wrapper',
+                html: '<div class="customer-marker-icon" style="width:34px;height:34px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:16px;">📍</div>',
+                iconSize: [34, 34],
+                iconAnchor: [17, 34],
+                popupAnchor: [0, -30]
+            });
+
+            L.marker(customerCoord, { icon: customerIcon })
+                .addTo(map)
+                .bindPopup('<strong>📍 Delivery Address</strong><br>' + $('<div>').text(address).html());
+
+            const riderIcon = L.divIcon({
+                className: 'rider-marker-wrapper',
+                html: '<div class="rider-marker-icon" style="width:36px;height:36px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:18px;">🚴</div>',
+                iconSize: [36, 36],
+                iconAnchor: [18, 18],
+                popupAnchor: [0, -20]
+            });
+
+            const riderMarker = L.marker(riderCoord, { icon: riderIcon })
+                .addTo(map)
+                .bindPopup('<strong>🚴 ' + $('<div>').text(riderName).html() + '</strong><br>En route with LPG')
+                .openPopup();
+
+            const routeLine = L.polyline([riderCoord, customerCoord], {
+                color: '#2563eb',
+                weight: 4,
+                opacity: 0.85,
+                dashArray: '8, 8'
+            }).addTo(map);
+
+            const bounds = L.latLngBounds([riderCoord, customerCoord]);
+            map.fitBounds(bounds, { padding: [40, 40] });
+
+            const $statusText = $('#detailMapStatus_' + orderId);
+
+            const intervalId = setInterval(function () {
+                const latDiff = customerCoord[0] - riderCoord[0];
+                const lngDiff = customerCoord[1] - riderCoord[1];
+                const distanceRemaining = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+
+                if (distanceRemaining < 0.0006) {
+                    clearInterval(intervalId);
+                    riderMarker.setLatLng(customerCoord);
+                    routeLine.setLatLngs([customerCoord, customerCoord]);
+                    riderMarker.bindPopup('<strong>✅ Rider arrived!</strong><br>' + $('<div>').text(riderName).html() + ' is at your address.').openPopup();
+                    if ($statusText.length) {
+                        $statusText.removeClass('text-primary').addClass('text-success fw-bold').html('<i class="bi bi-check-circle-fill me-1"></i>Rider has arrived at destination!');
+                    }
+                    return;
+                }
+
+                riderCoord[0] += latDiff * 0.045;
+                riderCoord[1] += lngDiff * 0.045;
+
+                riderMarker.setLatLng(riderCoord);
+                routeLine.setLatLngs([riderCoord, customerCoord]);
+
+                if ($statusText.length) {
+                    const progressPercent = Math.min(95, Math.round((1 - (distanceRemaining / 0.022)) * 100));
+                    $statusText.html('<i class="bi bi-bicycle me-1"></i>' + $('<div>').text(riderName).html() + ' is on the way (' + Math.max(5, progressPercent) + '% arrived)');
+                }
+            }, 1200);
+        });
     }
 
     // =========================================================================

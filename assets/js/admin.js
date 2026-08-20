@@ -40,11 +40,11 @@
     // =========================================================================
     function initOrdersManagement() {
         const $container = $('#adminOrdersContainer');
-        if ($container.length === 0) return;
-
         let currentStatusFilter = 'all';
         let currentRiderFilter = 'all';
         let currentSearchQuery = '';
+
+        if ($container.length > 0) {
 
         function applyOrderFilters() {
             const $rows = $('.admin-order-row');
@@ -120,6 +120,146 @@
         $('#orderRiderFilterSelect').on('change', function () {
             currentRiderFilter = $(this).val() || 'all';
             applyOrderFilters();
+        });
+
+        // Clickable order row navigation
+        $(document).on('click', '.admin-order-row.app-clickable-row, .app-clickable-row', function (e) {
+            if ($(e.target).closest('a, button, form, input, select, .dropdown-menu').length) {
+                return;
+            }
+            const href = $(this).data('href') || $(this).attr('data-href');
+            if (href) {
+                window.location.href = href;
+            }
+        });
+
+        // Quick Approve Order with confirmation and AJAX
+        $(document).on('submit', 'form:has(input[value="approve_order"])', function (e) {
+            e.preventDefault();
+            const $form = $(this);
+            const orderId = $form.find('input[name="order_id"]').val();
+            const csrfToken = $form.find('input[name="csrf_token"]').val() || $('meta[name="csrf-token"]').attr('content');
+
+            window.confirmAction({
+                title: 'Approve Order #' + orderId,
+                message: 'Are you sure you want to approve Order #' + orderId + ' for fulfillment?',
+                icon: 'bi-check-circle-fill',
+                iconBg: 'bg-success-subtle',
+                iconColor: 'text-success',
+                confirmText: 'Yes, Approve',
+                confirmClass: 'btn-success',
+                onConfirm: function (closeModal) {
+                    window.ajaxAction({
+                        url: $form.attr('action') || window.location.href,
+                        data: {
+                            action: 'approve_order',
+                            order_id: orderId,
+                            csrf_token: csrfToken
+                        },
+                        onSuccess: function () {
+                            closeModal();
+                            window.showToast('Order #' + orderId + ' approved successfully.', 'success');
+                            setTimeout(function () { window.location.reload(); }, 500);
+                        },
+                        onError: function () {
+                            closeModal();
+                        }
+                    });
+                }
+            });
+        });
+
+        // Admin Order Detail Dispatch Action Buttons
+        $(document).on('click', '.btn-admin-dispatch-action', function (e) {
+            e.preventDefault();
+            const $btn = $(this);
+            const action = $btn.data('action');
+            const status = $btn.data('status') || '';
+            const orderId = $btn.data('order-id');
+            const csrfToken = $btn.data('csrf') || $('meta[name="csrf-token"]').attr('content') || '';
+            const title = $btn.data('confirm-title') || 'Confirm Action';
+            const msg = $btn.data('confirm-msg') || 'Are you sure you want to proceed?';
+            const icon = $btn.data('confirm-icon') || 'bi-question-circle';
+            const iconColor = $btn.data('confirm-color') || 'text-primary';
+            const confirmBtnClass = $btn.data('confirm-btn') || 'btn-primary';
+
+            window.confirmAction({
+                title: title,
+                message: msg,
+                icon: icon,
+                iconColor: iconColor,
+                confirmText: 'Confirm',
+                confirmClass: confirmBtnClass,
+                onConfirm: function (closeModal) {
+                    window.ajaxAction({
+                        url: window.location.href,
+                        data: {
+                            action: action,
+                            status: status,
+                            order_id: orderId,
+                            csrf_token: csrfToken
+                        },
+                        onSuccess: function (res) {
+                            closeModal();
+                            window.showToast(res.message || 'Action completed successfully.', 'success');
+                            setTimeout(function () { window.location.reload(); }, 600);
+                        },
+                        onError: function () {
+                            closeModal();
+                        }
+                    });
+                }
+            });
+        });
+
+        // Assign Rider Form AJAX Submit
+        $(document).on('submit', '#adminAssignRiderForm, #assignRiderForm', function (e) {
+            e.preventDefault();
+            const $form = $(this);
+            const formData = $form.serialize();
+
+            window.ajaxAction({
+                url: window.location.href,
+                data: formData,
+                onSuccess: function (res) {
+                    window.showToast(res.message || 'Rider assigned successfully.', 'success');
+                    setTimeout(function () { window.location.reload(); }, 500);
+                }
+            });
+        });
+
+        // Cancel Order Form AJAX Submit
+        $(document).on('submit', '#adminCancelOrderForm', function (e) {
+            e.preventDefault();
+            const $form = $(this);
+            const formData = $form.serialize();
+
+            window.ajaxAction({
+                url: window.location.href,
+                data: formData,
+                onSuccess: function (res) {
+                    window.showToast(res.message || 'Order cancelled and stock released.', 'success');
+                    setTimeout(function () { window.location.reload(); }, 500);
+                }
+            });
+        });
+
+        // Open Assign Rider Modal on Admin Order Details
+        $(document).on('click', '.btn-open-admin-assign-modal', function (e) {
+            e.preventDefault();
+            const modalEl = document.getElementById('adminAssignRiderModal');
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        });
+
+        // Open Cancel Modal on Admin Order Details
+        $(document).on('click', '.btn-open-admin-cancel-modal', function (e) {
+            e.preventDefault();
+            const modalEl = document.getElementById('adminCancelOrderModal');
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
         });
 
         // Assign Rider Modal Opener
@@ -214,6 +354,7 @@
             }
         } else {
             applyOrderFilters();
+        }
         }
     }
 

@@ -489,7 +489,11 @@ require_once __DIR__ . '/../../templates/header.php';
                                                 <input type="hidden" name="product_id" value="<?= $pId ?>">
                                                 <button type="submit" 
                                                         class="btn btn-sm p-1 px-2 <?= $isActive ? 'btn-outline-warning text-dark' : 'btn-outline-success' ?>" 
-                                                        title="<?= $isActive ? 'Deactivate Product' : 'Activate Product' ?>">
+                                                        title="<?= $isActive ? 'Deactivate Product' : 'Activate Product' ?>"
+                                                        data-confirm="<?= $isActive ? 'Deactivate ' . e($prod['name']) . '? It will be hidden from customer ordering.' : 'Activate ' . e($prod['name']) . '? It will be available for customers to order.' ?>"
+                                                        data-confirm-title="<?= $isActive ? 'Deactivate Product' : 'Activate Product' ?>"
+                                                        data-confirm-icon="bi-toggle-<?= $isActive ? 'off' : 'on' ?>"
+                                                        data-confirm-btn-class="<?= $isActive ? 'btn-warning' : 'btn-success' ?>">
                                                     <i class="bi <?= $isActive ? 'bi-toggle-on' : 'bi-toggle-off' ?>"></i>
                                                 </button>
                                             </form>

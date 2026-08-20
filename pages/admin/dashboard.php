@@ -277,7 +277,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                         $status = (string)$order['status'];
                                         $paymentMethod = strtoupper((string)($order['payment_method'] ?? 'COD'));
                                         ?>
-                                        <tr>
+                                        <tr class="app-clickable-row" data-href="<?= url('pages/admin/order-detail.php?id=' . $orderId) ?>">
                                             <td class="ps-4 fw-bold text-primary">#<?= $orderId ?></td>
                                             <td>
                                                 <div class="fw-semibold text-dark"><?= e($order['customer_name'] ?? 'Customer') ?></div>
@@ -300,8 +300,8 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                             <td><?= get_order_status_badge($status) ?></td>
                                             <td class="text-muted small"><?= e(format_date($order['created_at'], 'M d, Y')) ?></td>
                                             <td class="text-end pe-4">
-                                                <a href="<?= url('pages/admin/orders.php?q=' . $orderId) ?>" class="btn btn-light btn-sm p-1 px-2" title="Manage Order">
-                                                    <i class="bi bi-gear"></i>
+                                                <a href="<?= url('pages/admin/order-detail.php?id=' . $orderId) ?>" class="btn btn-light btn-sm p-1 px-2" title="Manage Order">
+                                                    <i class="bi bi-arrow-right"></i>
                                                 </a>
                                             </td>
                                         </tr>

@@ -246,11 +246,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                      data-phone="<?= e($contactPhone) ?>"
                      data-payment="<?= e($paymentMethod) ?>">
 
-                    <div class="card app-order-card shadow-sm border-0 h-100 d-flex flex-column">
+                    <div class="card app-order-card app-clickable-card shadow-sm border-0 h-100 d-flex flex-column" data-href="<?= url('pages/rider/order-detail.php?id=' . $orderId) ?>">
                         <!-- Card Header -->
                         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center py-3 border-bottom gap-2">
                             <div class="d-flex align-items-center gap-2">
-                                <span class="fw-bold fs-5 text-primary">#<?= $orderId ?></span>
+                                <a href="<?= url('pages/rider/order-detail.php?id=' . $orderId) ?>" class="fw-bold fs-5 text-primary text-decoration-none">
+                                    #<?= $orderId ?> <i class="bi bi-box-arrow-up-right fs-6 ms-1"></i>
+                                </a>
                                 <span class="text-muted small">&bull;</span>
                                 <small class="text-muted"><i class="bi bi-clock me-1"></i>Placed <?= e(format_date($createdAt)) ?></small>
                             </div>

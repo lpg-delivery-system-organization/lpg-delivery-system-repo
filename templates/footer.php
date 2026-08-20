@@ -20,6 +20,9 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
         </div>
     </div>
 
+    <!-- Shared Confirmation Modal -->
+    <?php require_once __DIR__ . '/components/confirmation-modal.php'; ?>
+
     <!-- Bootstrap 5 Toast Notification Container -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index: 1090;"></div>
 

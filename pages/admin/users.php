@@ -497,7 +497,11 @@ require_once __DIR__ . '/../../templates/header.php';
                                                                     <input type="hidden" name="action" value="update_status">
                                                                     <input type="hidden" name="user_id" value="<?= $uId ?>">
                                                                     <input type="hidden" name="status" value="active">
-                                                                    <button type="submit" class="dropdown-item text-success small">
+                                                                    <button type="submit" class="dropdown-item text-success small"
+                                                                            data-confirm="Are you sure you want to activate account for <?= e($uName) ?>?"
+                                                                            data-confirm-title="Activate Account"
+                                                                            data-confirm-icon="bi-check-circle"
+                                                                            data-confirm-btn-class="btn-success">
                                                                         <i class="bi bi-check-circle me-2"></i>Set as <strong>Active</strong>
                                                                     </button>
                                                                 </form>
@@ -510,7 +514,11 @@ require_once __DIR__ . '/../../templates/header.php';
                                                                     <input type="hidden" name="action" value="update_status">
                                                                     <input type="hidden" name="user_id" value="<?= $uId ?>">
                                                                     <input type="hidden" name="status" value="inactive">
-                                                                    <button type="submit" class="dropdown-item text-secondary small">
+                                                                    <button type="submit" class="dropdown-item text-secondary small"
+                                                                            data-confirm="Are you sure you want to deactivate account for <?= e($uName) ?>?"
+                                                                            data-confirm-title="Deactivate Account"
+                                                                            data-confirm-icon="bi-dash-circle"
+                                                                            data-confirm-btn-class="btn-secondary">
                                                                         <i class="bi bi-dash-circle me-2"></i>Set as <strong>Inactive</strong>
                                                                     </button>
                                                                 </form>
@@ -524,7 +532,11 @@ require_once __DIR__ . '/../../templates/header.php';
                                                                     <input type="hidden" name="action" value="update_status">
                                                                     <input type="hidden" name="user_id" value="<?= $uId ?>">
                                                                     <input type="hidden" name="status" value="suspended">
-                                                                    <button type="submit" class="dropdown-item text-danger small">
+                                                                    <button type="submit" class="dropdown-item text-danger small"
+                                                                            data-confirm="Are you sure you want to SUSPEND <?= e($uName) ?>? They will be immediately blocked from logging in."
+                                                                            data-confirm-title="Suspend User Account"
+                                                                            data-confirm-icon="bi-slash-circle"
+                                                                            data-confirm-btn-class="btn-danger">
                                                                         <i class="bi bi-slash-circle me-2"></i><strong>Suspend Account</strong>
                                                                     </button>
                                                                 </form>

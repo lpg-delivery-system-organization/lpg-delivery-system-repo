@@ -52,7 +52,7 @@ body.app-body {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background-color: var(--app-primary);
     color: #ffffff;
     font-weight: 600;
     font-size: 0.9rem;
@@ -60,7 +60,7 @@ body.app-body {
     align-items: center;
     justify-content: center;
     text-transform: uppercase;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Layout Split */
@@ -230,7 +230,7 @@ body.app-body {
 
 .app-stat-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.05);
 }
 
 .stat-icon-wrapper {
@@ -256,13 +256,13 @@ body.app-body {
 }
 
 .app-product-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.08);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08);
 }
 
 .app-product-img-wrapper {
     height: 180px;
-    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    background-color: #f1f5f9;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -282,6 +282,29 @@ body.app-body {
     border-radius: 0.75rem;
     border: 1px solid var(--app-border);
     background-color: var(--app-surface);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.app-clickable-card {
+    cursor: pointer;
+    text-decoration: none !important;
+    color: inherit !important;
+    display: block;
+}
+
+.app-clickable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+}
+
+.app-clickable-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.app-clickable-row:hover > td {
+    background-color: #f1f5f9 !important;
 }
 
 .app-product-icon {
@@ -321,6 +344,7 @@ body.app-body {
     flex-direction: column;
     align-items: center;
     text-align: center;
+    padding: 0 0.5rem;
 }
 
 .timeline-step-icon {
@@ -392,15 +416,19 @@ body.app-body {
 }
 
 /* =========================================================================
-   8. Live Delivery Tracking Map
+   8. Live Delivery Tracking Map & Confirmation Modal
    ========================================================================= */
 
-.order-live-map {
+.order-live-map, .order-detail-map {
     height: 280px;
     width: 100%;
     border-radius: 0.75rem;
     border: 1px solid var(--app-border);
     z-index: 10;
+}
+
+.order-detail-map {
+    height: 320px;
 }
 
 .live-pulse-dot {
@@ -445,5 +473,17 @@ body.app-body {
     color: #ffffff;
     border: 2px solid #ffffff;
     font-size: 1.25rem;
+}
+
+/* Confirmation Modal Center Icon Styling */
+.modal-confirm-icon-box {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.85rem;
+    margin-bottom: 1rem;
 }
 

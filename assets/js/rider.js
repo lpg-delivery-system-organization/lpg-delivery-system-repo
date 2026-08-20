@@ -55,10 +55,10 @@
     // =========================================================================
     function initDeliveriesInteractivity() {
         const $container = $('#riderDeliveriesContainer');
-        if ($container.length === 0) return;
-
         let currentFilter = 'all';
         let searchQuery = '';
+
+        if ($container.length > 0) {
 
         function applyDeliveryFilters() {
             const $cards = $('.rider-delivery-card');
@@ -119,47 +119,275 @@
 
             applyDeliveryFilters();
         });
+        }
 
-        // Search Input
-        $('#riderDeliverySearch').on('input', function () {
-            searchQuery = $(this).val() || '';
-            applyDeliveryFilters();
+        // Clickable delivery card navigation
+        $(document).on('click', '.rider-delivery-card.app-clickable-card, .available-order-item .app-clickable-card, .app-clickable-card', function (e) {
+            if ($(e.target).closest('a, button, form, input, select, textarea').length) {
+                return;
+            }
+            const href = $(this).data('href') || $(this).attr('data-href');
+            if (href) {
+                window.location.href = href;
+            }
         });
 
-        // Open Confirm Delivery Modal
+        // Open Confirm Delivery Modal via AJAX
         $(document).on('click', '.btn-open-deliver-modal', function (e) {
             e.preventDefault();
+            e.stopPropagation();
             const $btn = $(this);
             const orderId = $btn.data('order-id');
             const customer = $btn.data('customer') || 'Customer';
             const amount = $btn.data('amount') || '₱0.00';
             const payment = ($btn.data('payment') || 'COD').toUpperCase();
+            const csrfToken = $('meta[name="csrf-token"]').attr('content') || '';
 
-            $('#deliverModalOrderId').val(orderId);
-            $('#deliverModalOrderNumber').text('Order #' + orderId);
-            $('#deliverModalCustomerName').text(customer);
-            $('#deliverModalCollectAmount').text(amount);
+            const confirmMsg = payment === 'COD' 
+                ? 'Please confirm you collected <strong>' + amount + ' cash</strong> from ' + customer + ' and delivered the cylinder.'
+                : 'Confirm that Order #' + orderId + ' has been handed over to ' + customer + '.';
 
-            if (payment === 'COD') {
-                $('#deliverModalCodAlert').removeClass('d-none');
-                $('#deliverModalGcashAlert').addClass('d-none');
-            } else {
-                $('#deliverModalCodAlert').addClass('d-none');
-                $('#deliverModalGcashAlert').removeClass('d-none');
-            }
-
-            const modalEl = document.getElementById('confirmDeliverModal');
-            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
-                window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
-            }
+            window.confirmAction({
+                title: 'Confirm Delivery #' + orderId,
+                message: confirmMsg,
+                icon: 'bi-check-circle-fill',
+                iconBg: 'bg-success-subtle',
+                iconColor: 'text-success',
+                confirmText: 'Yes, Confirm Delivered',
+                confirmClass: 'btn-success',
+                onConfirm: function (closeModal) {
+                    window.ajaxAction({
+                        url: window.location.href,
+                        data: {
+                            action: 'update_status',
+                            status: 'delivered',
+                            order_id: orderId,
+                            csrf_token: csrfToken
+                        },
+                        onSuccess: function (res) {
+                            closeModal();
+                            window.showToast('Delivery #' + orderId + ' marked as delivered!', 'success');
+                            setTimeout(function () { window.location.reload(); }, 600);
+                        },
+                        onError: function () {
+                            closeModal();
+                        }
+                    });
+                }
+            });
         });
 
-        // Prevent double submit on status forms
-        $(document).on('submit', '#confirmDeliverForm', function () {
-            $('#btnSubmitConfirmDeliver').prop('disabled', true).html(
-                '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Confirming...'
+        // Pick up / Out for delivery AJAX progression
+        $(document).on('submit', '.rider-delivery-card form', function (e) {
+            e.preventDefault();
+            const $form = $(this);
+            const orderId = $form.find('input[name="order_id"]').val();
+            const targetStatus = $form.find('input[name="status"]').val();
+            const csrfToken = $form.find('input[name="csrf_token"]').val() || $('meta[name="csrf-token"]').attr('content');
+
+            const statusTitle = targetStatus === 'picked_up' ? 'Pick Up Order #' + orderId : 'Mark Out for Delivery';
+            const statusMsg = targetStatus === 'picked_up' 
+                ? 'Confirm you have picked up the cylinder for Order #' + orderId + ' from the warehouse?'
+                : 'Confirm you are now en route to deliver Order #' + orderId + '?';
+
+            window.confirmAction({
+                title: statusTitle,
+                message: statusMsg,
+                icon: targetStatus === 'picked_up' ? 'bi-box-seam' : 'bi-truck',
+                iconBg: targetStatus === 'picked_up' ? 'bg-primary-subtle' : 'bg-info-subtle',
+                iconColor: targetStatus === 'picked_up' ? 'text-primary' : 'text-info',
+                confirmText: 'Confirm',
+                confirmClass: targetStatus === 'picked_up' ? 'btn-primary' : 'btn-info text-white',
+                onConfirm: function (closeModal) {
+                    window.ajaxAction({
+                        url: window.location.href,
+                        data: {
+                            action: 'update_status',
+                            status: targetStatus,
+                            order_id: orderId,
+                            csrf_token: csrfToken
+                        },
+                        onSuccess: function (res) {
+                            closeModal();
+                            window.showToast('Status updated successfully.', 'success');
+                            setTimeout(function () { window.location.reload(); }, 600);
+                        },
+                        onError: function () {
+                            closeModal();
+                        }
+                    });
+                }
+            });
+        });
+
+        // Handle generic Rider Action Buttons (e.g. on order-detail.php)
+        $(document).on('click', '.btn-rider-action', function (e) {
+            e.preventDefault();
+            const $btn = $(this);
+            const action = $btn.data('action');
+            const status = $btn.data('status') || '';
+            const orderId = $btn.data('order-id');
+            const csrfToken = $btn.data('csrf') || $('meta[name="csrf-token"]').attr('content') || '';
+            const title = $btn.data('confirm-title') || 'Confirm Action';
+            const msg = $btn.data('confirm-msg') || 'Are you sure you want to proceed?';
+            const icon = $btn.data('confirm-icon') || 'bi-question-circle';
+            const iconColor = $btn.data('confirm-color') || 'text-primary';
+            const confirmBtnClass = $btn.data('confirm-btn') || 'btn-primary';
+
+            window.confirmAction({
+                title: title,
+                message: msg,
+                icon: icon,
+                iconColor: iconColor,
+                confirmText: 'Confirm',
+                confirmClass: confirmBtnClass,
+                onConfirm: function (closeModal) {
+                    window.ajaxAction({
+                        url: window.location.href,
+                        data: {
+                            action: action,
+                            status: status,
+                            order_id: orderId,
+                            csrf_token: csrfToken
+                        },
+                        onSuccess: function (res) {
+                            closeModal();
+                            window.showToast(res.message || 'Action completed successfully.', 'success');
+                            setTimeout(function () { 
+                                if (res.redirect) {
+                                    window.location.href = res.redirect;
+                                } else {
+                                    window.location.reload(); 
+                                }
+                            }, 600);
+                        },
+                        onError: function () {
+                            closeModal();
+                        }
+                    });
+                }
+            });
+        });
+
+        // Initialize Real GPS Rider Map
+        initRiderRealGpsMap();
+    }
+
+    // =========================================================================
+    // 1.1 Real GPS Moving Map for Rider (Leaflet + Geolocation API)
+    // =========================================================================
+    function initRiderRealGpsMap() {
+        if (typeof window.L === 'undefined') return;
+
+        const mapEl = document.getElementById('riderDetailMap');
+        if (!mapEl) return;
+
+        const $mapEl = $(mapEl);
+        const orderId = $mapEl.data('order-id');
+        const customerAddress = $mapEl.data('address') || 'Manila, Philippines';
+        const customerName = $mapEl.data('customer-name') || 'Customer';
+        const $gpsStatus = $('#gpsRiderStatus');
+
+        // Deterministic Customer Coordinates (around Metro Manila)
+        const offset = (orderId % 10) * 0.005;
+        const customerCoord = [14.5995 + offset, 120.9842 + offset];
+
+        // Initial default rider coordinates (fallback until GPS fix)
+        let currentRiderCoord = [14.5850 + offset, 120.9750 + offset];
+
+        const map = L.map('riderDetailMap', {
+            zoomControl: true
+        }).setView(customerCoord, 14);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Customer Destination Marker (Red Pin)
+        const customerIcon = L.divIcon({
+            className: 'customer-marker-wrapper',
+            html: '<div class="customer-marker-icon" style="width:36px;height:36px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:16px;">📍</div>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 36],
+            popupAnchor: [0, -32]
+        });
+
+        const customerMarker = L.marker(customerCoord, { icon: customerIcon })
+            .addTo(map)
+            .bindPopup('<strong>📍 Drop-off: ' + $('<div>').text(customerName).html() + '</strong><br>' + $('<div>').text(customerAddress).html());
+
+        // Rider Live Moving Marker (Blue Motorcycle)
+        const riderIcon = L.divIcon({
+            className: 'rider-marker-wrapper',
+            html: '<div class="rider-marker-icon" style="width:40px;height:40px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:20px;">🛵</div>',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+            popupAnchor: [0, -22]
+        });
+
+        const riderMarker = L.marker(currentRiderCoord, { icon: riderIcon })
+            .addTo(map)
+            .bindPopup('<strong>🛵 You (Rider)</strong><br>Live GPS Position')
+            .openPopup();
+
+        // Route Polyline
+        const routeLine = L.polyline([currentRiderCoord, customerCoord], {
+            color: '#2563eb',
+            weight: 5,
+            opacity: 0.85,
+            dashArray: '8, 8',
+            lineCap: 'round'
+        }).addTo(map);
+
+        const bounds = L.latLngBounds([currentRiderCoord, customerCoord]);
+        map.fitBounds(bounds, { padding: [50, 50] });
+
+        // Center on GPS button
+        $('#btnCenterGps').on('click', function (e) {
+            e.preventDefault();
+            map.setView(currentRiderCoord, 16);
+            riderMarker.openPopup();
+        });
+
+        // Real Browser Geolocation API
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                function (pos) {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    currentRiderCoord = [lat, lng];
+
+                    riderMarker.setLatLng(currentRiderCoord);
+                    routeLine.setLatLngs([currentRiderCoord, customerCoord]);
+
+                    $gpsStatus.html('<span class="text-success"><i class="bi bi-geo-fill me-1"></i>Live GPS Active (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')</span>');
+                },
+                function (err) {
+                    // Fallback to simulated movement if permission denied or unavailable
+                    $gpsStatus.html('<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Simulated GPS (Location permission unavailable)</span>');
+                    
+                    // Simulate moving towards destination
+                    setInterval(function () {
+                        const latDiff = customerCoord[0] - currentRiderCoord[0];
+                        const lngDiff = customerCoord[1] - currentRiderCoord[1];
+                        if (Math.abs(latDiff) > 0.0002 || Math.abs(lngDiff) > 0.0002) {
+                            currentRiderCoord[0] += latDiff * 0.03;
+                            currentRiderCoord[1] += lngDiff * 0.03;
+                            riderMarker.setLatLng(currentRiderCoord);
+                            routeLine.setLatLngs([currentRiderCoord, customerCoord]);
+                        }
+                    }, 2000);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
             );
-        });
+        } else {
+            $gpsStatus.html('<span class="text-muted">Geolocation not supported by browser.</span>');
+        }
     }
 
     // =========================================================================
@@ -225,12 +453,42 @@
             applyAvailableFilters();
         });
 
-        // Claim Delivery Button Loading State
-        $(document).on('submit', '.form-claim-delivery', function () {
-            const $submitBtn = $(this).find('.btn-claim-order');
-            $submitBtn.prop('disabled', true).html(
-                '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Claiming...'
-            );
+        // Claim Delivery Button with Confirmation Modal & AJAX
+        $(document).on('submit', '.form-claim-delivery', function (e) {
+            e.preventDefault();
+            const $form = $(this);
+            const orderId = $form.find('input[name="order_id"]').val();
+            const csrfToken = $form.find('input[name="csrf_token"]').val() || $('meta[name="csrf-token"]').attr('content');
+
+            window.confirmAction({
+                title: 'Claim Delivery #' + orderId,
+                message: 'Are you sure you want to claim this delivery order for immediate fulfillment?',
+                icon: 'bi-box-arrow-in-down',
+                iconBg: 'bg-primary-subtle',
+                iconColor: 'text-primary',
+                confirmText: 'Yes, Claim Delivery',
+                confirmClass: 'btn-primary',
+                onConfirm: function (closeModal) {
+                    window.ajaxAction({
+                        url: $form.attr('action') || window.location.href,
+                        data: {
+                            action: 'claim_order',
+                            order_id: orderId,
+                            csrf_token: csrfToken
+                        },
+                        onSuccess: function (res) {
+                            closeModal();
+                            window.showToast('Order #' + orderId + ' claimed successfully!', 'success');
+                            setTimeout(function () {
+                                window.location.href = res.redirect || ('/pages/rider/order-detail.php?id=' + orderId);
+                            }, 500);
+                        },
+                        onError: function () {
+                            closeModal();
+                        }
+                    });
+                }
+            });
         });
     }
 

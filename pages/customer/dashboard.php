@@ -107,7 +107,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     </div>
                 </div>
             </div>
-            <a href="<?= url('pages/customer/orders.php') ?>" class="btn btn-sm btn-info text-white fw-semibold px-3">
+            <a href="<?= url('pages/customer/order-detail.php?id=' . (int)$latestActiveOrder['id']) ?>" class="btn btn-sm btn-info text-white fw-semibold px-3">
                 <i class="bi bi-eye me-1"></i>Track Order
             </a>
         </div>
@@ -220,7 +220,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                 </thead>
                                 <tbody>
                                     <?php foreach ($recentOrders as $order): ?>
-                                        <tr>
+                                        <tr class="app-clickable-row" data-href="<?= url('pages/customer/order-detail.php?id=' . (int)$order['id']) ?>">
                                             <td class="ps-4 fw-bold text-primary">#<?= e((string)$order['id']) ?></td>
                                             <td>
                                                 <div class="fw-semibold text-dark"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></div>
@@ -232,7 +232,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                             <td class="fw-bold text-dark"><?= e(format_currency($order['total_amount'])) ?></td>
                                             <td><?= get_order_status_badge($order['status']) ?></td>
                                             <td class="text-end pe-4">
-                                                <a href="<?= url('pages/customer/orders.php') ?>" class="btn btn-light btn-sm p-1 px-2" title="View details">
+                                                <a href="<?= url('pages/customer/order-detail.php?id=' . (int)$order['id']) ?>" class="btn btn-light btn-sm p-1 px-2" title="View details">
                                                     <i class="bi bi-chevron-right"></i>
                                                 </a>
                                             </td>

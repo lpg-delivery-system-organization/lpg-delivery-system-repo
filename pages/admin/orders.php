@@ -319,7 +319,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
                                 $allowedTransitions = Order::TRANSITIONS[$status] ?? [];
                                 ?>
-                                <tr class="admin-order-row"
+                                <tr class="admin-order-row app-clickable-row"
                                     data-order-id="<?= $orderId ?>"
                                     data-status="<?= e($status) ?>"
                                     data-rider-id="<?= $riderId ?>"
@@ -335,10 +335,15 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                     data-payment="<?= e($paymentMethod) ?>"
                                     data-notes="<?= e($order['notes'] ?? '') ?>"
                                     data-created="<?= e(format_date($order['created_at'])) ?>"
-                                    data-delivered="<?= e(format_date($order['delivered_at'] ?? '')) ?>">
+                                    data-delivered="<?= e(format_date($order['delivered_at'] ?? '')) ?>"
+                                    data-href="<?= url('pages/admin/order-detail.php?id=' . $orderId) ?>">
 
                                     <!-- Order ID -->
-                                    <td class="ps-4 fw-bold text-primary">#<?= $orderId ?></td>
+                                    <td class="ps-4 fw-bold text-primary">
+                                        <a href="<?= url('pages/admin/order-detail.php?id=' . $orderId) ?>" class="text-primary text-decoration-none">
+                                            #<?= $orderId ?> <i class="bi bi-box-arrow-up-right fs-6 ms-1"></i>
+                                        </a>
+                                    </td>
 
                                     <!-- Customer Details -->
                                     <td>

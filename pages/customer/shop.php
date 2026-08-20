@@ -100,12 +100,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'status'           => 'pending'
             ]);
 
+            if (is_ajax()) {
+                json_response([
+                    'success' => true,
+                    'message' => "Order #{$newOrderId} has been successfully placed!",
+                    'order_id' => $newOrderId,
+                    'redirect' => url("pages/customer/order-detail.php?id={$newOrderId}")
+                ]);
+            }
+
             set_flash('success', "Order #{$newOrderId} has been successfully placed! We will process your delivery shortly.");
-            redirect('/pages/customer/orders.php');
+            redirect("pages/customer/order-detail.php?id={$newOrderId}");
             return;
 
         } catch (Throwable $e) {
             $errors[] = 'Failed to place order: ' . $e->getMessage();
+            if (is_ajax()) {
+                json_response(['success' => false, 'error' => 'Failed to place order: ' . $e->getMessage()], 500);
+            }
+        }
+    } else {
+        if (is_ajax()) {
+            json_response(['success' => false, 'error' => implode(' ', $errors)], 400);
         }
     }
 }

@@ -137,15 +137,169 @@
     }
 
     // =========================================================================
-    // 4. Global Confirmation Handlers
+    // 4. Global Confirmation Modal System
     // =========================================================================
+    /**
+     * Reusable confirmation modal helper
+     * options: {
+     *   title: string,
+     *   message: string,
+     *   icon: string (e.g. 'bi-check-circle', 'bi-exclamation-triangle', 'bi-trash'),
+     *   iconColor: string (e.g. 'text-primary', 'text-success', 'text-danger', 'text-warning'),
+     *   iconBg: string (e.g. 'bg-primary-subtle', 'bg-success-subtle', 'bg-danger-subtle', 'bg-warning-subtle'),
+     *   confirmText: string,
+     *   confirmClass: string (e.g. 'btn-primary', 'btn-success', 'btn-danger'),
+     *   onConfirm: function(closeModal)
+     * }
+     */
+    window.confirmAction = function (options) {
+        const modalEl = document.getElementById('globalConfirmModal');
+        if (!modalEl) {
+            if (window.confirm(options.message || 'Are you sure you want to proceed?')) {
+                if (typeof options.onConfirm === 'function') options.onConfirm(function(){});
+            }
+            return;
+        }
+
+        const $modal = $(modalEl);
+        const title = options.title || 'Confirm Action';
+        const message = options.message || 'Are you sure you want to proceed?';
+        const icon = options.icon || 'bi-question-circle';
+        const iconColor = options.iconColor || 'text-primary';
+        const iconBg = options.iconBg || 'bg-light';
+        const confirmText = options.confirmText || 'Proceed';
+        const confirmClass = options.confirmClass || 'btn-primary';
+
+        $('#globalConfirmTitle').text(title);
+        $('#globalConfirmMessage').html(message);
+        $('#globalConfirmIconBox').attr('class', 'modal-confirm-icon-box mx-auto ' + iconBg + ' ' + iconColor);
+        $('#globalConfirmIcon').attr('class', 'bi ' + icon);
+        
+        const $btnProceed = $('#globalConfirmProceedBtn');
+        $btnProceed.text(confirmText).attr('class', 'btn px-4 fw-semibold shadow-sm ' + confirmClass).prop('disabled', false);
+
+        const bsModal = window.bootstrap && window.bootstrap.Modal ? window.bootstrap.Modal.getOrCreateInstance(modalEl) : null;
+
+        $btnProceed.off('click').on('click', function () {
+            if (typeof options.onConfirm === 'function') {
+                $btnProceed.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Processing...');
+                options.onConfirm(function () {
+                    if (bsModal) bsModal.hide();
+                });
+            } else {
+                if (bsModal) bsModal.hide();
+            }
+        });
+
+        if (bsModal) {
+            bsModal.show();
+        }
+    };
+
+    /**
+     * Global AJAX Action Handler with optional confirmation modal
+     */
+    window.ajaxAction = function (options) {
+        const doAjax = function (closeModal) {
+            const url = options.url || window.location.href;
+            const type = options.type || 'POST';
+            const data = options.data || {};
+
+            $.ajax({
+                url: url,
+                type: type,
+                data: data,
+                dataType: 'json',
+                success: function (res) {
+                    if (typeof closeModal === 'function') closeModal();
+                    if (res && res.success) {
+                        window.showToast(res.message || 'Action completed successfully.', 'success');
+                        if (typeof options.onSuccess === 'function') {
+                            options.onSuccess(res);
+                        } else if (options.reload !== false) {
+                            setTimeout(function() { window.location.reload(); }, 600);
+                        }
+                    } else {
+                        const errMsg = (res && res.error) ? res.error : ((res && res.message) ? res.message : 'Action failed.');
+                        window.showToast(errMsg, 'danger');
+                        if (typeof options.onError === 'function') {
+                            options.onError(res);
+                        }
+                    }
+                },
+                error: function (xhr) {
+                    if (typeof closeModal === 'function') closeModal();
+                    let errMsg = 'An unexpected server error occurred.';
+                    try {
+                        const parsed = JSON.parse(xhr.responseText);
+                        if (parsed && (parsed.error || parsed.message)) {
+                            errMsg = parsed.error || parsed.message;
+                        }
+                    } catch(e){}
+                    window.showToast(errMsg, 'danger');
+                    if (typeof options.onError === 'function') {
+                        options.onError(xhr);
+                    }
+                }
+            });
+        };
+
+        if (options.confirm) {
+            window.confirmAction($.extend({}, options.confirm, {
+                onConfirm: function (closeModal) {
+                    doAjax(closeModal);
+                }
+            }));
+        } else {
+            doAjax();
+        }
+    };
+
     function initConfirmations() {
+        // Native data-confirm attribute integration with global modal
         $(document).on('click', '[data-confirm]', function (e) {
-            const message = $(this).attr('data-confirm') || 'Are you sure you want to perform this action?';
-            if (!window.confirm(message)) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                return false;
+            const $this = $(this);
+            if ($this.data('confirmed')) {
+                $this.removeData('confirmed');
+                return true;
+            }
+
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            const message = $this.attr('data-confirm') || 'Are you sure you want to perform this action?';
+            const title = $this.attr('data-confirm-title') || 'Confirm Action';
+            const icon = $this.attr('data-confirm-icon') || 'bi-exclamation-circle';
+            const confirmClass = $this.attr('data-confirm-btn-class') || 'btn-primary';
+
+            window.confirmAction({
+                title: title,
+                message: message,
+                icon: icon,
+                confirmClass: confirmClass,
+                onConfirm: function (closeModal) {
+                    closeModal();
+                    $this.data('confirmed', true);
+                    if ($this.is('button[type="submit"]') || $this.is('input[type="submit"]')) {
+                        $this.closest('form').submit();
+                    } else if ($this.is('a')) {
+                        window.location.href = $this.attr('href');
+                    } else {
+                        $this.trigger('click');
+                    }
+                }
+            });
+            return false;
+        });
+
+        // Clickable table rows and card handlers
+        $(document).on('click', '.app-clickable-row, .app-clickable-card', function (e) {
+            if ($(e.target).closest('a, button, input, form, select, textarea, .dropdown-menu').length) {
+                return;
+            }
+            const href = $(this).data('href') || $(this).attr('data-href');
+            if (href) {
+                window.location.href = href;
             }
         });
     }

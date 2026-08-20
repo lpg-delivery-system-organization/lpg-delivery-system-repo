@@ -1,0 +1,240 @@
+- generic [active] [ref=f4e1]:
+  - navigation [ref=f4e2]:
+    - generic [ref=f4e3]:
+      - generic [ref=f4e4]:
+        - text: 
+        - link " LPG Delivery System" [ref=f4e5] [cursor=pointer]:
+          - /url: /lpg-delivery-system-repo/pages/customer/shop.php
+          - generic [ref=f4e6]: 
+          - generic [ref=f4e8]: LPG Delivery System
+      - generic [ref=f4e9]:
+        - generic [ref=f4e10]: customer
+        - generic [ref=f4e12]:
+          - link "J Janister Updated Singson" [ref=f4e13] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=f4e14]: J
+            - generic [ref=f4e15]: Janister Updated Singson
+          - text:     
+  - generic [ref=f4e16]:
+    - complementary [ref=f4e17]:
+      - generic [ref=f4e18]:
+        - generic [ref=f4e20]:
+          - generic [ref=f4e21]: customer
+          - generic [ref=f4e22]: Portal
+        - list [ref=f4e24]:
+          - listitem [ref=f4e25]:
+            - link " Dashboard" [ref=f4e26] [cursor=pointer]:
+              - /url: /lpg-delivery-system-repo/pages/customer/dashboard.php
+              - generic [ref=f4e27]: 
+              - generic [ref=f4e28]: Dashboard
+          - listitem [ref=f4e29]:
+            - link " Shop Products" [ref=f4e30] [cursor=pointer]:
+              - /url: /lpg-delivery-system-repo/pages/customer/shop.php
+              - generic [ref=f4e31]: 
+              - generic [ref=f4e32]: Shop Products
+          - listitem [ref=f4e33]:
+            - link " My Orders" [ref=f4e34] [cursor=pointer]:
+              - /url: /lpg-delivery-system-repo/pages/customer/orders.php
+              - generic [ref=f4e35]: 
+              - generic [ref=f4e36]: My Orders
+          - listitem [ref=f4e37]:
+            - link " My Profile" [ref=f4e38] [cursor=pointer]:
+              - /url: /lpg-delivery-system-repo/pages/customer/profile.php
+              - generic [ref=f4e39]: 
+              - generic [ref=f4e40]: My Profile
+        - generic [ref=f4e42]:
+          - generic [ref=f4e43]:
+            - generic [ref=f4e44]: J
+            - generic [ref=f4e45]:
+              - generic [ref=f4e46]: Janister Updated Singson
+              - generic [ref=f4e47]: customer@lpg.com
+          - link "" [ref=f4e48] [cursor=pointer]:
+            - /url: /lpg-delivery-system-repo/logout.php
+    - generic [ref=f4e50]:
+      - main [ref=f4e51]:
+        - generic [ref=f4e52]:
+          - generic [ref=f4e53]:
+            - generic [ref=f4e55]:
+              - generic [ref=f4e56]:
+                - generic [ref=f4e57]: Customer Portal
+                - heading "Welcome back, Janister Updated Singson!" [level=2] [ref=f4e58]
+                - paragraph [ref=f4e59]: Manage your LPG cylinder orders, track real-time delivery status, and reorder with ease.
+                - generic [ref=f4e60]:
+                  - generic [ref=f4e61]:
+                    - generic [ref=f4e62]: 
+                    - text: Unit 201, Emerald Tower, Ortigas Center, Pasig City
+                  - generic [ref=f4e63]:
+                    - generic [ref=f4e64]: 
+                    - text: "09228889900"
+              - link " Shop LPG Now" [ref=f4e66] [cursor=pointer]:
+                - /url: /lpg-delivery-system-repo/pages/customer/shop.php
+                - generic [ref=f4e67]: 
+                - text: Shop LPG Now
+            - generic: 
+          - alert [ref=f4e68]:
+            - generic [ref=f4e69]:
+              - generic [ref=f4e70]: 
+              - generic [ref=f4e72]:
+                - generic [ref=f4e73]:
+                  - text: "Order #1397 is in progress:"
+                  - generic [ref=f4e74]: Out for Delivery
+                - generic [ref=f4e75]: Solane 11kg (1x) • Placed Aug 20, 2026 05:42 PM
+            - link " Track Order" [ref=f4e76] [cursor=pointer]:
+              - /url: /lpg-delivery-system-repo/pages/customer/order-detail.php?id=1397
+              - generic [ref=f4e77]: 
+              - text: Track Order
+          - generic [ref=f4e78]:
+            - generic [ref=f4e81]:
+              - generic [ref=f4e82]:
+                - text: Active Orders
+                - heading "208" [level=3] [ref=f4e83]
+                - text: Pending & in-transit
+              - generic [ref=f4e84]: 
+            - generic [ref=f4e88]:
+              - generic [ref=f4e89]:
+                - text: Delivered
+                - heading "55" [level=3] [ref=f4e90]
+                - text: Completed orders
+              - generic [ref=f4e91]: 
+            - generic [ref=f4e95]:
+              - generic [ref=f4e96]:
+                - text: Total Spent
+                - heading "₱50,328.50" [level=3] [ref=f4e97]
+                - text: On delivered orders
+              - generic [ref=f4e98]: 
+            - generic [ref=f4e102]:
+              - generic [ref=f4e103]:
+                - text: All Orders
+                - heading "309" [level=3] [ref=f4e104]
+                - text: Lifetime transactions
+              - generic [ref=f4e105]: 
+          - generic [ref=f4e107]:
+            - generic [ref=f4e109]:
+              - generic [ref=f4e110]:
+                - heading " Recent Orders" [level=5] [ref=f4e111]:
+                  - generic [ref=f4e112]: 
+                  - text: Recent Orders
+                - link "View All (309) " [ref=f4e113] [cursor=pointer]:
+                  - /url: /lpg-delivery-system-repo/pages/customer/orders.php
+                  - text: View All (309)
+                  - generic [ref=f4e114]: 
+              - table [ref=f4e117]:
+                - rowgroup [ref=f4e118]:
+                  - row [ref=f4e119]:
+                    - columnheader "Order" [ref=f4e120]
+                    - columnheader "Product" [ref=f4e121]
+                    - columnheader "Date" [ref=f4e122]
+                    - columnheader "Total" [ref=f4e123]
+                    - columnheader "Status" [ref=f4e124]
+                    - columnheader "Action" [ref=f4e125]
+                - rowgroup [ref=f4e126]:
+                  - row [ref=f4e127] [cursor=pointer]:
+                    - cell "#1398" [ref=f4e128]
+                    - cell "Solane 11kg 1 unit(s) • COD" [ref=f4e129]:
+                      - generic [ref=f4e130]: Solane 11kg
+                      - text: 1 unit(s) • COD
+                    - cell "Aug 20, 2026" [ref=f4e131]
+                    - cell "₱975.50" [ref=f4e132]
+                    - cell "Delivered" [ref=f4e133]
+                    - cell [ref=f4e135]:
+                      - link "" [ref=f4e136]:
+                        - /url: /lpg-delivery-system-repo/pages/customer/order-detail.php?id=1398
+                  - row [ref=f4e138] [cursor=pointer]:
+                    - cell "#1397" [ref=f4e139]
+                    - cell "Solane 11kg 1 unit(s) • COD" [ref=f4e140]:
+                      - generic [ref=f4e141]: Solane 11kg
+                      - text: 1 unit(s) • COD
+                    - cell "Aug 20, 2026" [ref=f4e142]
+                    - cell "₱975.50" [ref=f4e143]
+                    - cell "Out for Delivery" [ref=f4e144]
+                    - cell [ref=f4e146]:
+                      - link "" [ref=f4e147]:
+                        - /url: /lpg-delivery-system-repo/pages/customer/order-detail.php?id=1397
+                  - row [ref=f4e149] [cursor=pointer]:
+                    - cell "#1396" [ref=f4e150]
+                    - cell "Solane 11kg 1 unit(s) • COD" [ref=f4e151]:
+                      - generic [ref=f4e152]: Solane 11kg
+                      - text: 1 unit(s) • COD
+                    - cell "Aug 20, 2026" [ref=f4e153]
+                    - cell "₱975.50" [ref=f4e154]
+                    - cell "Ready for Delivery" [ref=f4e155]
+                    - cell [ref=f4e157]:
+                      - link "" [ref=f4e158]:
+                        - /url: /lpg-delivery-system-repo/pages/customer/order-detail.php?id=1396
+                  - row [ref=f4e160] [cursor=pointer]:
+                    - cell "#1395" [ref=f4e161]
+                    - cell "Solane 11kg 1 unit(s) • COD" [ref=f4e162]:
+                      - generic [ref=f4e163]: Solane 11kg
+                      - text: 1 unit(s) • COD
+                    - cell "Aug 20, 2026" [ref=f4e164]
+                    - cell "₱920.50" [ref=f4e165]
+                    - cell "Pending" [ref=f4e166]
+                    - cell [ref=f4e168]:
+                      - link "" [ref=f4e169]:
+                        - /url: /lpg-delivery-system-repo/pages/customer/order-detail.php?id=1395
+                  - row [ref=f4e171] [cursor=pointer]:
+                    - cell "#1394" [ref=f4e172]
+                    - cell "Solane 11kg 3 unit(s) • COD" [ref=f4e173]:
+                      - generic [ref=f4e174]: Solane 11kg
+                      - text: 3 unit(s) • COD
+                    - cell "Aug 20, 2026" [ref=f4e175]
+                    - cell "₱2,761.50" [ref=f4e176]
+                    - cell "Cancelled" [ref=f4e177]
+                    - cell [ref=f4e179]:
+                      - link "" [ref=f4e180]:
+                        - /url: /lpg-delivery-system-repo/pages/customer/order-detail.php?id=1394
+            - generic [ref=f4e182]:
+              - generic [ref=f4e183]:
+                - heading " Quick Actions" [level=5] [ref=f4e185]:
+                  - generic [ref=f4e186]: 
+                  - text: Quick Actions
+                - generic [ref=f4e188]:
+                  - link " Order New LPG Browse cylinder catalog " [ref=f4e189] [cursor=pointer]:
+                    - /url: /lpg-delivery-system-repo/pages/customer/shop.php
+                    - generic [ref=f4e190]:
+                      - generic [ref=f4e191]: 
+                      - generic [ref=f4e192]:
+                        - generic [ref=f4e193]: Order New LPG
+                        - text: Browse cylinder catalog
+                    - generic [ref=f4e194]: 
+                  - link " Order History Track deliveries & cancellations " [ref=f4e195] [cursor=pointer]:
+                    - /url: /lpg-delivery-system-repo/pages/customer/orders.php
+                    - generic [ref=f4e196]:
+                      - generic [ref=f4e197]: 
+                      - generic [ref=f4e198]:
+                        - generic [ref=f4e199]: Order History
+                        - text: Track deliveries & cancellations
+                    - generic [ref=f4e200]: 
+                  - link " Account Profile Update address & phone " [ref=f4e201] [cursor=pointer]:
+                    - /url: /lpg-delivery-system-repo/pages/customer/profile.php
+                    - generic [ref=f4e202]:
+                      - generic [ref=f4e203]: 
+                      - generic [ref=f4e204]:
+                        - generic [ref=f4e205]: Account Profile
+                        - text: Update address & phone
+                    - generic [ref=f4e206]: 
+              - generic [ref=f4e207]:
+                - heading " Delivery Info" [level=6] [ref=f4e209]:
+                  - generic [ref=f4e210]: 
+                  - text: Delivery Info
+                - list [ref=f4e212]:
+                  - listitem [ref=f4e213]:
+                    - generic [ref=f4e214]: 
+                    - generic [ref=f4e215]:
+                      - strong [ref=f4e216]: "Delivery Hours:"
+                      - text: 8:00 AM – 6:00 PM daily
+                  - listitem [ref=f4e217]:
+                    - generic [ref=f4e218]: 
+                    - generic [ref=f4e219]:
+                      - strong [ref=f4e220]: "Payment Options:"
+                      - text: Cash on Delivery (COD) and GCash
+                  - listitem [ref=f4e221]:
+                    - generic [ref=f4e222]: 
+                    - generic [ref=f4e223]:
+                      - strong [ref=f4e224]: "Safety Certified:"
+                      - text: All cylinders undergo standard pressure & leak inspection.
+      - contentinfo [ref=f4e225]:
+        - generic [ref=f4e227]:
+          - text: © 2026
+          - strong [ref=f4e228]: LPG Delivery System
+          - text: . Secure LPG Ordering & Delivery Management.
