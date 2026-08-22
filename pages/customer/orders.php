@@ -311,6 +311,8 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                          data-map-order-id="<?= $orderId ?>"
                                          data-rider-name="<?= e($riderName ?: 'Delivery Rider') ?>"
                                          data-customer-address="<?= e($deliveryAddress) ?>"
+                                         data-lat="<?= e($order['delivery_latitude'] ?? '') ?>"
+                                         data-lng="<?= e($order['delivery_longitude'] ?? '') ?>"
                                          data-status="<?= e($status) ?>">
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mt-2 px-1 extra-small text-muted">
@@ -335,6 +337,8 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                         data-order-id="<?= $orderId ?>"
                                         data-rider-name="<?= e($riderName ?: 'Pedro Reyes (Rider)') ?>"
                                         data-customer-address="<?= e($deliveryAddress ?: 'Delivery Address') ?>"
+                                        data-lat="<?= e($order['delivery_latitude'] ?? '') ?>"
+                                        data-lng="<?= e($order['delivery_longitude'] ?? '') ?>"
                                         data-status="<?= e($status) ?>"
                                         data-status-label="<?= $status === 'picked_up' ? 'Picked Up & En Route' : ($status === 'out_for_delivery' ? 'Out for Delivery' : 'Delivery in Progress') ?>">
                                     <i class="bi bi-geo-alt-fill me-1"></i>Track Live Map

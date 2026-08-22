@@ -487,3 +487,204 @@ body.app-body {
     margin-bottom: 1rem;
 }
 
+/* =========================================================================
+   9. Live Camera Capture for ID Verification
+   ========================================================================= */
+
+.id-camera-container {
+    min-height: 120px;
+}
+
+#cameraVideo {
+    background-color: #000;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.nav-pills .nav-link {
+    border: 1px solid var(--app-border);
+    border-radius: 0.5rem;
+    color: var(--app-text-muted);
+    padding: 0.5rem 1rem;
+    background-color: var(--app-surface);
+    transition: all 0.2s ease;
+}
+
+.nav-pills .nav-link.active {
+    background-color: var(--app-primary);
+    color: #ffffff;
+    border-color: var(--app-primary);
+}
+
+.nav-pills .nav-link:hover:not(.active) {
+    background-color: #f1f5f9;
+    color: var(--app-text-main);
+}
+
+#capturedImage {
+    max-width: 100%;
+    background-color: #f8fafc;
+}
+
+#cameraContainer .badge {
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+}
+
+/* =========================================================================
+   10. Delivery Address Pin Location Map
+   ========================================================================= */
+
+.pin-location-map {
+    height: 180px;
+    width: 100%;
+    border-radius: 0.5rem;
+    z-index: 10;
+}
+
+@media (max-width: 575.98px) {
+    .pin-location-map {
+        height: 160px;
+    }
+}
+
+/* Checkout address pin preview map */
+.address-preview-map {
+    height: 220px;
+    width: 100%;
+    z-index: 10;
+}
+
+/* Admin live rider tracking map */
+.admin-live-map {
+    height: 340px;
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--app-border);
+    z-index: 10;
+}
+
+/* =========================================================================
+   11. Rider-Customer Chat Panel
+   ========================================================================= */
+
+.chat-offcanvas {
+    width: 380px;
+}
+
+@media (max-width: 575.98px) {
+    .chat-offcanvas {
+        width: 100%;
+    }
+}
+
+.chat-header {
+    background: #fff;
+}
+
+.chat-messages {
+    overflow-y: auto;
+    background: #f8f9fa;
+    min-height: 0;
+    max-height: calc(100vh - 180px);
+    scroll-behavior: smooth;
+}
+
+.chat-bubble {
+    max-width: 80%;
+    padding: 0.6rem 0.9rem;
+    border-radius: 1rem;
+    margin-bottom: 0.5rem;
+    word-wrap: break-word;
+    line-height: 1.4;
+    font-size: 0.9rem;
+    position: relative;
+}
+
+.chat-bubble-sent {
+    background: #0d6efd;
+    color: #fff;
+    margin-left: auto;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.chat-bubble-received {
+    background: #fff;
+    color: #212529;
+    border: 1px solid #dee2e6;
+    margin-right: auto;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.chat-bubble-meta {
+    font-size: 0.68rem;
+    opacity: 0.7;
+    margin-top: 0.2rem;
+    text-align: right;
+}
+
+.chat-bubble-received .chat-bubble-meta {
+    text-align: left;
+}
+
+.chat-sender-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 0.15rem;
+    display: block;
+}
+
+.chat-bubble-sent .chat-sender-label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.chat-bubble-received .chat-sender-label {
+    color: #0d6efd;
+}
+
+.chat-input-area {
+    background: #fff;
+}
+
+.chat-input-area .form-control {
+    border-radius: 1.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.chat-input-area .btn {
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.chat-system-msg {
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.75rem;
+    padding: 0.4rem 0;
+}
+
+.chat-empty-state {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #6c757d;
+}
+
+.chat-empty-state i {
+    font-size: 2.5rem;
+    opacity: 0.4;
+    display: block;
+    margin-bottom: 0.75rem;
+}
+
+#chatUnreadBadge {
+    font-size: 0.65rem;
+    transform: translate(-50%, -50%) !important;
+}
+

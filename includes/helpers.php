@@ -72,6 +72,21 @@ function asset(string $path): string {
 }
 
 /**
+ * Generate asset URL with automatic cache-busting based on file modification time.
+ *
+ * @param string $path
+ * @return string
+ */
+function asset_v(string $path): string {
+    $url = asset($path);
+    $file = dirname(__DIR__) . '/' . ltrim($path, '/');
+    if (is_file($file)) {
+        $url .= '?v=' . filemtime($file);
+    }
+    return $url;
+}
+
+/**
  * Redirect to a specified path or URL
  *
  * @param string $path

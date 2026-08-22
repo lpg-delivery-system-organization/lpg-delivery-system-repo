@@ -36,11 +36,14 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <!-- Global Application JS -->
-    <script src="<?= asset('assets/js/app.js') ?>"></script>
+    <script src="<?= asset_v('assets/js/app.js') ?>"></script>
+
+    <!-- Shared Map & Chat Modules (AppMaps / AppChat) -->
+    <script src="<?= asset_v('assets/js/shared-maps.js') ?>"></script>
 
     <!-- Page Specific JS (if defined) -->
     <?php if (!empty($page_js)): ?>
-        <script src="<?= asset('assets/js/' . $page_js) ?>"></script>
+        <script src="<?= asset_v('assets/js/' . $page_js) ?>"></script>
     <?php endif; ?>
 
 </body>

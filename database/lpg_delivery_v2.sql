@@ -24,6 +24,22 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `rider_locations`
+--
+
+CREATE TABLE `rider_locations` (
+  `id` int(11) NOT NULL,
+  `order_id` int(11) NOT NULL,
+  `rider_id` int(11) NOT NULL,
+  `latitude` decimal(10,7) NOT NULL,
+  `longitude` decimal(10,7) NOT NULL,
+  `accuracy` float DEFAULT NULL,
+  `recorded_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `orders`
 --
 
@@ -38,6 +54,8 @@ CREATE TABLE `orders` (
   `payment_method` enum('cod','gcash') NOT NULL DEFAULT 'cod',
   `status` enum('pending','approved','ready_for_delivery','picked_up','out_for_delivery','delivered','cancelled') NOT NULL DEFAULT 'pending',
   `delivery_address` text NOT NULL,
+  `delivery_latitude` decimal(10,7) DEFAULT NULL,
+  `delivery_longitude` decimal(10,7) DEFAULT NULL,
   `contact_phone` varchar(20) NOT NULL,
   `notes` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -646,6 +664,15 @@ INSERT INTO `users` (`id`, `full_name`, `email`, `password`, `role`, `phone`, `a
 --
 
 --
+-- Indexes for table `rider_locations`
+--
+ALTER TABLE `rider_locations`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_order` (`order_id`),
+  ADD KEY `idx_rider` (`rider_id`),
+  ADD KEY `idx_recorded` (`recorded_at`);
+
+--
 -- Indexes for table `orders`
 --
 ALTER TABLE `orders`
@@ -698,6 +725,12 @@ ALTER TABLE `password_resets`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=108;
 
 --
+-- AUTO_INCREMENT for table `rider_locations`
+--
+ALTER TABLE `rider_locations`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
@@ -726,8 +759,75 @@ ALTER TABLE `orders`
 --
 ALTER TABLE `password_resets`
   ADD CONSTRAINT `fk_password_resets_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-COMMIT;
 
+--
+-- Constraints for table `rider_locations`
+--
+ALTER TABLE `rider_locations`
+  ADD CONSTRAINT `fk_rider_locations_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_rider_locations_rider` FOREIGN KEY (`rider_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Table structure for table `chat_messages`
+--
+
+-- CREATE TABLE `chat_messages` (
+--   `id` int(11) NOT NULL,
+--   `order_id` int(11) NOT NULL,
+--   `sender_id` int(11) NOT NULL,
+--   `message` text NOT NULL,
+--   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --
+-- -- Indexes for table `chat_messages`
+-- --
+-- ALTER TABLE `chat_messages`
+--   ADD PRIMARY KEY (`id`),
+--   ADD KEY `idx_chat_order` (`order_id`),
+--   ADD KEY `idx_chat_sender` (`sender_id`),
+--   ADD KEY `idx_chat_created` (`created_at`);
+
+-- --
+-- -- AUTO_INCREMENT for table `chat_messages`
+-- --
+-- ALTER TABLE `chat_messages`
+--   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+-- --
+-- -- Constraints for table `chat_messages`
+-- --
+-- ALTER TABLE `chat_messages`
+--   ADD CONSTRAINT `fk_chat_messages_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+--   ADD CONSTRAINT `fk_chat_messages_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+-- COMMIT; this commit is original 
+
+CREATE TABLE `chat_messages` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `order_id` INT(11) NOT NULL,
+    `sender_id` INT(11) NOT NULL,
+    `message` TEXT NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (`id`),
+
+    KEY `idx_chat_order` (`order_id`),
+    KEY `idx_chat_sender` (`sender_id`),
+    KEY `idx_chat_created` (`created_at`),
+
+    CONSTRAINT `fk_chat_messages_order`
+        FOREIGN KEY (`order_id`)
+        REFERENCES `orders` (`id`)
+        ON DELETE CASCADE,
+
+    CONSTRAINT `fk_chat_messages_sender`
+        FOREIGN KEY (`sender_id`)
+        REFERENCES `users` (`id`)
+        ON DELETE CASCADE
+
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_general_ci;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

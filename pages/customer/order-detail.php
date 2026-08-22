@@ -99,8 +99,14 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 <small class="text-muted">Placed on <?= e(format_date($order['created_at'], 'M d, Y h:i A')) ?></small>
             </div>
         </div>
-        <div>
+        <div class="d-flex align-items-center gap-2">
             <?= get_order_status_badge($status) ?>
+            <?php if (!empty($order['rider_id']) && in_array($status, ['picked_up', 'out_for_delivery', 'ready_for_delivery', 'delivered'], true)): ?>
+                <button type="button" class="btn btn-outline-primary position-relative" id="btnOpenChat" data-bs-toggle="offcanvas" data-bs-target="#chatPanel">
+                    <i class="bi bi-chat-dots-fill me-1"></i>Chat with Rider
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="chatUnreadBadge">0</span>
+                </button>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -214,6 +220,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     </div>
 
                     <div class="mb-3">
+                        <label class="text-muted extra-small text-uppercase fw-semibold d-block mb-1">Location Pin</label>
+                        <div class="pin-location-map rounded-3 border"
+                             id="customerPinMapAddress"
+                             data-address="<?= e($order['delivery_address'] ?? '') ?>"></div>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="text-muted extra-small text-uppercase fw-semibold d-block">Contact Phone</label>
                         <div class="fw-semibold text-dark mt-1">
                             <i class="bi bi-telephone me-1 text-primary"></i><?= e($order['contact_phone'] ?? 'N/A') ?>
@@ -284,6 +297,8 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         <div id="detailMap_<?= $orderId ?>" class="order-detail-map mb-3"
                              data-order-id="<?= $orderId ?>"
                              data-address="<?= e($order['delivery_address'] ?? 'Manila') ?>"
+                             data-lat="<?= e($order['delivery_latitude'] ?? '') ?>"
+                             data-lng="<?= e($order['delivery_longitude'] ?? '') ?>"
                              data-status="<?= e($status) ?>"
                              data-rider-name="<?= e($order['rider_name'] ?? 'Delivery Rider') ?>"></div>
                         <div class="d-flex align-items-center justify-content-between small text-muted">
@@ -296,6 +311,38 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 </div>
             </div>
         <?php endif; ?>
+    </div>
+</div>
+
+<!-- Chat Offcanvas Panel -->
+<div class="offcanvas offcanvas-end chat-offcanvas" tabindex="-1" id="chatPanel" aria-labelledby="chatPanelLabel">
+    <div class="offcanvas-header chat-header border-bottom">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-chat-dots-fill text-primary fs-5"></i>
+            <div>
+                <h6 class="offcanvas-title fw-bold mb-0" id="chatPanelLabel">Chat with Rider</h6>
+                <small class="text-muted" id="chatPartnerName"><?= e($order['rider_name'] ?? 'Rider') ?></small>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column p-0">
+        <div class="chat-messages flex-grow-1 p-3" id="chatMessages">
+            <div class="text-center text-muted py-4" id="chatLoading">
+                <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                <div class="small">Loading messages...</div>
+            </div>
+        </div>
+        <div class="chat-input-area border-top p-3">
+            <form id="chatForm" class="d-flex gap-2">
+                <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                <input type="hidden" name="order_id" value="<?= $orderId ?>">
+                <input type="text" class="form-control" id="chatInput" placeholder="Type your message..." maxlength="2000" autocomplete="off">
+                <button type="submit" class="btn btn-primary px-3" id="btnSendChat">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 

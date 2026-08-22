@@ -300,97 +300,76 @@
 
     // Initialize map on order detail page
     function initDetailTrackingMap() {
-        if (typeof window.L === 'undefined') return;
+        if (typeof window.L === 'undefined' || typeof window.AppMaps === 'undefined') return;
 
         $('.order-detail-map').each(function () {
             const $mapEl = $(this);
             const orderId = $mapEl.data('order-id');
             const address = $mapEl.data('address') || 'Manila';
             const riderName = $mapEl.data('rider-name') || 'Delivery Rider';
-            const status = ($mapEl.data('status') || '').toLowerCase();
             const mapContainerId = $mapEl.attr('id');
 
             if (!mapContainerId || $('#' + mapContainerId).data('initialized')) return;
             $('#' + mapContainerId).data('initialized', true);
 
-            const offset = (orderId % 10) * 0.004;
-            const customerCoord = [14.6091 + offset, 120.9822 + offset];
-            let riderCoord = [14.5950 + offset, 120.9680 + offset];
+            const dest = AppMaps.resolveDestination($mapEl.data('lat'), $mapEl.data('lng'));
+            const customerCoord = dest || AppMaps.legacyDest(orderId);
+            const riderStart = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.legacyRider(orderId);
 
-            const map = L.map(mapContainerId, {
+            const map = AppMaps.createMap(mapContainerId, {
                 zoomControl: true,
                 scrollWheelZoom: false
             }).setView(customerCoord, 14);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-
-            const customerIcon = L.divIcon({
-                className: 'customer-marker-wrapper',
-                html: '<div class="customer-marker-icon" style="width:34px;height:34px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:16px;">📍</div>',
-                iconSize: [34, 34],
-                iconAnchor: [17, 34],
-                popupAnchor: [0, -30]
-            });
-
-            L.marker(customerCoord, { icon: customerIcon })
+            L.marker(customerCoord, { icon: AppMaps.icons.customer(34) })
                 .addTo(map)
-                .bindPopup('<strong>📍 Delivery Address</strong><br>' + $('<div>').text(address).html());
+                .bindPopup('<strong>📍 Delivery Address</strong><br>' + AppMaps.escapeHtml(address));
 
-            const riderIcon = L.divIcon({
-                className: 'rider-marker-wrapper',
-                html: '<div class="rider-marker-icon" style="width:36px;height:36px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:18px;">🚴</div>',
-                iconSize: [36, 36],
-                iconAnchor: [18, 18],
-                popupAnchor: [0, -20]
-            });
-
-            const riderMarker = L.marker(riderCoord, { icon: riderIcon })
+            const riderMarker = L.marker(riderStart, { icon: AppMaps.icons.rider(36, '🚴') })
                 .addTo(map)
-                .bindPopup('<strong>🚴 ' + $('<div>').text(riderName).html() + '</strong><br>En route with LPG')
+                .bindPopup('<strong>🚴 ' + AppMaps.escapeHtml(riderName) + '</strong><br>En route with LPG')
                 .openPopup();
 
-            const routeLine = L.polyline([riderCoord, customerCoord], {
+            const routeLine = L.polyline([riderStart, customerCoord], {
                 color: '#2563eb',
                 weight: 4,
                 opacity: 0.85,
                 dashArray: '8, 8'
             }).addTo(map);
 
-            const bounds = L.latLngBounds([riderCoord, customerCoord]);
-            map.fitBounds(bounds, { padding: [40, 40] });
+            map.fitBounds(L.latLngBounds([riderStart, customerCoord]), { padding: [40, 40] });
 
             const $statusText = $('#detailMapStatus_' + orderId);
 
-            const intervalId = setInterval(function () {
-                const latDiff = customerCoord[0] - riderCoord[0];
-                const lngDiff = customerCoord[1] - riderCoord[1];
-                const distanceRemaining = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-
-                if (distanceRemaining < 0.0006) {
-                    clearInterval(intervalId);
-                    riderMarker.setLatLng(customerCoord);
-                    routeLine.setLatLngs([customerCoord, customerCoord]);
-                    riderMarker.bindPopup('<strong>✅ Rider arrived!</strong><br>' + $('<div>').text(riderName).html() + ' is at your address.').openPopup();
-                    if ($statusText.length) {
-                        $statusText.removeClass('text-primary').addClass('text-success fw-bold').html('<i class="bi bi-check-circle-fill me-1"></i>Rider has arrived at destination!');
+            AppMaps.startLiveTracking({
+                map: map,
+                orderId: orderId,
+                customerCoord: customerCoord,
+                riderStart: riderStart,
+                riderMarker: riderMarker,
+                routeLine: routeLine,
+                riderName: riderName,
+                pollMs: 4000,
+                initialPollDelayMs: 500,
+                simulateTickMs: 1200,
+                simulateStep: 0.045,
+                fitPadding: [40, 40],
+                statusEl: $statusText,
+                texts: {
+                    arrived: function () {
+                        return '<i class="bi bi-check-circle-fill me-1"></i>Rider has arrived at destination!';
+                    },
+                    arrivedPopup: function (name) {
+                        return '<strong>✅ Rider arrived!</strong><br>' + AppMaps.escapeHtml(name) + ' is at your address.';
                     }
-                    return;
+                },
+                onRealFix: function () {
+                    if ($statusText.length) {
+                        $statusText.removeClass('text-primary').addClass('text-success fw-bold')
+                            .html('<i class="bi bi-geo-fill me-1"></i>Rider live location updated');
+                    }
                 }
-
-                riderCoord[0] += latDiff * 0.045;
-                riderCoord[1] += lngDiff * 0.045;
-
-                riderMarker.setLatLng(riderCoord);
-                routeLine.setLatLngs([riderCoord, customerCoord]);
-
-                if ($statusText.length) {
-                    const progressPercent = Math.min(95, Math.round((1 - (distanceRemaining / 0.022)) * 100));
-                    $statusText.html('<i class="bi bi-bicycle me-1"></i>' + $('<div>').text(riderName).html() + ' is on the way (' + Math.max(5, progressPercent) + '% arrived)');
-                }
-            }, 1200);
+            });
         });
     }
 
@@ -418,51 +397,28 @@
             const customerAddress = $mapEl.data('customer-address') || 'Delivery Address';
             const orderStatus = ($mapEl.data('status') || '').toLowerCase();
 
-            // Pseudo-random deterministic coords based on orderId around Manila / QC
-            const offset = (orderId % 10) * 0.004;
-            const customerCoord = [14.6091 + offset, 120.9822 + offset];
-            let riderCoord = [14.5950 + offset, 120.9680 + offset];
+            // Exact saved drop-off pin; simulated coords only for legacy orders
+            const dest = AppMaps.resolveDestination($mapEl.data('lat'), $mapEl.data('lng'));
+            const customerCoord = dest || AppMaps.legacyDest(orderId);
+            const riderStart = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.legacyRider(orderId);
 
             // If already picked up or out for delivery, set initial map view
-            const map = L.map(mapContainerId, {
+            const map = AppMaps.createMap(mapContainerId, {
                 zoomControl: true,
                 scrollWheelZoom: false
             }).setView(customerCoord, 14);
 
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-
-            // Custom Customer Destination Marker
-            const customerIcon = L.divIcon({
-                className: 'customer-marker-wrapper',
-                html: '<div class="customer-marker-icon" style="width:34px;height:34px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:16px;">📍</div>',
-                iconSize: [34, 34],
-                iconAnchor: [17, 34],
-                popupAnchor: [0, -30]
-            });
-
-            const customerMarker = L.marker(customerCoord, { icon: customerIcon })
+            L.marker(customerCoord, { icon: AppMaps.icons.customer(34) })
                 .addTo(map)
-                .bindPopup('<strong>📍 Delivery Destination</strong><br>' + $('<div>').text(customerAddress).html());
+                .bindPopup('<strong>📍 Delivery Destination</strong><br>' + AppMaps.escapeHtml(customerAddress));
 
-            // Custom Rider Marker
-            const riderIcon = L.divIcon({
-                className: 'rider-marker-wrapper',
-                html: '<div class="rider-marker-icon" style="width:36px;height:36px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:18px;">🚴</div>',
-                iconSize: [36, 36],
-                iconAnchor: [18, 18],
-                popupAnchor: [0, -20]
-            });
-
-            const riderMarker = L.marker(riderCoord, { icon: riderIcon })
+            const riderMarker = L.marker(riderStart, { icon: AppMaps.icons.rider(36, '🚴') })
                 .addTo(map)
-                .bindPopup('<strong>🚴 ' + $('<div>').text(riderName).html() + '</strong><br>En route with your LPG cylinder')
+                .bindPopup('<strong>🚴 ' + AppMaps.escapeHtml(riderName) + '</strong><br>En route with your LPG cylinder')
                 .openPopup();
 
             // Route Polyline
-            const routeLine = L.polyline([riderCoord, customerCoord], {
+            const routeLine = L.polyline([riderStart, customerCoord], {
                 color: '#2563eb',
                 weight: 4,
                 opacity: 0.85,
@@ -471,44 +427,25 @@
             }).addTo(map);
 
             // Fit bounds nicely
-            const bounds = L.latLngBounds([riderCoord, customerCoord]);
-            map.fitBounds(bounds, { padding: [40, 40] });
+            map.fitBounds(L.latLngBounds([riderStart, customerCoord]), { padding: [40, 40] });
 
             activeMapInstances[orderId] = map;
 
-            // Live Animated Rider Movement Simulation
-            function stepRiderMovement() {
-                const latDiff = customerCoord[0] - riderCoord[0];
-                const lngDiff = customerCoord[1] - riderCoord[1];
-                const distanceRemaining = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-
-                if (distanceRemaining < 0.0006) {
-                    if (activeMapIntervals[orderId]) {
-                        clearInterval(activeMapIntervals[orderId]);
-                    }
-                    riderMarker.setLatLng(customerCoord);
-                    routeLine.setLatLngs([customerCoord, customerCoord]);
-                    riderMarker.bindPopup('<strong>✅ Rider has arrived!</strong><br>' + $('<div>').text(riderName).html() + ' is at your doorstep.').openPopup();
-                    if ($statusText.length) {
-                        $statusText.removeClass('text-primary').addClass('text-success fw-bold').html('<i class="bi bi-check-circle-fill me-1"></i>Rider has arrived at your location!');
-                    }
-                    return;
-                }
-
-                // Advance rider 4.5% of remaining distance per tick
-                riderCoord[0] += latDiff * 0.045;
-                riderCoord[1] += lngDiff * 0.045;
-
-                riderMarker.setLatLng(riderCoord);
-                routeLine.setLatLngs([riderCoord, customerCoord]);
-
-                if ($statusText.length) {
-                    const progressPercent = Math.min(95, Math.round((1 - (distanceRemaining / 0.022)) * 100));
-                    $statusText.html('<i class="bi bi-bicycle me-1"></i>' + $('<div>').text(riderName).html() + ' is on the way (' + Math.max(5, progressPercent) + '% arrived)');
-                }
-            }
-
-            activeMapIntervals[orderId] = setInterval(stepRiderMovement, 1200);
+            AppMaps.startLiveTracking({
+                map: map,
+                orderId: orderId,
+                customerCoord: customerCoord,
+                riderStart: riderStart,
+                riderMarker: riderMarker,
+                routeLine: routeLine,
+                riderName: riderName,
+                pollMs: 5000,
+                initialPollDelayMs: 800,
+                simulateTickMs: 1200,
+                simulateStep: 0.045,
+                fitPadding: [40, 40],
+                statusEl: $statusText
+            });
         });
 
         // Toggle map view collapse button
@@ -538,7 +475,7 @@
 
         // Dedicated Modal Live Tracking Map Handler
         let modalMapInstance = null;
-        let modalMapInterval = null;
+        let modalTrackingHandle = null;
 
         $(document).on('click', '.btn-track-live-map', function (e) {
             e.preventDefault();
@@ -548,6 +485,9 @@
             const customerAddress = $btn.data('customer-address') || 'Delivery Address';
             const status = ($btn.data('status') || '').toLowerCase();
             const statusLabel = $btn.data('status-label') || 'In Transit';
+
+            const btnLat = $btn.data('lat');
+            const btnLng = $btn.data('lng');
 
             $('#modalOrderDisplayId').text('#' + orderId);
             $('#modalRiderName').text('Assigned Rider: ' + riderName);
@@ -569,56 +509,35 @@
 
             // Setup modal map once modal is shown
             $('#liveTrackingMapModal').one('shown.bs.modal', function () {
-                if (typeof window.L === 'undefined') return;
+                if (typeof window.L === 'undefined' || typeof window.AppMaps === 'undefined') return;
 
-                if (modalMapInterval) {
-                    clearInterval(modalMapInterval);
-                    modalMapInterval = null;
+                if (modalTrackingHandle) {
+                    modalTrackingHandle.stop();
+                    modalTrackingHandle = null;
                 }
                 if (modalMapInstance) {
                     modalMapInstance.remove();
                     modalMapInstance = null;
                 }
 
-                const offset = (orderId % 10) * 0.004;
-                const customerCoord = [14.6091 + offset, 120.9822 + offset];
-                let riderCoord = [14.5950 + offset, 120.9680 + offset];
+                const dest = AppMaps.resolveDestination(btnLat, btnLng);
+                const customerCoord = dest || AppMaps.legacyDest(orderId);
+                const riderStart = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.legacyRider(orderId);
 
-                modalMapInstance = L.map('modal-live-map', {
+                modalMapInstance = AppMaps.createMap('modal-live-map', {
                     zoomControl: true
                 }).setView(customerCoord, 14);
 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                }).addTo(modalMapInstance);
-
-                const customerIcon = L.divIcon({
-                    className: 'customer-marker-wrapper',
-                    html: '<div class="customer-marker-icon" style="width:36px;height:36px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:18px;">📍</div>',
-                    iconSize: [36, 36],
-                    iconAnchor: [18, 36],
-                    popupAnchor: [0, -32]
-                });
-
-                const customerMarker = L.marker(customerCoord, { icon: customerIcon })
+                L.marker(customerCoord, { icon: AppMaps.icons.customer(36) })
                     .addTo(modalMapInstance)
-                    .bindPopup('<strong>📍 Delivery Destination</strong><br>' + $('<div>').text(customerAddress).html());
+                    .bindPopup('<strong>📍 Delivery Destination</strong><br>' + AppMaps.escapeHtml(customerAddress));
 
-                const riderIcon = L.divIcon({
-                    className: 'rider-marker-wrapper',
-                    html: '<div class="rider-marker-icon" style="width:40px;height:40px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:20px;">🚴</div>',
-                    iconSize: [40, 40],
-                    iconAnchor: [20, 20],
-                    popupAnchor: [0, -22]
-                });
-
-                const riderMarker = L.marker(riderCoord, { icon: riderIcon })
+                const riderMarker = L.marker(riderStart, { icon: AppMaps.icons.rider(40, '🚴') })
                     .addTo(modalMapInstance)
-                    .bindPopup('<strong>🚴 ' + $('<div>').text(riderName).html() + '</strong><br>LPG Cylinder En Route')
+                    .bindPopup('<strong>🚴 ' + AppMaps.escapeHtml(riderName) + '</strong><br>LPG Cylinder En Route')
                     .openPopup();
 
-                const routeLine = L.polyline([riderCoord, customerCoord], {
+                const routeLine = L.polyline([riderStart, customerCoord], {
                     color: '#2563eb',
                     weight: 5,
                     opacity: 0.85,
@@ -626,46 +545,44 @@
                     lineCap: 'round'
                 }).addTo(modalMapInstance);
 
-                const bounds = L.latLngBounds([riderCoord, customerCoord]);
-                modalMapInstance.fitBounds(bounds, { padding: [50, 50] });
-
+                modalMapInstance.fitBounds(L.latLngBounds([riderStart, customerCoord]), { padding: [50, 50] });
                 modalMapInstance.invalidateSize();
 
-                function stepModalRiderMovement() {
-                    const latDiff = customerCoord[0] - riderCoord[0];
-                    const lngDiff = customerCoord[1] - riderCoord[1];
-                    const distanceRemaining = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-
-                    if (distanceRemaining < 0.0006) {
-                        if (modalMapInterval) {
-                            clearInterval(modalMapInterval);
-                            modalMapInterval = null;
+                modalTrackingHandle = AppMaps.startLiveTracking({
+                    map: modalMapInstance,
+                    orderId: orderId,
+                    customerCoord: customerCoord,
+                    riderStart: riderStart,
+                    riderMarker: riderMarker,
+                    routeLine: routeLine,
+                    riderName: riderName,
+                    pollMs: 4000,
+                    initialPollDelayMs: 300,
+                    simulateTickMs: 1000,
+                    simulateStep: 0.05,
+                    fitPadding: [50, 50],
+                    texts: {
+                        enroute: function (name, pct) {
+                            return '<i class="bi bi-bicycle me-1"></i>' + AppMaps.escapeHtml(name) + ' is moving closer (' + pct + '% arrived)';
+                        },
+                        arrivedPopup: function (name) {
+                            return '<strong>✅ Rider has arrived!</strong><br>' + AppMaps.escapeHtml(name) + ' is at your doorstep.';
                         }
-                        riderMarker.setLatLng(customerCoord);
-                        routeLine.setLatLngs([customerCoord, customerCoord]);
-                        riderMarker.bindPopup('<strong>✅ Rider has arrived!</strong><br>' + $('<div>').text(riderName).html() + ' is at your doorstep.').openPopup();
+                    },
+                    onTick: function (html) {
+                        $('#modalEtaText').html(html);
+                    },
+                    onArrive: function () {
                         $('#modalEtaText').removeClass('text-primary').addClass('text-success fw-bold').html('<i class="bi bi-check-circle-fill me-1"></i>Rider has arrived at your location!');
                         $('#modalStatusBadge').removeClass('bg-primary').addClass('bg-success').text('Arrived at Destination');
-                        return;
                     }
-
-                    riderCoord[0] += latDiff * 0.05;
-                    riderCoord[1] += lngDiff * 0.05;
-
-                    riderMarker.setLatLng(riderCoord);
-                    routeLine.setLatLngs([riderCoord, customerCoord]);
-
-                    const progressPercent = Math.min(95, Math.round((1 - (distanceRemaining / 0.022)) * 100));
-                    $('#modalEtaText').html('<i class="bi bi-bicycle me-1"></i>' + $('<div>').text(riderName).html() + ' is moving closer (' + Math.max(5, progressPercent) + '% arrived)');
-                }
-
-                modalMapInterval = setInterval(stepModalRiderMovement, 1000);
+                });
             });
 
             $('#liveTrackingMapModal').on('hidden.bs.modal', function () {
-                if (modalMapInterval) {
-                    clearInterval(modalMapInterval);
-                    modalMapInterval = null;
+                if (modalTrackingHandle) {
+                    modalTrackingHandle.stop();
+                    modalTrackingHandle = null;
                 }
             });
         });
@@ -730,12 +647,144 @@
     }
 
     // =========================================================================
+    // Geocoding Helper & Pin Picker moved to shared-maps.js (AppMaps)
+    // =========================================================================
+
+    // =========================================================================
+    // Checkout: Exact Location Pin Picker (auto-geocode + draggable pin)
+    // =========================================================================
+    function initCheckoutAddressPinPicker() {
+        const $mapEl = $('#addressPreviewMap');
+        const $addressInput = $('#delivery_address');
+        const $latInput = $('#delivery_latitude');
+        const $lngInput = $('#delivery_longitude');
+        const $status = $('#addressPinStatus');
+
+        if ($mapEl.length === 0 || $addressInput.length === 0 || typeof window.L === 'undefined') {
+            return;
+        }
+        if ($mapEl.data('pin-picker-initialized')) return;
+        $mapEl.data('pin-picker-initialized', true);
+
+        const fallbackCoord = [14.5995, 120.9842];
+        let debounceTimer = null;
+        let lookupSeq = 0;
+
+        const map = L.map('addressPreviewMap', {
+            zoomControl: true,
+            scrollWheelZoom: false
+        }).setView(fallbackCoord, 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        const pinIcon = L.divIcon({
+            className: 'pin-marker-wrapper',
+            html: '<div style="width:32px;height:32px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,0.35);font-size:15px;">📍</div>',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -28]
+        });
+
+        let marker = null;
+
+        function setPin(lat, lng, opts) {
+            opts = opts || {};
+            $latInput.val(lat);
+            $lngInput.val(lng);
+            if (marker) {
+                marker.setLatLng([lat, lng]);
+            } else {
+                marker = L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(map);
+                bindMarkerEvents();
+            }
+            if (!opts.keepView) {
+                map.setView([lat, lng], Math.max(map.getZoom(), 16));
+            }
+        }
+
+        function setStatus(html, tone) {
+            const tones = {
+                success: 'text-success fw-semibold',
+                warn: 'text-warning fw-semibold',
+                muted: 'text-muted'
+            };
+            $status.removeClass().addClass('extra-small ' + (tones[tone] || tones.muted)).html(html);
+        }
+
+        function bindMarkerEvents() {
+            if (!marker) return;
+            marker.on('dragend', function () {
+                const pos = marker.getLatLng();
+                $latInput.val(pos.lat.toFixed(7));
+                $lngInput.val(pos.lng.toFixed(7));
+                setStatus('<i class="bi bi-hand-index-thumb me-1"></i>Pin placed at your exact location', 'success');
+            });
+        }
+
+        function lookupAddress() {
+            const address = $.trim($addressInput.val());
+            const seq = ++lookupSeq;
+
+            if (address.length < 6) {
+                setStatus('<i class="bi bi-hourglass-split me-1"></i>Type your complete address to auto-detect the pin...', 'muted');
+                return;
+            }
+
+            setStatus('<i class="bi bi-arrow-repeat me-1"></i>Detecting your location on the map...', 'muted');
+
+            AppMaps.geocode(address).then(function (result) {
+                if (seq !== lookupSeq) return;
+                if (result) {
+                    setPin(result.lat, result.lng);
+                    setStatus('<i class="bi bi-geo-alt-fill me-1"></i>Pin location confirmed &mdash; drag to fine-tune if needed', 'success');
+                } else {
+                    setStatus('<i class="bi bi-exclamation-triangle me-1"></i>Address not found &mdash; click or drag the pin to mark your exact spot', 'warn');
+                    if (!marker) {
+                        setPin(fallbackCoord[0], fallbackCoord[1], { keepView: true });
+                    }
+                }
+            });
+        }
+
+        // Debounced auto-geocode while typing
+        $addressInput.on('input change blur', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(lookupAddress, 800);
+        });
+
+        // Click-to-move pin for manual placement
+        map.on('click', function (e) {
+            setPin(e.latlng.lat, e.latlng.lng, { keepView: true });
+            setStatus('<i class="bi bi-hand-index-thumb me-1"></i>Pin placed at your exact location', 'success');
+        });
+
+        // Restore previously submitted coordinates (validation error re-render)
+        const initialLat = parseFloat($latInput.val());
+        const initialLng = parseFloat($lngInput.val());
+        if (!isNaN(initialLat) && !isNaN(initialLng)) {
+            setPin(initialLat, initialLng);
+            setStatus('<i class="bi bi-geo-alt-fill me-1"></i>Pin restored &mdash; drag to fine-tune if needed', 'success');
+        } else if ($.trim($addressInput.val()).length >= 6) {
+            lookupAddress();
+        }
+
+        setTimeout(function () { map.invalidateSize(); }, 300);
+    }
+
+    // =========================================================================
     // DOM Ready Initialization
     // =========================================================================
     $(function () {
-        initShopInteractivity();
-        initOrdersInteractivity();
-        initProfileInteractivity();
+        [initShopInteractivity, initOrdersInteractivity, initProfileInteractivity,
+         function () { if (window.AppMaps) AppMaps.initPinLocationMaps(); },
+         function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with your rider' }); },
+         initCheckoutAddressPinPicker
+        ].forEach(function (init) {
+            try { init(); } catch (err) { console.error('Init failed:', err); }
+        });
     });
 
 })(window, window.jQuery);

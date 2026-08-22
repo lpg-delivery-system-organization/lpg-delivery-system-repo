@@ -67,6 +67,13 @@ class Order {
         $notes = isset($orderData['notes']) ? trim($orderData['notes']) : null;
         $status = $orderData['status'] ?? 'pending';
 
+        // Resolve exact drop-off coordinates (client pin preferred, geocode fallback)
+        [$deliveryLatitude, $deliveryLongitude] = $this->resolveDeliveryCoordinates(
+            $deliveryAddress,
+            $orderData['delivery_latitude'] ?? null,
+            $orderData['delivery_longitude'] ?? null
+        );
+
         if ($customerId <= 0 || $productId <= 0 || $quantity <= 0) {
             throw new InvalidArgumentException("Customer ID, Product ID, and a positive Quantity are required.");
         }
@@ -115,9 +122,10 @@ class Order {
             $stmt = $this->db->prepare("
                 INSERT INTO orders (
                     customer_id, product_id, rider_id, quantity, unit_price, total_amount,
-                    payment_method, status, delivery_address, contact_phone, notes, created_at, updated_at
+                    payment_method, status, delivery_address, delivery_latitude, delivery_longitude,
+                    contact_phone, notes, created_at, updated_at
                 ) VALUES (
-                    ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()
+                    ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()
                 )
             ");
 
@@ -130,6 +138,8 @@ class Order {
                 $paymentMethod,
                 $status,
                 $deliveryAddress,
+                $deliveryLatitude,
+                $deliveryLongitude,
                 $contactPhone,
                 $notes
             ]);
@@ -144,6 +154,117 @@ class Order {
                 $this->db->rollBack();
             }
             throw $e;
+        }
+    }
+
+    /**
+     * Resolve delivery coordinates for an order: prefer client-supplied pin,
+     * fall back to server-side Nominatim geocoding, else return [null, null].
+     * Never throws — checkout must not fail because of a geocoder outage.
+     *
+     * @param string $address
+     * @param mixed $clientLat
+     * @param mixed $clientLng
+     * @return array{0: ?float, 1: ?float} [latitude, longitude]
+     */
+    private function resolveDeliveryCoordinates(string $address, $clientLat, $clientLng): array {
+        $lat = is_numeric($clientLat) && $clientLat !== '' ? (float)$clientLat : null;
+        $lng = is_numeric($clientLng) && $clientLng !== '' ? (float)$clientLng : null;
+
+        $latValid = ($lat !== null && $lat >= -90 && $lat <= 90);
+        $lngValid = ($lng !== null && $lng >= -180 && $lng <= 180);
+
+        if ($latValid && $lngValid) {
+            return [$lat, $lng];
+        }
+
+        $geocoded = $this->geocodeAddress($address);
+        if ($geocoded !== null) {
+            return [$geocoded['lat'], $geocoded['lng']];
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * Geocode a free-text address via the Nominatim public API.
+     *
+     * @param string $address
+     * @return array{lat: float, lng: float}|null
+     */
+    private function geocodeAddress(string $address): ?array {
+        if ($address === '') {
+            return null;
+        }
+
+        $url = 'https://nominatim.openstreetmap.org/search?' . http_build_query([
+            'q' => $address,
+            'format' => 'json',
+            'limit' => 1,
+        ]);
+
+        $raw = $this->fetchUrl($url);
+        if ($raw === null) {
+            return null;
+        }
+
+        $results = json_decode($raw, true);
+        if (!is_array($results) || empty($results)) {
+            return null;
+        }
+
+        $lat = isset($results[0]['lat']) ? (float)$results[0]['lat'] : null;
+        $lng = isset($results[0]['lon']) ? (float)$results[0]['lon'] : null;
+
+        if ($lat === null || $lng === null || $lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+            return null;
+        }
+
+        return ['lat' => $lat, 'lng' => $lng];
+    }
+
+    /**
+     * Fetch a remote URL with a short timeout via cURL, falling back to file_get_contents.
+     *
+     * @param string $url
+     * @return string|null
+     */
+    private function fetchUrl(string $url): ?string {
+        try {
+            if (function_exists('curl_init')) {
+                $ch = curl_init($url);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT => 7,
+                    CURLOPT_CONNECTTIMEOUT => 5,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_USERAGENT => 'LPGDeliverySystem/2.0 (order geocoding)',
+                    CURLOPT_HTTPHEADER => ['Accept: application/json'],
+                ]);
+                $caBundle = ini_get('curl.cainfo') ?: ini_get('openssl.cafile');
+                if ($caBundle && is_file($caBundle)) {
+                    curl_setopt($ch, CURLOPT_CAINFO, $caBundle);
+                }
+                $body = curl_exec($ch);
+                $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+                curl_close($ch);
+                if (is_string($body) && $status === 200) {
+                    return $body;
+                }
+                return null;
+            }
+
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => "User-Agent: LPGDeliverySystem/2.0 (order geocoding)\r\nAccept: application/json\r\n",
+                    'timeout' => 4,
+                ]
+            ]);
+            $body = @file_get_contents($url, false, $context);
+            return is_string($body) && $body !== '' ? $body : null;
+        } catch (Throwable $e) {
+            return null;
         }
     }
 

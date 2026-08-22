@@ -128,8 +128,14 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 <small class="text-muted">Order Date: <?= e(format_date($order['created_at'], 'M d, Y h:i A')) ?></small>
             </div>
         </div>
-        <div>
+        <div class="d-flex align-items-center gap-2">
             <?= get_order_status_badge($status) ?>
+            <?php if ($isAssignedToMe && in_array($status, ['picked_up', 'out_for_delivery', 'ready_for_delivery', 'delivered'], true)): ?>
+                <button type="button" class="btn btn-outline-primary position-relative" id="btnOpenChat" data-bs-toggle="offcanvas" data-bs-target="#chatPanel">
+                    <i class="bi bi-chat-dots-fill me-1"></i>Chat
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="chatUnreadBadge">0</span>
+                </button>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -141,12 +147,22 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div class="d-flex align-items-center gap-2">
                         <span class="live-pulse-dot"></span>
                         <h6 class="fw-bold text-dark mb-0"><i class="bi bi-map text-primary me-2"></i>Live GPS Navigation & Delivery Route</h6>
+                        <span id="broadcastStatus">
+                            <?php if (in_array($status, ['picked_up', 'out_for_delivery'], true)): ?>
+                                <span class="badge bg-secondary"><i class="bi bi-pause-circle me-1"></i>Broadcasting Paused</span>
+                            <?php endif; ?>
+                        </span>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <?php if (in_array($status, ['picked_up', 'out_for_delivery'], true)): ?>
+                            <button type="button" class="btn btn-sm btn-outline-success" id="btnToggleBroadcast">
+                                <i class="bi bi-broadcast me-1"></i>Start Broadcasting
+                            </button>
+                        <?php endif; ?>
                         <button type="button" class="btn btn-sm btn-outline-primary btn-center-gps" id="btnCenterGps">
                             <i class="bi bi-crosshair me-1"></i>Center on My Location
                         </button>
-                        <a href="https://maps.google.com/?q=<?= urlencode($order['delivery_address'] ?? 'Manila') ?>" target="_blank" class="btn btn-sm btn-light border">
+                        <a href="<?php if (!empty($order['delivery_latitude']) && !empty($order['delivery_longitude'])): ?>https://maps.google.com/?q=<?= e($order['delivery_latitude']) ?>,<?= e($order['delivery_longitude']) ?><?php else: ?>https://maps.google.com/?q=<?= urlencode($order['delivery_address'] ?? 'Manila') ?><?php endif; ?>" target="_blank" class="btn btn-sm btn-light border">
                             <i class="bi bi-box-arrow-up-right me-1"></i>Open Google Maps
                         </a>
                     </div>
@@ -155,6 +171,8 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div id="riderDetailMap" class="order-detail-map mb-3"
                          data-order-id="<?= $orderId ?>"
                          data-address="<?= e($order['delivery_address'] ?? 'Manila') ?>"
+                         data-lat="<?= e($order['delivery_latitude'] ?? '') ?>"
+                         data-lng="<?= e($order['delivery_longitude'] ?? '') ?>"
                          data-status="<?= e($status) ?>"
                          data-customer-name="<?= e($order['customer_name'] ?? 'Customer') ?>"></div>
                     
@@ -205,6 +223,18 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         </div>
                         <div class="fw-semibold text-dark fs-6 mt-1 p-2 bg-light rounded border">
                             <i class="bi bi-geo-alt text-danger me-1"></i><?= e($order['delivery_address'] ?? 'N/A') ?>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-muted extra-small text-uppercase fw-semibold d-block mb-1">Exact Location Pin</label>
+                        <div class="pin-location-map rounded-3 border"
+                             id="riderPinMapAddress"
+                             data-address="<?= e($order['delivery_address'] ?? '') ?>"></div>
+                        <div class="d-flex gap-2 mt-2">
+                            <a href="https://maps.google.com/maps?q=<?= urlencode($order['delivery_address'] ?? '') ?>&navigate=yes" target="_blank" class="btn btn-sm btn-success flex-grow-1 fw-semibold">
+                                <i class="bi bi-sign-turn-right me-1"></i>Navigate (Google Maps)
+                            </a>
                         </div>
                     </div>
 
@@ -324,6 +354,38 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <?php endif; ?>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chat Offcanvas Panel -->
+<div class="offcanvas offcanvas-end chat-offcanvas" tabindex="-1" id="chatPanel" aria-labelledby="chatPanelLabel">
+    <div class="offcanvas-header chat-header border-bottom">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-chat-dots-fill text-primary fs-5"></i>
+            <div>
+                <h6 class="offcanvas-title fw-bold mb-0" id="chatPanelLabel">Chat with Customer</h6>
+                <small class="text-muted" id="chatPartnerName"><?= e($order['customer_name'] ?? 'Customer') ?></small>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column p-0">
+        <div class="chat-messages flex-grow-1 p-3" id="chatMessages">
+            <div class="text-center text-muted py-4" id="chatLoading">
+                <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                <div class="small">Loading messages...</div>
+            </div>
+        </div>
+        <div class="chat-input-area border-top p-3">
+            <form id="chatForm" class="d-flex gap-2">
+                <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                <input type="hidden" name="order_id" value="<?= $orderId ?>">
+                <input type="text" class="form-control" id="chatInput" placeholder="Type your message..." maxlength="2000" autocomplete="off">
+                <button type="submit" class="btn btn-primary px-3" id="btnSendChat">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </form>
         </div>
     </div>
 </div>

@@ -274,64 +274,48 @@
     }
 
     // =========================================================================
-    // 1.1 Real GPS Moving Map for Rider (Leaflet + Geolocation API)
+    // 1.1 Real GPS Moving Map for Rider (Leaflet + Geolocation API + Broadcasting)
     // =========================================================================
+    let riderGpsWatchId = null;
+    let riderBroadcastInterval = null;
+    let riderIsBroadcasting = false;
+
     function initRiderRealGpsMap() {
-        if (typeof window.L === 'undefined') return;
+        if (typeof window.L === 'undefined' || typeof window.AppMaps === 'undefined') return;
 
         const mapEl = document.getElementById('riderDetailMap');
         if (!mapEl) return;
 
         const $mapEl = $(mapEl);
         const orderId = $mapEl.data('order-id');
+        const orderStatus = ($mapEl.data('status') || '').toLowerCase();
         const customerAddress = $mapEl.data('address') || 'Manila, Philippines';
         const customerName = $mapEl.data('customer-name') || 'Customer';
         const $gpsStatus = $('#gpsRiderStatus');
+        const $broadcastBtn = $('#btnToggleBroadcast');
+        const $broadcastStatus = $('#broadcastStatus');
+        const csrfToken = $('meta[name="csrf-token"]').attr('content') || '';
 
-        // Deterministic Customer Coordinates (around Metro Manila)
-        const offset = (orderId % 10) * 0.005;
-        const customerCoord = [14.5995 + offset, 120.9842 + offset];
+        const canBroadcast = (orderStatus === 'picked_up' || orderStatus === 'out_for_delivery');
 
-        // Initial default rider coordinates (fallback until GPS fix)
-        let currentRiderCoord = [14.5850 + offset, 120.9750 + offset];
+        // Exact saved drop-off pin; simulated coords only for legacy orders
+        const dest = AppMaps.resolveDestination($mapEl.data('lat'), $mapEl.data('lng'));
+        const customerCoord = dest || AppMaps.riderLegacyDest(orderId);
+        let currentRiderCoord = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.riderLegacyRider(orderId);
 
-        const map = L.map('riderDetailMap', {
+        const map = AppMaps.createMap('riderDetailMap', {
             zoomControl: true
         }).setView(customerCoord, 14);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-
-        // Customer Destination Marker (Red Pin)
-        const customerIcon = L.divIcon({
-            className: 'customer-marker-wrapper',
-            html: '<div class="customer-marker-icon" style="width:36px;height:36px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:16px;">📍</div>',
-            iconSize: [36, 36],
-            iconAnchor: [18, 36],
-            popupAnchor: [0, -32]
-        });
-
-        const customerMarker = L.marker(customerCoord, { icon: customerIcon })
+        const customerMarker = L.marker(customerCoord, { icon: AppMaps.icons.customer(36) })
             .addTo(map)
-            .bindPopup('<strong>📍 Drop-off: ' + $('<div>').text(customerName).html() + '</strong><br>' + $('<div>').text(customerAddress).html());
+            .bindPopup('<strong>📍 Drop-off: ' + AppMaps.escapeHtml(customerName) + '</strong><br>' + AppMaps.escapeHtml(customerAddress));
 
-        // Rider Live Moving Marker (Blue Motorcycle)
-        const riderIcon = L.divIcon({
-            className: 'rider-marker-wrapper',
-            html: '<div class="rider-marker-icon" style="width:40px;height:40px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:20px;">🛵</div>',
-            iconSize: [40, 40],
-            iconAnchor: [20, 20],
-            popupAnchor: [0, -22]
-        });
-
-        const riderMarker = L.marker(currentRiderCoord, { icon: riderIcon })
+        const riderMarker = L.marker(currentRiderCoord, { icon: AppMaps.icons.rider(40, '🛵') })
             .addTo(map)
             .bindPopup('<strong>🛵 You (Rider)</strong><br>Live GPS Position')
             .openPopup();
 
-        // Route Polyline
         const routeLine = L.polyline([currentRiderCoord, customerCoord], {
             color: '#2563eb',
             weight: 5,
@@ -343,31 +327,119 @@
         const bounds = L.latLngBounds([currentRiderCoord, customerCoord]);
         map.fitBounds(bounds, { padding: [50, 50] });
 
-        // Center on GPS button
         $('#btnCenterGps').on('click', function (e) {
             e.preventDefault();
             map.setView(currentRiderCoord, 16);
             riderMarker.openPopup();
         });
 
-        // Real Browser Geolocation API
-        if (navigator.geolocation) {
+        function updateRiderPosition(lat, lng, accuracy) {
+            currentRiderCoord = [lat, lng];
+            riderMarker.setLatLng(currentRiderCoord);
+            routeLine.setLatLngs([currentRiderCoord, customerCoord]);
+        }
+
+        function postLocationToServer(lat, lng, accuracy) {
+            if (!riderIsBroadcasting) return;
+            const baseUrl = $('meta[name="base-url"]').attr('content') || '';
+            $.ajax({
+                url: baseUrl + 'api/location.php',
+                type: 'POST',
+                data: {
+                    action: 'update',
+                    order_id: orderId,
+                    latitude: lat,
+                    longitude: lng,
+                    accuracy: accuracy || null,
+                    csrf_token: csrfToken
+                },
+                dataType: 'json'
+            });
+        }
+
+        function startBroadcasting() {
+            if (riderIsBroadcasting) return;
+            riderIsBroadcasting = true;
+
+            if ($broadcastBtn.length) {
+                $broadcastBtn.removeClass('btn-outline-success').addClass('btn-danger')
+                    .html('<i class="bi bi-broadcast me-1"></i>Stop Broadcasting');
+            }
+            if ($broadcastStatus.length) {
+                $broadcastStatus.html('<span class="badge bg-success"><i class="bi bi-broadcast me-1"></i>Live GPS Broadcasting Active</span>');
+            }
+
+            if (navigator.geolocation) {
+                riderGpsWatchId = navigator.geolocation.watchPosition(
+                    function (pos) {
+                        const lat = pos.coords.latitude;
+                        const lng = pos.coords.longitude;
+                        const accuracy = pos.coords.accuracy;
+                        updateRiderPosition(lat, lng, accuracy);
+                        postLocationToServer(lat, lng, accuracy);
+                        $gpsStatus.html('<span class="text-success"><i class="bi bi-geo-fill me-1"></i>Live GPS Active (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')</span>');
+                    },
+                    function (err) {
+                        $gpsStatus.html('<span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>GPS error: ' + err.message + '</span>');
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            }
+
+            riderBroadcastInterval = setInterval(function () {
+                if (navigator.geolocation && riderIsBroadcasting) {
+                    navigator.geolocation.getCurrentPosition(function (pos) {
+                        postLocationToServer(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+                    }, function () {}, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
+                }
+            }, 5000);
+        }
+
+        function stopBroadcasting() {
+            riderIsBroadcasting = false;
+            if (riderGpsWatchId !== null && navigator.geolocation) {
+                navigator.geolocation.clearWatch(riderGpsWatchId);
+                riderGpsWatchId = null;
+            }
+            if (riderBroadcastInterval) {
+                clearInterval(riderBroadcastInterval);
+                riderBroadcastInterval = null;
+            }
+            if ($broadcastBtn.length) {
+                $broadcastBtn.removeClass('btn-danger').addClass('btn-outline-success')
+                    .html('<i class="bi bi-broadcast me-1"></i>Start Broadcasting');
+            }
+            if ($broadcastStatus.length) {
+                $broadcastStatus.html('<span class="badge bg-secondary"><i class="bi bi-pause-circle me-1"></i>Broadcasting Paused</span>');
+            }
+            $gpsStatus.html('<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Broadcasting stopped</span>');
+        }
+
+        if ($broadcastBtn.length && canBroadcast) {
+            $broadcastBtn.on('click', function (e) {
+                e.preventDefault();
+                if (riderIsBroadcasting) {
+                    stopBroadcasting();
+                } else {
+                    startBroadcasting();
+                }
+            });
+        }
+
+        if (canBroadcast && navigator.geolocation) {
             navigator.geolocation.watchPosition(
                 function (pos) {
                     const lat = pos.coords.latitude;
                     const lng = pos.coords.longitude;
                     currentRiderCoord = [lat, lng];
-
                     riderMarker.setLatLng(currentRiderCoord);
                     routeLine.setLatLngs([currentRiderCoord, customerCoord]);
-
-                    $gpsStatus.html('<span class="text-success"><i class="bi bi-geo-fill me-1"></i>Live GPS Active (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')</span>');
+                    if (!riderIsBroadcasting) {
+                        $gpsStatus.html('<span class="text-success"><i class="bi bi-geo-fill me-1"></i>GPS Acquired (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')</span>');
+                    }
                 },
-                function (err) {
-                    // Fallback to simulated movement if permission denied or unavailable
+                function () {
                     $gpsStatus.html('<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Simulated GPS (Location permission unavailable)</span>');
-                    
-                    // Simulate moving towards destination
                     setInterval(function () {
                         const latDiff = customerCoord[0] - currentRiderCoord[0];
                         const lngDiff = customerCoord[1] - currentRiderCoord[1];
@@ -379,14 +451,10 @@
                         }
                     }, 2000);
                 },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
-        } else {
-            $gpsStatus.html('<span class="text-muted">Geolocation not supported by browser.</span>');
+        } else if (!canBroadcast) {
+            $gpsStatus.html('<span class="text-muted">Location broadcasting available once order is picked up.</span>');
         }
     }
 
@@ -480,7 +548,8 @@
                             closeModal();
                             window.showToast('Order #' + orderId + ' claimed successfully!', 'success');
                             setTimeout(function () {
-                                window.location.href = res.redirect || ('/pages/rider/order-detail.php?id=' + orderId);
+                                const baseUrl = $('meta[name="base-url"]').attr('content') || '';
+                                window.location.href = res.redirect || (baseUrl + 'pages/rider/order-detail.php?id=' + orderId);
                             }, 500);
                         },
                         onError: function () {
@@ -570,13 +639,21 @@
     }
 
     // =========================================================================
+    // 4. Delivery Address Pin Location Map & Chat Panel -> shared-maps.js
+    //    (AppMaps.initPinLocationMaps / AppChat.initPanel)
+    // =========================================================================
+
+    // =========================================================================
     // DOM Ready Initialization
     // =========================================================================
     $(function () {
-        initDeliveriesInteractivity();
-        initAvailableInteractivity();
-        initProfileInteractivity();
-        initCopyAddressHandler();
+        [initDeliveriesInteractivity, initAvailableInteractivity, initProfileInteractivity,
+         initCopyAddressHandler,
+         function () { if (window.AppMaps) AppMaps.initPinLocationMaps(); },
+         function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with the customer' }); }
+        ].forEach(function (init) {
+            try { init(); } catch (err) { console.error('Init failed:', err); }
+        });
     });
 
 })(window, window.jQuery);

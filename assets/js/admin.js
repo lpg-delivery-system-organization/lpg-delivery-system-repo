@@ -121,6 +121,7 @@
             currentRiderFilter = $(this).val() || 'all';
             applyOrderFilters();
         });
+        }
 
         // Clickable order row navigation
         $(document).on('click', '.admin-order-row.app-clickable-row, .app-clickable-row', function (e) {
@@ -292,7 +293,8 @@
             }
         });
 
-        // View Order Details Modal Opener
+        // View Order Details Modal Opener (orders list page only)
+        if ($container.length > 0) {
         $(document).on('click', '.btn-view-order-details', function (e) {
             e.preventDefault();
             const $row = $(this).closest('.admin-order-row');
@@ -609,12 +611,90 @@
     }
 
     // =========================================================================
+    // 4. Admin Live Rider Tracking Map (order-detail.php)
+    //    Uses shared AppMaps engine: polls real rider GPS from
+    //    api/location.php (admin is authorized), with simulated approach
+    //    fallback until the first fix / for legacy orders without pins.
+    // =========================================================================
+    function initAdminLiveTrackingMap() {
+        if (typeof window.L === 'undefined' || typeof window.AppMaps === 'undefined') return;
+
+        const $mapEl = $('#adminLiveMap');
+        if ($mapEl.length === 0 || $mapEl.data('initialized')) return;
+        $mapEl.data('initialized', true);
+
+        const orderId = parseInt($mapEl.data('order-id'), 10);
+        if (!orderId) return;
+
+        const address = $mapEl.data('address') || 'Delivery Address';
+        const customerName = $mapEl.data('customer-name') || 'Customer';
+        const riderName = $mapEl.data('rider-name') || 'Delivery Rider';
+
+        const dest = AppMaps.resolveDestination($mapEl.data('lat'), $mapEl.data('lng'));
+        const customerCoord = dest || AppMaps.legacyDest(orderId);
+        const riderStart = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.legacyRider(orderId);
+
+        const map = AppMaps.createMap('adminLiveMap', {
+            zoomControl: true,
+            scrollWheelZoom: false
+        }).setView(customerCoord, 14);
+
+        L.marker(customerCoord, { icon: AppMaps.icons.customer(34) })
+            .addTo(map)
+            .bindPopup('<strong>📍 Drop-off: ' + AppMaps.escapeHtml(customerName) + '</strong><br>' + AppMaps.escapeHtml(address));
+
+        const riderMarker = L.marker(riderStart, { icon: AppMaps.icons.rider(40, '🛵') })
+            .addTo(map)
+            .bindPopup('<strong>🛵 ' + AppMaps.escapeHtml(riderName) + '</strong><br>Live GPS Position')
+            .openPopup();
+
+        const routeLine = L.polyline([riderStart, customerCoord], {
+            color: '#2563eb',
+            weight: 5,
+            opacity: 0.85,
+            dashArray: '8, 8',
+            lineCap: 'round'
+        }).addTo(map);
+
+        map.fitBounds(L.latLngBounds([riderStart, customerCoord]), { padding: [40, 40] });
+
+        setTimeout(function () { map.invalidateSize(); }, 300);
+
+        AppMaps.startLiveTracking({
+            map: map,
+            orderId: orderId,
+            customerCoord: customerCoord,
+            riderStart: riderStart,
+            riderMarker: riderMarker,
+            routeLine: routeLine,
+            riderName: riderName,
+            pollMs: 4000,
+            initialPollDelayMs: 400,
+            simulateTickMs: 1200,
+            simulateStep: 0.045,
+            fitPadding: [40, 40],
+            statusEl: $('#adminMapStatusText'),
+            texts: {
+                arrivedPopup: function (name) {
+                    return '<strong>✅ Rider has arrived!</strong><br>' + AppMaps.escapeHtml(name) + ' is at the destination.';
+                }
+            },
+            onRealFix: function () {
+                $('#adminMapStatusText').removeClass('text-primary').addClass('text-success fw-bold')
+                    .html('<i class="bi bi-geo-fill me-1"></i>Live GPS fix received &mdash; tracking rider position');
+            }
+        });
+    }
+
+    // =========================================================================
     // DOM Ready Initialization
     // =========================================================================
     $(function () {
-        initOrdersManagement();
-        initInventoryManagement();
-        initUserManagement();
+        [initOrdersManagement, initInventoryManagement, initUserManagement,
+         initAdminLiveTrackingMap
+        ].forEach(function (init) {
+            try { init(); } catch (err) { console.error('Init failed:', err); }
+        });
     });
 
 })(window, window.jQuery);

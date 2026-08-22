@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Password confirmation does not match.';
     }
 
-    // 7. Optional Valid ID Upload Validation
+    // 7. Required Valid ID Upload Validation (camera capture or file upload)
     $validIdPath = null;
     if (isset($_FILES['valid_id']) && $_FILES['valid_id']['error'] !== UPLOAD_ERR_NO_FILE) {
         $uploadResult = validate_id_upload($_FILES['valid_id']);
@@ -101,6 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $validIdPath = $uploadResult['relative_path'];
         }
+    } else {
+        $errors[] = 'A valid government ID photo is required. Please upload a file or take a photo using your camera.';
     }
 
     // 8. Create Customer Record
@@ -243,24 +245,113 @@ require_once __DIR__ . '/templates/header.php';
                                 <div class="form-text extra-small">11-digit Philippine mobile format (09XXXXXXXXX)</div>
                             </div>
 
-                            <!-- Government/Valid ID Upload -->
-                            <div class="col-12 col-md-6">
-                                <label for="validId" class="form-label fw-semibold small text-dark">
-                                    Valid Government ID <span class="text-muted fw-normal">(Optional)</span>
+                            <!-- Government/Valid ID Verification (Required) -->
+                            <div class="col-12">
+                                <label class="form-label fw-semibold small text-dark">
+                                    Valid Government ID <span class="text-danger">*</span>
                                 </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted">
-                                        <i class="bi bi-card-heading"></i>
-                                    </span>
-                                    <input
-                                        type="file"
-                                        class="form-control border-start-0 ps-0"
-                                        id="validId"
-                                        name="valid_id"
-                                        accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
-                                    >
+
+                                <!-- Tab Switcher -->
+                                <ul class="nav nav-pills mb-3 gap-2" id="idVerificationTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active fw-semibold small" id="camera-tab" data-bs-toggle="pill" data-bs-target="#cameraPane" type="button" role="tab" aria-controls="cameraPane" aria-selected="true">
+                                            <i class="bi bi-camera-video me-1"></i>Take Photo
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link fw-semibold small" id="upload-tab" data-bs-toggle="pill" data-bs-target="#uploadPane" type="button" role="tab" aria-controls="uploadPane" aria-selected="false">
+                                            <i class="bi bi-upload me-1"></i>Upload File
+                                        </button>
+                                    </li>
+                                </ul>
+
+                                <div class="tab-content">
+                                    <!-- Camera Capture Tab -->
+                                    <div class="tab-pane fade show active" id="cameraPane" role="tabpanel" aria-labelledby="camera-tab">
+                                        <div class="id-camera-container border rounded-3 p-3 bg-light" id="cameraContainer">
+                                            <!-- Idle State: Start Camera -->
+                                            <div id="cameraIdle" class="text-center py-4">
+                                                <div class="mb-3">
+                                                    <i class="bi bi-camera-video text-primary" style="font-size: 2.5rem;"></i>
+                                                </div>
+                                                <p class="text-muted small mb-3">Position your valid government ID in front of your camera and take a clear photo.</p>
+                                                <button type="button" class="btn btn-primary px-4 py-2 fw-semibold" id="startCameraBtn">
+                                                    <i class="bi bi-camera-video-fill me-2"></i>Open Camera
+                                                </button>
+                                            </div>
+
+                                            <!-- Live Camera View -->
+                                            <div id="cameraActive" class="d-none">
+                                                <div class="position-relative rounded-3 overflow-hidden bg-dark" style="max-height: 360px;">
+                                                    <video id="cameraVideo" class="w-100 d-block" autoplay playsinline style="max-height: 360px; object-fit: contain;"></video>
+                                                    <div class="position-absolute top-0 start-0 m-2">
+                                                        <span class="badge bg-danger"><i class="bi bi-record-circle me-1"></i>LIVE</span>
+                                                    </div>
+                                                </div>
+                                                <canvas id="cameraCanvas" class="d-none"></canvas>
+                                                <div class="d-flex justify-content-center gap-2 mt-3">
+                                                    <button type="button" class="btn btn-success px-4 py-2 fw-semibold" id="captureBtn">
+                                                        <i class="bi bi-camera-fill me-1"></i>Capture
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-secondary px-3 py-2" id="cancelCameraBtn">
+                                                        <i class="bi bi-x-lg me-1"></i>Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Captured Preview -->
+                                            <div id="cameraPreview" class="d-none text-center">
+                                                <div class="position-relative d-inline-block">
+                                                    <img id="capturedImage" class="img-fluid rounded-3 border" style="max-height: 300px;" alt="Captured ID">
+                                                    <div class="position-absolute top-0 end-0 m-2">
+                                                        <span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Captured</span>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-3">
+                                                    <button type="button" class="btn btn-outline-warning px-3 py-2 fw-semibold small" id="retakeBtn">
+                                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Retake Photo
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Camera Error -->
+                                            <div id="cameraError" class="d-none">
+                                                <div class="alert alert-warning d-flex align-items-center mb-0" role="alert">
+                                                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                                                    <div>
+                                                        <div class="fw-semibold small">Camera access denied or unavailable.</div>
+                                                        <div class="extra-small text-muted">Please allow camera access in your browser settings, or use the file upload option instead.</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="form-text extra-small mt-2">
+                                            <i class="bi bi-info-circle me-1"></i>Take a clear photo of your valid government-issued ID (passport, driver's license, national ID, etc.)
+                                        </div>
+                                    </div>
+
+                                    <!-- File Upload Tab -->
+                                    <div class="tab-pane fade" id="uploadPane" role="tabpanel" aria-labelledby="upload-tab">
+                                        <div class="border rounded-3 p-3 bg-light">
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-white border-end-0 text-muted">
+                                                    <i class="bi bi-card-heading"></i>
+                                                </span>
+                                                <input
+                                                    type="file"
+                                                    class="form-control border-start-0 ps-0"
+                                                    id="validId"
+                                                    name="valid_id"
+                                                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                                >
+                                            </div>
+                                            <div class="form-text extra-small">JPG, PNG or WebP (Max 5MB)</div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-text extra-small">JPG, PNG, WebP or PDF (Max 5MB)</div>
+
+                                <!-- Hidden input that carries camera-captured blob as a file -->
+                                <input type="file" id="cameraFileInput" name="valid_id" class="d-none" accept="image/jpeg,image/png,image/webp">
                             </div>
 
                             <!-- Delivery Address -->
@@ -470,6 +561,165 @@ document.addEventListener('DOMContentLoaded', function () {
             validatePasswordFields();
         })(window.jQuery);
     }
+
+    // =====================================================================
+    // Live Camera Capture for ID Verification
+    // =====================================================================
+    (function () {
+        var startBtn = document.getElementById('startCameraBtn');
+        var captureBtn = document.getElementById('captureBtn');
+        var cancelBtn = document.getElementById('cancelCameraBtn');
+        var retakeBtn = document.getElementById('retakeBtn');
+
+        var idleState = document.getElementById('cameraIdle');
+        var activeState = document.getElementById('cameraActive');
+        var previewState = document.getElementById('cameraPreview');
+        var errorState = document.getElementById('cameraError');
+
+        var video = document.getElementById('cameraVideo');
+        var canvas = document.getElementById('cameraCanvas');
+        var capturedImg = document.getElementById('capturedImage');
+        var cameraFileInput = document.getElementById('cameraFileInput');
+        var fileInput = document.getElementById('validId');
+
+        var currentStream = null;
+
+        function showState(state) {
+            [idleState, activeState, previewState, errorState].forEach(function (el) {
+                el.classList.add('d-none');
+            });
+            state.classList.remove('d-none');
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(function (track) {
+                    track.stop();
+                });
+                currentStream = null;
+            }
+            video.srcObject = null;
+        }
+
+        function createFileFromBlob(blob) {
+            var file = new File([blob], 'camera_capture_' + Date.now() + '.jpg', {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+            });
+            var dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+
+            cameraFileInput.files = dataTransfer.files;
+
+            if (fileInput) {
+                fileInput.disabled = true;
+                fileInput.value = '';
+            }
+        }
+
+        function clearCapturedFile() {
+            cameraFileInput.value = '';
+            if (fileInput) {
+                fileInput.disabled = false;
+            }
+        }
+
+        if (startBtn) {
+            startBtn.addEventListener('click', function () {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showState(errorState);
+                    return;
+                }
+
+                navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                })
+                .then(function (stream) {
+                    currentStream = stream;
+                    video.srcObject = stream;
+                    showState(activeState);
+                })
+                .catch(function (err) {
+                    console.error('Camera error:', err);
+                    showState(errorState);
+                });
+            });
+        }
+
+        if (captureBtn) {
+            captureBtn.addEventListener('click', function () {
+                if (!currentStream) return;
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(function (blob) {
+                    if (!blob) return;
+
+                    var url = URL.createObjectURL(blob);
+                    capturedImg.src = url;
+                    createFileFromBlob(blob);
+                    stopCamera();
+                    showState(previewState);
+                }, 'image/jpeg', 0.92);
+            });
+        }
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function () {
+                stopCamera();
+                clearCapturedFile();
+                showState(idleState);
+            });
+        }
+
+        if (retakeBtn) {
+            retakeBtn.addEventListener('click', function () {
+                clearCapturedFile();
+                if (capturedImg.src) {
+                    URL.revokeObjectURL(capturedImg.src);
+                    capturedImg.src = '';
+                }
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showState(errorState);
+                    return;
+                }
+
+                navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                })
+                .then(function (stream) {
+                    currentStream = stream;
+                    video.srcObject = stream;
+                    showState(activeState);
+                })
+                .catch(function (err) {
+                    console.error('Camera error on retake:', err);
+                    showState(errorState);
+                });
+            });
+        }
+
+        var uploadTab = document.getElementById('upload-tab');
+        if (uploadTab) {
+            uploadTab.addEventListener('shown.bs.tab', function () {
+                stopCamera();
+                showState(idleState);
+            });
+        }
+    })();
 });
 </script>
 

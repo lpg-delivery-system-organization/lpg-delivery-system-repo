@@ -46,6 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formData['delivery_address'] = sanitize_input($_POST['delivery_address'] ?? '');
     $formData['contact_phone'] = sanitize_input($_POST['contact_phone'] ?? '');
     $formData['notes'] = sanitize_input($_POST['notes'] ?? '');
+    $formData['delivery_latitude'] = sanitize_input($_POST['delivery_latitude'] ?? '');
+    $formData['delivery_longitude'] = sanitize_input($_POST['delivery_longitude'] ?? '');
 
     // 1. Verify CSRF Token
     if (!verify_csrf($_POST['csrf_token'] ?? null)) {
@@ -95,8 +97,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'quantity'         => $formData['quantity'],
                 'payment_method'   => $formData['payment_method'],
                 'delivery_address' => $formData['delivery_address'],
-                'contact_phone'    => $formData['contact_phone'],
-                'notes'            => $formData['notes'],
+                'contact_phone' => $formData['contact_phone'],
+                'notes' => $formData['notes'],
+                'delivery_latitude' => $formData['delivery_latitude'],
+                'delivery_longitude' => $formData['delivery_longitude'],
                 'status'           => 'pending'
             ]);
 
@@ -362,6 +366,20 @@ require_once __DIR__ . '/../../templates/header.php';
                                       class="form-control" 
                                       placeholder="House/Unit #, Street, Barangay, City, Landmark" 
                                       required><?= e($formData['delivery_address']) ?></textarea>
+                            <input type="hidden" name="delivery_latitude" id="delivery_latitude" value="<?= e($formData['delivery_latitude'] ?? '') ?>">
+                            <input type="hidden" name="delivery_longitude" id="delivery_longitude" value="<?= e($formData['delivery_longitude'] ?? '') ?>">
+                        </div>
+
+                        <!-- Exact Location Pin Preview (auto-geocoded, draggable) -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold small text-dark mb-0">
+                                    Exact Location Pin
+                                    <span class="text-muted extra-small fw-normal">(auto-detected &mdash; drag the pin to fine-tune)</span>
+                                </label>
+                                <span id="addressPinStatus" class="extra-small text-muted"><i class="bi bi-hourglass-split me-1"></i>Waiting for address...</span>
+                            </div>
+                            <div id="addressPreviewMap" class="address-preview-map rounded-3 border"></div>
                         </div>
 
                         <!-- Delivery Notes / Landmarks (Optional) -->

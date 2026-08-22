@@ -267,6 +267,41 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
     </div>
 
+    <?php if (in_array($status, ['picked_up', 'out_for_delivery'], true)): ?>
+        <!-- Live Rider GPS Tracking Map -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm bg-white">
+                    <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="live-pulse-dot"></span>
+                            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-map text-primary me-2"></i>Live Rider Tracking</h6>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                <?= $status === 'picked_up' ? 'Rider Picked Up Cylinder' : 'Out for Delivery' ?>
+                            </span>
+                        </div>
+                        <a href="<?php if (!empty($order['delivery_latitude']) && !empty($order['delivery_longitude'])): ?>https://maps.google.com/?q=<?= e($order['delivery_latitude']) ?>,<?= e($order['delivery_longitude']) ?><?php else: ?>https://maps.google.com/?q=<?= urlencode($order['delivery_address'] ?? '') ?><?php endif; ?>" target="_blank" class="btn btn-sm btn-light border">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>Open Google Maps
+                        </a>
+                    </div>
+                    <div class="card-body p-4">
+                        <div id="adminLiveMap" class="admin-live-map mb-3"
+                             data-order-id="<?= $orderId ?>"
+                             data-address="<?= e($order['delivery_address'] ?? '') ?>"
+                             data-lat="<?= e($order['delivery_latitude'] ?? '') ?>"
+                             data-lng="<?= e($order['delivery_longitude'] ?? '') ?>"
+                             data-customer-name="<?= e($order['customer_name'] ?? 'Customer') ?>"
+                             data-rider-name="<?= e($order['rider_name'] ?? 'Delivery Rider') ?>"></div>
+                        <div class="small text-muted">
+                            <span class="fw-semibold text-primary"><i class="bi bi-geo-alt-fill me-1"></i>Status:</span>
+                            <span id="adminMapStatusText">Acquiring rider GPS signal...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Administrative Action Panel -->
     <div class="row g-4">
         <div class="col-12">
