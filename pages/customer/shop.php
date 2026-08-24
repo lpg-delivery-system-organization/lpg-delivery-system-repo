@@ -28,6 +28,44 @@ $customer = $userModel->findById($customerId);
 
 $products = $productModel->getActive();
 
+/**
+ * ---------------------------------------------------------------------
+ * PRODUCT PLACEHOLDER IMAGES — EDIT THIS TO ADD OR REPLACE A PICTURE
+ * ---------------------------------------------------------------------
+ * Used ONLY when a product has no 'image_url' set in the database (or
+ * the file it points to is missing). This is the "1 by 1" list you can
+ * safely edit — each line is one product, keyed by "Brand Weight" so
+ * you don't need to look up any ID.
+ *
+ * TO REPLACE AN IMAGE:
+ *   1. Upload your new image file into the lpg_tanks/ folder.
+ *   2. Find the line below matching that product's Brand + Weight.
+ *   3. Change the path after "=>" to your new filename.
+ *
+ * TO ADD A NEW PRODUCT'S IMAGE:
+ *   Just add a new line in the same format:
+ *     'Brand Weight' => 'lpg_tanks/your_new_file.png',
+ *   The Brand/Weight text must exactly match what's shown on the
+ *   product card (case-insensitive, spacing is normalized).
+ *
+ * Any product not listed here falls back to $defaultProductImage.
+ * ---------------------------------------------------------------------
+ */
+$productPlaceholderImages = [
+    'Gasul 11kg'    => 'lpg_tanks/gasul 11kg.png',
+    'Petron 11kg'   => 'lpg_tanks/petron 11kg.png',
+    'Solane 11kg'   => 'lpg_tanks/solane 11kg.png',
+    'Shellane 11kg' => 'lpg_tanks/shellane 11kg.png',
+    'Gasul 22kg'    => 'lpg_tanks/gasul 22kg.png',
+    // 'Brand Weight' => 'lpg_tanks/your_image_here.png',
+];
+
+// Shown ONLY for a product with no map entry above and no DB image_url.
+// Use a neutral "no image" graphic here — NOT a real product's photo —
+// so it's obvious at a glance which products still need their own image
+// added to the map, instead of quietly reusing another product's picture.
+$defaultProductImage = 'lpg_tanks/no-image-available.png';
+
 $errors = [];
 $formData = [
     'product_id'       => (int)($_GET['reorder_product_id'] ?? ($products[0]['id'] ?? 0)),
@@ -204,8 +242,21 @@ require_once __DIR__ . '/../../templates/header.php';
                                     <?php if (!empty($product['image_url']) && file_exists(dirname(__DIR__, 2) . '/' . ltrim($product['image_url'], '/'))): ?>
                                         <img src="<?= asset($product['image_url']) ?>" alt="<?= e($product['name']) ?>" class="img-fluid">
                                     <?php else: ?>
+                                        <?php
+                                            // Build a normalized "Brand Weight" lookup key, e.g. "Gasul 11kg"
+                                            $placeholderKey = trim(($product['brand'] ?? '') . ' ' . ($product['weight'] ?? ''));
+                                            $placeholderSrc = null;
+                                            foreach ($productPlaceholderImages as $labelKey => $imgPath) {
+                                                if (strcasecmp(trim($labelKey), $placeholderKey) === 0) {
+                                                    $placeholderSrc = $imgPath;
+                                                    break;
+                                                }
+                                            }
+                                            $placeholderSrc = $placeholderSrc ?? $defaultProductImage;
+                                        ?>
+                                        <!-- DEBUG: product "<?= e($placeholderKey) ?>" is using image path: <?= e($placeholderSrc) ?> -->
                                         <div class="d-flex flex-column align-items-center justify-content-center h-100 text-primary">
-                                            <i class="bi bi-fire text-warning" style="font-size: 4rem;"></i>
+                                            <img src="<?= asset($placeholderSrc) ?>" alt="<?= e($product['name']) ?>" class="img-fluid">
                                         </div>
                                     <?php endif; ?>
 

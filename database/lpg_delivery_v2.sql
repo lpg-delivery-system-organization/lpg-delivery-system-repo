@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: localhost
--- Generation Time: Aug 20, 2026 at 05:22 PM
--- Server version: 10.4.28-MariaDB
--- PHP Version: 8.2.4
+-- Host: 127.0.0.1
+-- Generation Time: Aug 24, 2026 at 08:23 AM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -24,18 +24,29 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `rider_locations`
+-- Table structure for table `chat_messages`
 --
 
-CREATE TABLE `rider_locations` (
+CREATE TABLE `chat_messages` (
   `id` int(11) NOT NULL,
   `order_id` int(11) NOT NULL,
-  `rider_id` int(11) NOT NULL,
-  `latitude` decimal(10,7) NOT NULL,
-  `longitude` decimal(10,7) NOT NULL,
-  `accuracy` float DEFAULT NULL,
-  `recorded_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `sender_id` int(11) NOT NULL,
+  `message` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `chat_messages`
+--
+
+INSERT INTO `chat_messages` (`id`, `order_id`, `sender_id`, `message`, `created_at`) VALUES
+(1, 1402, 2, 'hoy', '2026-08-23 13:34:29'),
+(2, 1402, 2, 'dito nako', '2026-08-23 13:34:31'),
+(3, 1402, 2, 'baha nna', '2026-08-23 13:34:33'),
+(4, 1402, 3, 'san kana', '2026-08-23 13:35:08'),
+(5, 1402, 3, 'hwllo', '2026-08-23 13:35:14'),
+(6, 1402, 3, 'hinahanap ka na ni riaNNE WINLAB', '2026-08-23 13:35:31'),
+(7, 1402, 3, 'SISR MAY JATOT PO BA', '2026-08-23 13:35:42');
 
 -- --------------------------------------------------------
 
@@ -67,365 +78,8 @@ CREATE TABLE `orders` (
 -- Dumping data for table `orders`
 --
 
-INSERT INTO `orders` (`id`, `customer_id`, `product_id`, `rider_id`, `quantity`, `unit_price`, `total_amount`, `payment_method`, `status`, `delivery_address`, `contact_phone`, `notes`, `created_at`, `updated_at`, `delivered_at`) VALUES
-(1001, 3, 1, 2, 2, 850.00, 1700.00, 'cod', 'delivered', '123 Rizal St, Caloocan City', '09171234567', 'Please ring the doorbell.', '2026-08-18 01:00:00', '2026-08-20 08:32:06', '2026-08-18 03:30:00'),
-(1002, 3, 2, 2, 1, 820.00, 820.00, 'cod', 'out_for_delivery', '123 Rizal St, Caloocan City', '09171234567', 'Leave at the gate if not available.', '2026-08-20 00:00:00', '2026-08-20 08:32:06', NULL),
-(1003, 3, 3, NULL, 1, 800.00, 800.00, 'cod', 'pending', '123 Rizal St, Caloocan City', '09171234567', 'Urgent delivery needed.', '2026-08-20 02:00:00', '2026-08-20 08:32:06', NULL),
-(1004, 4, 6, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 08:35:29', '2026-08-20 08:35:29', '2026-08-20 08:35:29'),
-(1005, 4, 6, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 08:35:29', '2026-08-20 08:35:29', NULL),
-(1006, 5, 7, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 08:40:26', '2026-08-20 08:40:26', '2026-08-20 08:40:26'),
-(1007, 5, 7, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 08:40:26', '2026-08-20 08:40:26', NULL),
-(1008, 6, 8, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 08:41:02', '2026-08-20 08:41:02', '2026-08-20 08:41:02'),
-(1009, 6, 8, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 08:41:02', '2026-08-20 08:41:02', NULL),
-(1010, 7, 9, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 08:44:55', '2026-08-20 08:44:55', '2026-08-20 08:44:55'),
-(1011, 7, 9, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 08:44:55', '2026-08-20 08:44:55', NULL),
-(1012, 8, 10, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 08:46:41', '2026-08-20 08:46:41', '2026-08-20 08:46:41'),
-(1013, 8, 10, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 08:46:41', '2026-08-20 08:46:41', NULL),
-(1014, 9, 11, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 08:48:26', '2026-08-20 08:48:26', '2026-08-20 08:48:26'),
-(1015, 9, 11, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 08:48:26', '2026-08-20 08:48:26', NULL),
-(1016, 14, 12, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 08:50:12', '2026-08-20 08:50:12', '2026-08-20 08:50:12'),
-(1017, 14, 12, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 08:50:12', '2026-08-20 08:50:12', NULL),
-(1018, 19, 13, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 08:52:25', '2026-08-20 08:52:25', '2026-08-20 08:52:25'),
-(1019, 19, 13, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 08:52:25', '2026-08-20 08:52:25', NULL),
-(1020, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 08:54:27', '2026-08-20 08:54:27', NULL),
-(1021, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 08:54:27', '2026-08-20 08:54:27', NULL),
-(1022, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 08:54:27', '2026-08-20 08:54:27', NULL),
-(1024, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 08:54:37', '2026-08-20 08:54:37', NULL),
-(1025, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 08:54:37', '2026-08-20 08:54:37', NULL),
-(1026, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 08:54:37', '2026-08-20 08:54:37', NULL),
-(1027, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 08:54:50', '2026-08-20 08:54:50', NULL),
-(1028, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 08:54:50', '2026-08-20 08:54:50', NULL),
-(1029, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 08:54:50', '2026-08-20 08:54:50', NULL),
-(1030, 26, 1, NULL, 1, 900.00, 900.00, 'cod', 'cancelled', 'Other Address', '09170000000', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 08:54:50', '2026-08-20 08:54:50', NULL),
-(1031, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 08:55:10', '2026-08-20 08:55:10', NULL),
-(1032, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 08:55:10', '2026-08-20 08:55:10', NULL),
-(1033, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 08:55:10', '2026-08-20 08:55:10', NULL),
-(1035, 30, 14, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 08:55:17', '2026-08-20 08:55:18', '2026-08-20 08:55:18'),
-(1036, 30, 14, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 08:55:18', '2026-08-20 08:55:18', NULL),
-(1037, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 08:55:21', '2026-08-20 08:55:21', NULL),
-(1038, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 08:55:21', '2026-08-20 08:55:21', NULL),
-(1039, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 08:55:21', '2026-08-20 08:55:21', NULL),
-(1041, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:00:05', '2026-08-20 09:00:05', '2026-08-20 09:00:05'),
-(1042, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:00:05', '2026-08-20 09:00:05', NULL),
-(1044, 40, 17, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:00:11', '2026-08-20 09:00:11', '2026-08-20 09:00:11'),
-(1045, 40, 17, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:00:11', '2026-08-20 09:00:11', NULL),
-(1046, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:00:14', '2026-08-20 09:00:14', NULL),
-(1047, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:00:14', '2026-08-20 09:00:14', NULL),
-(1048, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:00:14', '2026-08-20 09:00:14', NULL),
-(1050, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:00:17', '2026-08-20 09:00:17', '2026-08-20 09:00:17'),
-(1051, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:00:17', '2026-08-20 09:00:17', NULL),
-(1053, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:05:23', '2026-08-20 09:05:23', '2026-08-20 09:05:23'),
-(1054, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:05:23', '2026-08-20 09:05:23', NULL),
-(1055, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:05:23', '2026-08-20 09:05:23', NULL),
-(1056, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:05:23', '2026-08-20 09:46:48', NULL),
-(1057, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:05:23', '2026-08-20 09:05:23', NULL),
-(1058, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:05:23', '2026-08-20 09:05:23', NULL),
-(1060, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:05:27', '2026-08-20 09:05:27', '2026-08-20 09:05:27'),
-(1061, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:05:27', '2026-08-20 09:05:27', NULL),
-(1063, 3, 1, NULL, 2, 920.50, 1841.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:05:31', '2026-08-20 09:05:31', NULL),
-(1064, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:05:31', '2026-08-20 09:05:31', NULL),
-(1065, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:05:31', '2026-08-20 09:05:31', NULL),
-(1067, 61, 22, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:05:35', '2026-08-20 09:05:35', '2026-08-20 09:05:35'),
-(1068, 61, 22, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:05:35', '2026-08-20 09:05:35', NULL),
-(1069, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:05:36', '2026-08-20 09:05:36', '2026-08-20 09:05:36'),
-(1070, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:05:36', '2026-08-20 09:05:36', NULL),
-(1071, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:05:36', '2026-08-20 09:05:36', NULL),
-(1072, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:05:36', '2026-08-20 10:08:20', NULL),
-(1073, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:05:36', '2026-08-20 09:05:36', NULL),
-(1074, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:05:36', '2026-08-20 09:05:36', NULL),
-(1076, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:08:00', '2026-08-20 09:08:00', '2026-08-20 09:08:00'),
-(1077, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:08:00', '2026-08-20 09:08:00', NULL),
-(1079, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:09:40', '2026-08-20 09:09:41', NULL),
-(1080, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:09:41', '2026-08-20 09:09:41', NULL),
-(1081, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:09:41', '2026-08-20 10:08:31', NULL),
-(1082, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:09:41', '2026-08-20 09:09:41', NULL),
-(1083, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:09:41', '2026-08-20 09:09:41', NULL),
-(1084, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:09:41', '2026-08-20 09:09:41', '2026-08-20 09:09:41'),
-(1085, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:09:41', '2026-08-20 09:09:41', NULL),
-(1086, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:09:41', '2026-08-20 09:09:41', NULL),
-(1087, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:09:41', '2026-08-20 09:09:41', NULL),
-(1088, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:09:41', '2026-08-20 09:09:41', NULL),
-(1089, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:09:41', '2026-08-20 09:09:41', '2026-08-20 09:09:41'),
-(1090, 3, 1, 50, 1, 975.50, 975.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 09:09:53', NULL),
-(1091, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 09:09:53', NULL),
-(1092, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 10:08:26', NULL),
-(1093, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 09:09:53', NULL),
-(1094, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 09:09:53', NULL),
-(1095, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 09:09:53', '2026-08-20 09:09:53'),
-(1096, 3, 1, NULL, 3, 975.50, 2926.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:09:53', '2026-08-20 09:09:53', NULL),
-(1097, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 09:09:53', NULL),
-(1098, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 09:09:53', NULL),
-(1099, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 09:09:53', NULL),
-(1100, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:09:53', '2026-08-20 09:09:53', '2026-08-20 09:09:53'),
-(1101, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:10:00', '2026-08-20 09:10:00', '2026-08-20 09:10:00'),
-(1102, 3, 1, NULL, 4, 975.50, 3902.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:10:00', '2026-08-20 09:10:00', NULL),
-(1104, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 09:10:01', NULL),
-(1105, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 09:10:01', NULL),
-(1106, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 10:24:24', NULL),
-(1107, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 09:10:01', NULL),
-(1108, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 09:10:01', NULL),
-(1109, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 09:10:01', '2026-08-20 09:10:01'),
-(1110, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:10:01', '2026-08-20 09:10:01', NULL),
-(1111, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 09:10:01', NULL),
-(1112, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 09:10:01', NULL),
-(1113, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 09:10:01', NULL),
-(1114, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:10:01', '2026-08-20 09:10:01', '2026-08-20 09:10:01'),
-(1115, 3, 1, NULL, 2, 975.50, 1951.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:10:04', '2026-08-20 09:10:04', NULL),
-(1116, 3, 1, NULL, 3, 975.50, 2926.50, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:10:04', '2026-08-20 09:10:04', NULL),
-(1117, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:10:04', '2026-08-20 09:10:04', NULL),
-(1119, 76, 27, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:10:08', '2026-08-20 09:10:08', '2026-08-20 09:10:08'),
-(1120, 76, 27, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:10:08', '2026-08-20 09:10:08', NULL),
-(1121, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:10:09', '2026-08-20 09:10:09', '2026-08-20 09:10:09'),
-(1122, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:10:09', '2026-08-20 09:10:09', NULL),
-(1123, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:10:09', '2026-08-20 09:10:09', NULL),
-(1124, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:10:09', '2026-08-20 13:07:23', NULL),
-(1125, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:10:09', '2026-08-20 09:10:09', NULL),
-(1126, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:10:09', '2026-08-20 09:10:09', NULL),
-(1128, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:12:25', '2026-08-20 09:12:25', '2026-08-20 09:12:25'),
-(1129, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:12:25', '2026-08-20 09:12:25', NULL),
-(1131, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 09:12:26', NULL),
-(1132, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 09:12:26', NULL),
-(1133, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 13:07:41', NULL),
-(1134, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 09:12:26', NULL),
-(1135, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 09:12:26', NULL),
-(1136, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 09:12:26', '2026-08-20 09:12:26'),
-(1137, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:12:26', '2026-08-20 09:12:26', NULL),
-(1138, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 09:12:26', NULL),
-(1139, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 09:12:26', NULL),
-(1140, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 09:12:26', NULL),
-(1141, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:12:26', '2026-08-20 09:12:26', '2026-08-20 09:12:26'),
-(1142, 3, 1, NULL, 2, 975.50, 1951.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:12:29', '2026-08-20 09:12:29', NULL),
-(1143, 3, 1, NULL, 3, 975.50, 2926.50, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:12:29', '2026-08-20 09:12:29', NULL),
-(1144, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:12:29', '2026-08-20 09:12:29', NULL),
-(1146, 87, 30, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:12:33', '2026-08-20 09:12:33', '2026-08-20 09:12:33'),
-(1147, 87, 30, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:12:33', '2026-08-20 09:12:33', NULL),
-(1148, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:12:34', '2026-08-20 09:12:34', '2026-08-20 09:12:34'),
-(1149, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:12:34', '2026-08-20 09:12:34', NULL),
-(1150, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:12:34', '2026-08-20 09:12:34', NULL),
-(1151, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:12:34', '2026-08-20 13:08:14', NULL),
-(1152, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:12:34', '2026-08-20 09:12:34', NULL),
-(1153, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:12:34', '2026-08-20 09:12:34', NULL),
-(1155, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:12:39', '2026-08-20 09:12:39', '2026-08-20 09:12:39'),
-(1156, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:12:39', '2026-08-20 09:12:39', NULL),
-(1158, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 09:12:40', NULL),
-(1159, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 09:12:40', NULL),
-(1160, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 13:09:56', NULL),
-(1161, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 09:12:40', NULL),
-(1162, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 09:12:40', NULL),
-(1163, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 09:12:40', '2026-08-20 09:12:40'),
-(1164, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:12:40', '2026-08-20 09:12:40', NULL),
-(1165, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 09:12:40', NULL),
-(1166, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 09:12:40', NULL),
-(1167, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 09:12:40', NULL),
-(1168, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:12:40', '2026-08-20 09:12:40', '2026-08-20 09:12:40'),
-(1169, 3, 1, NULL, 2, 975.50, 1951.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:12:43', '2026-08-20 09:12:43', NULL),
-(1170, 3, 1, NULL, 3, 975.50, 2926.50, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:12:43', '2026-08-20 09:12:43', NULL),
-(1171, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:12:43', '2026-08-20 09:12:43', NULL),
-(1173, 98, 33, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:12:47', '2026-08-20 09:12:47', '2026-08-20 09:12:47'),
-(1174, 98, 33, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:12:47', '2026-08-20 09:12:47', NULL),
-(1175, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:12:48', '2026-08-20 09:12:48', '2026-08-20 09:12:48'),
-(1176, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:12:48', '2026-08-20 09:12:48', NULL),
-(1177, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:12:48', '2026-08-20 09:12:48', NULL),
-(1178, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:12:48', '2026-08-20 13:10:30', NULL),
-(1179, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:12:48', '2026-08-20 09:12:48', NULL),
-(1180, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:12:48', '2026-08-20 09:12:48', NULL),
-(1182, 100, 34, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:13:47', '2026-08-20 09:13:47', '2026-08-20 09:13:47'),
-(1183, 100, 34, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:13:47', '2026-08-20 09:13:47', NULL),
-(1184, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:13:50', '2026-08-20 09:13:50', NULL),
-(1185, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:13:50', '2026-08-20 09:13:50', NULL),
-(1186, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:13:50', '2026-08-20 09:13:50', NULL),
-(1188, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:13:52', '2026-08-20 09:13:52', '2026-08-20 09:13:52'),
-(1189, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:13:52', '2026-08-20 09:13:52', NULL),
-(1191, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:13:53', '2026-08-20 09:13:53', '2026-08-20 09:13:53'),
-(1192, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:13:53', '2026-08-20 09:13:53', NULL),
-(1193, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:13:53', '2026-08-20 09:13:53', NULL),
-(1194, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:13:53', '2026-08-20 13:10:42', NULL),
-(1195, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:13:53', '2026-08-20 09:13:53', NULL),
-(1196, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:13:53', '2026-08-20 09:13:53', NULL),
-(1198, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 09:13:55', NULL),
-(1199, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 09:13:55', NULL),
-(1200, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 13:12:54', '2026-08-20 13:12:54'),
-(1201, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 09:13:55', NULL),
-(1202, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 09:13:55', NULL),
-(1203, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 09:13:55', '2026-08-20 09:13:55'),
-(1204, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:13:55', '2026-08-20 09:13:55', NULL),
-(1205, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 09:13:55', NULL),
-(1206, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 09:13:55', NULL),
-(1207, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 09:13:55', NULL),
-(1208, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:13:55', '2026-08-20 09:13:55', '2026-08-20 09:13:55'),
-(1209, 111, 37, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:14:30', '2026-08-20 09:14:30', '2026-08-20 09:14:30'),
-(1210, 111, 37, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:14:30', '2026-08-20 09:14:30', NULL),
-(1211, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:14:33', '2026-08-20 09:14:33', NULL),
-(1212, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:14:33', '2026-08-20 09:14:33', NULL),
-(1213, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:14:33', '2026-08-20 09:14:33', NULL),
-(1215, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:14:35', '2026-08-20 09:14:35', '2026-08-20 09:14:35'),
-(1216, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:14:35', '2026-08-20 09:14:35', NULL),
-(1218, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:14:36', '2026-08-20 09:14:36', '2026-08-20 09:14:36'),
-(1219, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:14:36', '2026-08-20 09:14:36', NULL),
-(1220, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:14:36', '2026-08-20 09:14:36', NULL),
-(1221, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'approved', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:14:36', '2026-08-20 09:14:36', NULL),
-(1222, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:14:36', '2026-08-20 09:14:36', NULL),
-(1223, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:14:36', '2026-08-20 09:14:36', NULL),
-(1225, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', NULL),
-(1226, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', NULL),
-(1227, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'approved', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', NULL),
-(1228, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', NULL),
-(1229, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', NULL),
-(1230, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', '2026-08-20 09:14:38'),
-(1231, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:14:38', '2026-08-20 09:14:38', NULL),
-(1232, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', NULL),
-(1233, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', NULL),
-(1234, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', NULL),
-(1235, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:14:38', '2026-08-20 09:14:38', '2026-08-20 09:14:38'),
-(1236, 122, 40, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:15:11', '2026-08-20 09:15:11', '2026-08-20 09:15:11'),
-(1237, 122, 40, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:15:11', '2026-08-20 09:15:11', NULL),
-(1238, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:15:14', '2026-08-20 09:15:14', NULL),
-(1239, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:15:14', '2026-08-20 09:15:14', NULL),
-(1240, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:15:14', '2026-08-20 09:15:14', NULL),
-(1242, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:15:17', '2026-08-20 09:15:17', '2026-08-20 09:15:17'),
-(1243, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:15:17', '2026-08-20 09:15:17', NULL),
-(1245, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:15:18', '2026-08-20 09:15:18', '2026-08-20 09:15:18'),
-(1246, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:15:18', '2026-08-20 09:15:18', NULL),
-(1247, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:15:18', '2026-08-20 09:15:18', NULL),
-(1248, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'approved', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:15:18', '2026-08-20 09:15:18', NULL),
-(1249, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:15:18', '2026-08-20 09:15:18', NULL),
-(1250, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:15:18', '2026-08-20 09:15:18', NULL),
-(1252, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', NULL),
-(1253, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', NULL),
-(1254, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'approved', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', NULL),
-(1255, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', NULL),
-(1256, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', NULL),
-(1257, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', '2026-08-20 09:15:20'),
-(1258, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:15:20', '2026-08-20 09:15:20', NULL),
-(1259, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', NULL),
-(1260, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', NULL),
-(1261, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', NULL),
-(1262, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:15:20', '2026-08-20 09:15:20', '2026-08-20 09:15:20'),
-(1263, 133, 43, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:16:25', '2026-08-20 09:16:25', '2026-08-20 09:16:25'),
-(1264, 133, 43, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:16:25', '2026-08-20 09:16:25', NULL),
-(1265, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:16:29', '2026-08-20 09:16:29', NULL),
-(1266, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:16:29', '2026-08-20 09:16:29', NULL),
-(1267, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:16:29', '2026-08-20 09:16:29', NULL),
-(1269, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:16:31', '2026-08-20 09:16:31', '2026-08-20 09:16:31'),
-(1270, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:16:31', '2026-08-20 09:16:31', NULL),
-(1272, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:16:32', '2026-08-20 09:16:32', '2026-08-20 09:16:32'),
-(1273, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:16:32', '2026-08-20 09:16:32', NULL),
-(1274, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:16:32', '2026-08-20 09:16:32', NULL),
-(1275, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:16:32', '2026-08-20 13:08:27', NULL),
-(1276, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:16:32', '2026-08-20 09:16:32', NULL),
-(1277, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:16:32', '2026-08-20 09:16:32', NULL),
-(1279, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', NULL),
-(1280, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', NULL),
-(1281, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'approved', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', NULL),
-(1282, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', NULL),
-(1283, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', NULL),
-(1284, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', '2026-08-20 09:16:34'),
-(1285, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:16:34', '2026-08-20 09:16:34', NULL),
-(1286, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', NULL),
-(1287, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', NULL),
-(1288, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', NULL),
-(1289, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:16:34', '2026-08-20 09:16:34', '2026-08-20 09:16:34'),
-(1290, 144, 46, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:23:38', '2026-08-20 09:23:38', '2026-08-20 09:23:38'),
-(1291, 144, 46, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:23:38', '2026-08-20 09:23:38', NULL),
-(1292, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:23:41', '2026-08-20 09:23:41', NULL),
-(1293, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:23:41', '2026-08-20 09:23:41', NULL),
-(1294, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:23:41', '2026-08-20 09:23:41', NULL),
-(1296, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:23:44', '2026-08-20 09:23:44', '2026-08-20 09:23:44'),
-(1297, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:23:44', '2026-08-20 09:23:44', NULL),
-(1299, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:23:45', '2026-08-20 09:23:45', '2026-08-20 09:23:45'),
-(1300, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:23:45', '2026-08-20 09:23:45', NULL),
-(1301, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:23:45', '2026-08-20 09:23:45', NULL),
-(1302, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'approved', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:23:45', '2026-08-20 09:23:45', NULL),
-(1303, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:23:45', '2026-08-20 09:23:45', NULL),
-(1304, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:23:45', '2026-08-20 09:23:45', NULL),
-(1306, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', NULL),
-(1307, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', NULL),
-(1308, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'approved', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', NULL),
-(1309, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', NULL),
-(1310, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', NULL),
-(1311, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', '2026-08-20 09:23:47'),
-(1312, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:23:47', '2026-08-20 09:23:47', NULL),
-(1313, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', NULL),
-(1314, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', NULL),
-(1315, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', NULL),
-(1316, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:23:47', '2026-08-20 09:23:47', '2026-08-20 09:23:47'),
-(1317, 155, 49, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:28:57', '2026-08-20 09:28:57', '2026-08-20 09:28:57'),
-(1318, 155, 49, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:28:57', '2026-08-20 09:28:57', NULL),
-(1319, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:29:01', '2026-08-20 09:29:01', NULL),
-(1320, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:29:01', '2026-08-20 09:29:01', NULL),
-(1321, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:29:01', '2026-08-20 09:29:01', NULL),
-(1323, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:29:03', '2026-08-20 09:29:03', '2026-08-20 09:29:03'),
-(1324, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:29:03', '2026-08-20 09:29:03', NULL),
-(1326, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:29:04', '2026-08-20 09:29:04', '2026-08-20 09:29:04'),
-(1327, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:29:04', '2026-08-20 09:29:04', NULL),
-(1328, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:29:04', '2026-08-20 09:29:04', NULL),
-(1329, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'approved', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:29:04', '2026-08-20 09:29:04', NULL),
-(1330, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:29:04', '2026-08-20 09:29:04', NULL),
-(1331, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:29:04', '2026-08-20 09:29:04', NULL),
-(1333, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', NULL),
-(1334, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', NULL),
-(1335, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'approved', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', NULL),
-(1336, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', NULL),
-(1337, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', NULL);
-INSERT INTO `orders` (`id`, `customer_id`, `product_id`, `rider_id`, `quantity`, `unit_price`, `total_amount`, `payment_method`, `status`, `delivery_address`, `contact_phone`, `notes`, `created_at`, `updated_at`, `delivered_at`) VALUES
-(1338, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', '2026-08-20 09:29:06'),
-(1339, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:29:06', '2026-08-20 09:29:06', NULL),
-(1340, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', NULL),
-(1341, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', NULL),
-(1342, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', NULL),
-(1343, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:29:06', '2026-08-20 09:29:06', '2026-08-20 09:29:06'),
-(1344, 3, 2, NULL, 1, 820.00, 820.00, 'cod', 'pending', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', '09228889900', 'Test', '2026-08-20 09:30:37', '2026-08-20 09:30:37', NULL),
-(1345, 166, 52, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:36:21', '2026-08-20 09:36:21', '2026-08-20 09:36:21'),
-(1346, 166, 52, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:36:21', '2026-08-20 09:36:21', NULL),
-(1347, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:36:25', '2026-08-20 09:36:25', NULL),
-(1348, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:36:25', '2026-08-20 09:36:25', NULL),
-(1349, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:36:25', '2026-08-20 09:36:25', NULL),
-(1351, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:36:27', '2026-08-20 09:36:27', '2026-08-20 09:36:27'),
-(1352, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:36:27', '2026-08-20 09:36:27', NULL),
-(1354, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:36:28', '2026-08-20 09:36:28', '2026-08-20 09:36:28'),
-(1355, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:36:28', '2026-08-20 09:36:28', NULL),
-(1356, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:36:28', '2026-08-20 09:36:28', NULL),
-(1357, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'approved', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:36:28', '2026-08-20 09:36:28', NULL),
-(1358, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:36:28', '2026-08-20 09:36:28', NULL),
-(1359, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:36:28', '2026-08-20 09:36:28', NULL),
-(1361, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:36:30', NULL),
-(1362, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:36:30', NULL),
-(1363, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'approved', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:36:30', NULL),
-(1364, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:36:30', NULL),
-(1365, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:36:30', NULL),
-(1366, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:36:30', '2026-08-20 09:36:30'),
-(1367, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:36:30', '2026-08-20 09:36:30', NULL),
-(1368, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:36:30', NULL),
-(1369, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:36:30', NULL),
-(1370, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'out_for_delivery', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:43:35', NULL),
-(1371, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:36:30', '2026-08-20 09:36:30', '2026-08-20 09:36:30'),
-(1372, 177, 55, 2, 2, 835.50, 1671.00, 'cod', 'delivered', '123 Testing Road, District 1', '09199998888', 'Handle with care', '2026-08-20 09:42:32', '2026-08-20 09:42:32', '2026-08-20 09:42:32'),
-(1373, 177, 55, NULL, 3, 835.50, 2506.50, 'cod', 'cancelled', 'Cancel Street 101', '09199998888', '\n[Cancelled: Customer requested cancellation]', '2026-08-20 09:42:32', '2026-08-20 09:42:32', NULL),
-(1374, 3, 1, NULL, 2, 850.00, 1700.00, 'gcash', 'pending', '123 Test Ave, Pasig City', '09181234567', 'Handle with care', '2026-08-20 09:42:36', '2026-08-20 09:42:36', NULL),
-(1375, 3, 1, NULL, 3, 850.00, 2550.00, 'cod', 'cancelled', 'Cancel Test St', '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-20 09:42:36', '2026-08-20 09:42:36', NULL),
-(1376, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'out_for_delivery', 'Test Address', '09171112233', NULL, '2026-08-20 09:42:36', '2026-08-20 09:42:36', NULL),
-(1378, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', 'Test Approve Address', '09171234567', NULL, '2026-08-20 09:42:38', '2026-08-20 09:42:38', '2026-08-20 09:42:38'),
-(1379, 3, 1, NULL, 4, 850.00, 3400.00, 'cod', 'cancelled', 'Cancel Order St', '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-20 09:42:38', '2026-08-20 09:42:38', NULL),
-(1381, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', '09171112233', NULL, '2026-08-20 09:42:39', '2026-08-20 09:42:39', '2026-08-20 09:42:39'),
-(1382, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', '09172223344', NULL, '2026-08-20 09:42:39', '2026-08-20 09:42:39', NULL),
-(1383, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', '09173334455', NULL, '2026-08-20 09:42:39', '2026-08-20 09:42:39', NULL),
-(1384, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'approved', 'Available Test St, Pasig City', '09179998888', NULL, '2026-08-20 09:42:39', '2026-08-20 09:42:39', NULL),
-(1385, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', '09175556677', NULL, '2026-08-20 09:42:39', '2026-08-20 09:42:39', NULL),
-(1386, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', '09176667788', NULL, '2026-08-20 09:42:39', '2026-08-20 09:42:39', NULL),
-(1388, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 09:42:41', NULL),
-(1389, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 09:42:41', NULL),
-(1390, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'approved', 'Admin Status Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 09:42:41', NULL),
-(1391, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Admin Assign Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 13:12:08', '2026-08-20 13:12:08'),
-(1392, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Claim Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 13:10:19', '2026-08-20 13:10:19'),
-(1393, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 09:42:41', '2026-08-20 09:42:41'),
-(1394, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-20 09:42:41', '2026-08-20 09:42:41', NULL),
-(1395, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 09:42:41', NULL),
-(1396, 3, 1, 50, 1, 975.50, 975.50, 'cod', 'picked_up', 'Invalid Transition Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 11:45:02', NULL),
-(1397, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Claim Conflict Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 13:07:53', '2026-08-20 13:07:53'),
-(1398, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', '09171112233', NULL, '2026-08-20 09:42:41', '2026-08-20 09:42:41', '2026-08-20 09:42:41'),
-(1399, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'cancelled', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', '09228889900', 'ccf', '2026-08-20 10:34:17', '2026-08-20 11:44:46', NULL),
-(1400, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', '09671299692', '', '2026-08-20 10:36:08', '2026-08-20 10:36:08', NULL),
-(1401, 3, 1, 50, 1, 975.50, 975.50, 'gcash', 'picked_up', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', '09228889900', '', '2026-08-20 12:45:10', '2026-08-20 12:46:38', NULL);
+INSERT INTO `orders` (`id`, `customer_id`, `product_id`, `rider_id`, `quantity`, `unit_price`, `total_amount`, `payment_method`, `status`, `delivery_address`, `delivery_latitude`, `delivery_longitude`, `contact_phone`, `notes`, `created_at`, `updated_at`, `delivered_at`) VALUES
+(1402, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'ready_for_delivery', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', 14.6007547, 120.9877683, '09228889900', '', '2026-08-23 13:33:40', '2026-08-23 13:34:11', NULL);
 
 -- --------------------------------------------------------
 
@@ -562,48 +216,32 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`id`, `name`, `brand`, `weight`, `price`, `stock`, `image_url`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'Solane 11kg', 'Solane', '11kg', 975.50, 60, 'assets/img/products/solane-11kg.png', 'active', '2026-08-20 08:32:06', '2026-08-20 12:45:10'),
-(2, 'Gasul 11kg', 'Gasul', '11kg', 820.00, 30, 'assets/img/products/gasul-11kg.png', 'active', '2026-08-20 08:32:06', '2026-08-20 09:36:19'),
-(3, 'Total 11kg', 'Total', '11kg', 800.00, 20, 'assets/img/products/total-11kg.png', 'active', '2026-08-20 08:32:06', '2026-08-20 08:32:06'),
-(4, 'Solane 22kg', 'Solane', '22kg', 1650.00, 15, 'assets/img/products/solane-22kg.png', 'active', '2026-08-20 08:32:06', '2026-08-20 08:32:06'),
-(5, 'Gasul 50kg', 'Gasul', '50kg', 3800.00, 8, 'assets/img/products/gasul-50kg.png', 'active', '2026-08-20 08:32:06', '2026-08-20 08:32:06'),
-(6, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 08:35:28', '2026-08-20 08:35:29'),
-(7, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 08:40:26', '2026-08-20 08:40:26'),
-(8, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 08:41:02', '2026-08-20 08:41:02'),
-(9, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 08:44:55', '2026-08-20 08:44:55'),
-(10, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 08:46:41', '2026-08-20 08:46:41'),
-(11, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 08:48:26', '2026-08-20 08:48:26'),
-(12, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 08:50:12', '2026-08-20 08:50:12'),
-(13, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 08:52:25', '2026-08-20 08:52:25'),
-(14, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 08:55:17', '2026-08-20 08:55:18'),
-(15, 'Phoenix Super LPG 5e95db', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:00:06', '2026-08-20 09:00:06'),
-(17, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:00:11', '2026-08-20 09:00:11'),
-(18, 'Phoenix Super LPG f8241c', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:00:17', '2026-08-20 09:00:17'),
-(20, 'Phoenix Super LPG 3e1a41', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:05:27', '2026-08-20 09:05:27'),
-(22, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:05:35', '2026-08-20 09:05:35'),
-(23, 'Phoenix Super LPG b1272f', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:08:00', '2026-08-20 09:08:00'),
-(25, 'Phoenix Super LPG 285c58', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:10:00', '2026-08-20 09:10:00'),
-(27, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:10:08', '2026-08-20 09:10:08'),
-(28, 'Phoenix Super LPG fed0eb', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:12:25', '2026-08-20 09:12:25'),
-(30, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:12:33', '2026-08-20 09:12:33'),
-(31, 'Phoenix Super LPG ac5d29', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:12:39', '2026-08-20 09:12:39'),
-(33, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:12:47', '2026-08-20 09:12:47'),
-(34, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:13:47', '2026-08-20 09:13:47'),
-(35, 'Phoenix Super LPG 72e6f2', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:13:52', '2026-08-20 09:13:52'),
-(37, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:14:30', '2026-08-20 09:14:30'),
-(38, 'Phoenix Super LPG 6dd9b5', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:14:35', '2026-08-20 09:14:35'),
-(40, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:15:11', '2026-08-20 09:15:11'),
-(41, 'Phoenix Super LPG d626fa', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:15:17', '2026-08-20 09:15:17'),
-(43, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:16:25', '2026-08-20 09:16:25'),
-(44, 'Phoenix Super LPG 6b028c', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:16:31', '2026-08-20 09:16:31'),
-(46, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:23:38', '2026-08-20 09:23:38'),
-(47, 'Phoenix Super LPG 5d844b', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:23:44', '2026-08-20 09:23:44'),
-(49, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:28:57', '2026-08-20 09:28:57'),
-(50, 'Phoenix Super LPG 618339', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:29:03', '2026-08-20 09:29:03'),
-(52, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:36:21', '2026-08-20 09:36:21'),
-(53, 'Phoenix Super LPG 21aa7a', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:36:27', '2026-08-20 09:36:27'),
-(55, 'Phoenix 11kg Super Test', 'Phoenix', '11kg', 835.50, 43, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:42:32', '2026-08-20 09:42:32'),
-(56, 'Phoenix Super LPG fb1223', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-20 09:42:38', '2026-08-20 09:42:38');
+(1, 'Gasul 11kg ', 'Gasul', '11kg', 975.50, 59, 'assets/img/products/1.png', 'active', '2026-08-20 08:32:06', '2026-08-23 13:33:40'),
+(2, 'Solane 11kg', 'Solane', '11kg', 820.00, 30, 'assets/img/products/2.png', 'active', '2026-08-20 08:32:06', '2026-08-20 09:36:19'),
+(3, 'Solane 22kg', 'Solane', '22kg', 800.00, 20, 'assets/img/products/3.png', 'active', '2026-08-20 08:32:06', '2026-08-20 08:32:06'),
+(4, 'Phoenix LPG Super Test 11kg', 'Phoenix', '11kg', 1650.00, 15, 'assets/img/products/4.png', 'active', '2026-08-20 08:32:06', '2026-08-20 08:32:06'),
+(5, 'Gasul 50kg', 'Gasul', '50kg', 3800.00, 8, 'assets/img/products/5.png', 'active', '2026-08-20 08:32:06', '2026-08-20 08:32:06'),
+(6, 'Regasco 11kg', 'Regasco', '11kg', 835.50, 43, 'assets/img/products/6.png', 'active', '2026-08-20 08:35:28', '2026-08-20 08:35:29'),
+(7, 'Super Kalan LPG 11kg', 'Super Kalan', '11kg', 835.50, 43, 'assets/img/products/7.png', 'active', '2026-08-20 08:40:26', '2026-08-20 08:40:26'),
+(8, 'Brent Gas 11kg', 'Brent', '11kg', 835.50, 43, 'assets/img/products/8.png', 'active', '2026-08-20 08:41:02', '2026-08-20 08:41:02'),
+(9, 'Petron Gasul 11kg', 'Petron', '11kg', 835.50, 43, 'assets/img/products/9.png', 'active', '2026-08-20 08:44:55', '2026-08-20 08:44:55'),
+(10, 'Total Gaz 15kg', 'Total', '15kg', 835.50, 43, 'assets/img/products/10.png', 'active', '2026-08-20 08:46:41', '2026-08-20 08:46:41');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `rider_locations`
+--
+
+CREATE TABLE `rider_locations` (
+  `id` int(11) NOT NULL,
+  `order_id` int(11) NOT NULL,
+  `rider_id` int(11) NOT NULL,
+  `latitude` decimal(10,7) NOT NULL,
+  `longitude` decimal(10,7) NOT NULL,
+  `accuracy` float DEFAULT NULL,
+  `recorded_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -664,13 +302,13 @@ INSERT INTO `users` (`id`, `full_name`, `email`, `password`, `role`, `phone`, `a
 --
 
 --
--- Indexes for table `rider_locations`
+-- Indexes for table `chat_messages`
 --
-ALTER TABLE `rider_locations`
+ALTER TABLE `chat_messages`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_order` (`order_id`),
-  ADD KEY `idx_rider` (`rider_id`),
-  ADD KEY `idx_recorded` (`recorded_at`);
+  ADD KEY `idx_chat_order` (`order_id`),
+  ADD KEY `idx_chat_sender` (`sender_id`),
+  ADD KEY `idx_chat_created` (`created_at`);
 
 --
 -- Indexes for table `orders`
@@ -700,6 +338,15 @@ ALTER TABLE `products`
   ADD KEY `idx_status` (`status`);
 
 --
+-- Indexes for table `rider_locations`
+--
+ALTER TABLE `rider_locations`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_order` (`order_id`),
+  ADD KEY `idx_rider` (`rider_id`),
+  ADD KEY `idx_recorded` (`recorded_at`);
+
+--
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
@@ -713,10 +360,16 @@ ALTER TABLE `users`
 --
 
 --
+-- AUTO_INCREMENT for table `chat_messages`
+--
+ALTER TABLE `chat_messages`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1402;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1403;
 
 --
 -- AUTO_INCREMENT for table `password_resets`
@@ -725,16 +378,16 @@ ALTER TABLE `password_resets`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=108;
 
 --
--- AUTO_INCREMENT for table `rider_locations`
---
-ALTER TABLE `rider_locations`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=58;
+
+--
+-- AUTO_INCREMENT for table `rider_locations`
+--
+ALTER TABLE `rider_locations`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -745,6 +398,13 @@ ALTER TABLE `users`
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `chat_messages`
+--
+ALTER TABLE `chat_messages`
+  ADD CONSTRAINT `fk_chat_messages_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_chat_messages_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `orders`
@@ -766,68 +426,8 @@ ALTER TABLE `password_resets`
 ALTER TABLE `rider_locations`
   ADD CONSTRAINT `fk_rider_locations_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_rider_locations_rider` FOREIGN KEY (`rider_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+COMMIT;
 
---
--- Table structure for table `chat_messages`
---
-
--- CREATE TABLE `chat_messages` (
---   `id` int(11) NOT NULL,
---   `order_id` int(11) NOT NULL,
---   `sender_id` int(11) NOT NULL,
---   `message` text NOT NULL,
---   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
--- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --
--- -- Indexes for table `chat_messages`
--- --
--- ALTER TABLE `chat_messages`
---   ADD PRIMARY KEY (`id`),
---   ADD KEY `idx_chat_order` (`order_id`),
---   ADD KEY `idx_chat_sender` (`sender_id`),
---   ADD KEY `idx_chat_created` (`created_at`);
-
--- --
--- -- AUTO_INCREMENT for table `chat_messages`
--- --
--- ALTER TABLE `chat_messages`
---   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
--- --
--- -- Constraints for table `chat_messages`
--- --
--- ALTER TABLE `chat_messages`
---   ADD CONSTRAINT `fk_chat_messages_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
---   ADD CONSTRAINT `fk_chat_messages_sender` FOREIGN KEY (`sender_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
--- COMMIT; this commit is original 
-
-CREATE TABLE `chat_messages` (
-    `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `order_id` INT(11) NOT NULL,
-    `sender_id` INT(11) NOT NULL,
-    `message` TEXT NOT NULL,
-    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    PRIMARY KEY (`id`),
-
-    KEY `idx_chat_order` (`order_id`),
-    KEY `idx_chat_sender` (`sender_id`),
-    KEY `idx_chat_created` (`created_at`),
-
-    CONSTRAINT `fk_chat_messages_order`
-        FOREIGN KEY (`order_id`)
-        REFERENCES `orders` (`id`)
-        ON DELETE CASCADE,
-
-    CONSTRAINT `fk_chat_messages_sender`
-        FOREIGN KEY (`sender_id`)
-        REFERENCES `users` (`id`)
-        ON DELETE CASCADE
-
-) ENGINE=InnoDB
-DEFAULT CHARSET=utf8mb4
-COLLATE=utf8mb4_general_ci;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
