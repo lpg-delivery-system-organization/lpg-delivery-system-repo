@@ -94,7 +94,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0" id="customerOrdersContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
         <div>
             <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
                 <i class="bi bi-receipt text-primary"></i>My Order History
@@ -171,7 +171,8 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 <div class="card app-order-card app-clickable-card shadow-sm border-0 mb-4 customer-order-item" 
                      data-order-id="<?= $orderId ?>" 
                      data-status="<?= e($status) ?>"
-                     data-href="<?= url('pages/customer/order-detail.php?id=' . $orderId) ?>">
+                     data-href="<?= url('pages/customer/order-detail.php?id=' . $orderId) ?>"
+                     data-aos="fade-up">
                     
                     <!-- Card Header -->
                     <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center py-3 border-bottom">

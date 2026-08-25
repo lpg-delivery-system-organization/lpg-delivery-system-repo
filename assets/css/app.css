@@ -739,3 +739,755 @@ body.app-body {
     }
 }
 
+/* =========================================================================
+   13. Modern Design System — Gradients, Glass Morphism, Animations
+   ========================================================================= */
+
+:root {
+    --app-gradient-primary: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    --app-gradient-dark: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    --app-gradient-warm: linear-gradient(135deg, #ea580c 0%, #f59e0b 100%);
+    --app-gradient-success: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    --app-gradient-danger: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    --app-gradient-info: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+    --app-glass-bg: rgba(255, 255, 255, 0.72);
+    --app-glass-border: rgba(255, 255, 255, 0.2);
+    --app-glass-blur: blur(16px);
+    --app-shadow-card: 0 4px 24px rgba(0, 0, 0, 0.06);
+    --app-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.12);
+    --app-shadow-glow-primary: 0 0 20px rgba(37, 99, 235, 0.25);
+    --app-transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =========================================================================
+   14. Page Load Fade-In Transition
+   ========================================================================= */
+
+.app-main {
+    animation: fadeInMain 0.4s ease-out;
+}
+
+@keyframes fadeInMain {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================================
+   15. Enhanced Stat Cards — Glass Morphism & Hover
+   ========================================================================= */
+
+.app-stat-card {
+    background: var(--app-glass-bg);
+    backdrop-filter: var(--app-glass-blur);
+    -webkit-backdrop-filter: var(--app-glass-blur);
+    border: 1px solid var(--app-glass-border);
+    border-radius: 1rem;
+    transition: var(--app-transition-smooth);
+    position: relative;
+    overflow: hidden;
+}
+
+.app-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--app-gradient-primary);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.app-stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--app-shadow-hover);
+    border-color: rgba(37, 99, 235, 0.15);
+}
+
+.app-stat-card:hover::before {
+    opacity: 1;
+}
+
+.stat-icon-wrapper {
+    transition: var(--app-transition-smooth);
+}
+
+.app-stat-card:hover .stat-icon-wrapper {
+    transform: scale(1.1);
+}
+
+/* =========================================================================
+   16. Skeleton Loading Shimmer
+   ========================================================================= */
+
+.skeleton {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+    border-radius: 0.5rem;
+}
+
+.skeleton-text {
+    height: 14px;
+    margin-bottom: 8px;
+    width: 80%;
+}
+
+.skeleton-text-sm {
+    height: 10px;
+    margin-bottom: 6px;
+    width: 60%;
+}
+
+.skeleton-title {
+    height: 24px;
+    margin-bottom: 12px;
+    width: 50%;
+}
+
+.skeleton-rect {
+    height: 120px;
+    width: 100%;
+}
+
+.skeleton-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+@keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* =========================================================================
+   17. Animated Stat Counters
+   ========================================================================= */
+
+.stat-counter-value {
+    display: inline-block;
+    transition: opacity 0.3s ease;
+}
+
+.stat-counter-value.counting {
+    opacity: 0.7;
+}
+
+/* =========================================================================
+   18. Enhanced Product Cards
+   ========================================================================= */
+
+.app-product-card {
+    border-radius: 1rem;
+    border: 1px solid var(--app-border);
+    background: var(--app-glass-bg);
+    backdrop-filter: var(--app-glass-blur);
+    -webkit-backdrop-filter: var(--app-glass-blur);
+    transition: var(--app-transition-smooth);
+    overflow: hidden;
+}
+
+.app-product-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--app-shadow-hover);
+    border-color: rgba(37, 99, 235, 0.2);
+}
+
+.app-product-card:hover .app-product-img-wrapper img {
+    transform: scale(1.08);
+}
+
+.app-product-img-wrapper {
+    overflow: hidden;
+    position: relative;
+}
+
+.app-product-img-wrapper img {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-product-img-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.04) 100%);
+    pointer-events: none;
+}
+
+/* =========================================================================
+   19. Enhanced Order Cards & Clickable Cards
+   ========================================================================= */
+
+.app-order-card {
+    border-radius: 1rem;
+    border: 1px solid var(--app-border);
+    background: var(--app-glass-bg);
+    backdrop-filter: var(--app-glass-blur);
+    -webkit-backdrop-filter: var(--app-glass-blur);
+    transition: var(--app-transition-smooth);
+}
+
+.app-clickable-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--app-shadow-hover);
+    border-color: rgba(37, 99, 235, 0.2);
+}
+
+/* =========================================================================
+   20. Gradient Dashboard Banners
+   ========================================================================= */
+
+.app-banner-gradient {
+    background: var(--app-gradient-primary) !important;
+    position: relative;
+    overflow: hidden;
+    border: none;
+}
+
+.app-banner-gradient::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: floatBannerOrb 8s ease-in-out infinite;
+}
+
+.app-banner-dark {
+    background: var(--app-gradient-dark) !important;
+    position: relative;
+    overflow: hidden;
+    border: none;
+}
+
+.app-banner-dark::after {
+    content: '';
+    position: absolute;
+    top: -30%;
+    right: -10%;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: floatBannerOrb 10s ease-in-out infinite;
+}
+
+@keyframes floatBannerOrb {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50%      { transform: translate(-20px, 15px) scale(1.1); }
+}
+
+/* =========================================================================
+   21. Enhanced Buttons — Gradient, Scale, Ripple
+   ========================================================================= */
+
+.btn {
+    transition: var(--app-transition-smooth);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+.btn-primary {
+    background: var(--app-gradient-primary);
+    border: none;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%);
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-primary:focus {
+    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.35), 0 4px 16px rgba(37, 99, 235, 0.3);
+}
+
+.btn-success {
+    background: var(--app-gradient-success);
+    border: none;
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+}
+
+.btn-success:hover {
+    box-shadow: 0 4px 16px rgba(5, 150, 105, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-warning {
+    background: var(--app-gradient-warm);
+    border: none;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
+}
+
+.btn-warning:hover {
+    box-shadow: 0 4px 16px rgba(234, 88, 12, 0.4);
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+.btn-danger {
+    background: var(--app-gradient-danger);
+    border: none;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+.btn-danger:hover {
+    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn-loading .btn-text {
+    opacity: 0;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    top: 50%;
+    left: 50%;
+    margin: -9px 0 0 -9px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: btnSpin 0.6s linear infinite;
+}
+
+@keyframes btnSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* =========================================================================
+   22. Enhanced Form Controls — Floating Labels & Focus
+   ========================================================================= */
+
+.form-control, .form-select {
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    border-radius: 0.5rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.input-group .form-control:focus {
+    z-index: 3;
+}
+
+.input-group-text {
+    transition: background-color 0.25s ease, color 0.25s ease;
+    border-radius: 0.5rem;
+}
+
+.form-control:focus ~ .input-group-text,
+.form-control:focus + .input-group-text {
+    color: var(--app-primary);
+}
+
+/* Validation shake animation */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%      { transform: translateX(-6px); }
+    40%      { transform: translateX(6px); }
+    60%      { transform: translateX(-4px); }
+    80%      { transform: translateX(4px); }
+}
+
+.form-shake {
+    animation: shake 0.4s ease;
+}
+
+.is-invalid {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+}
+
+/* Success validation checkmark */
+.form-check-success {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12) !important;
+}
+
+/* =========================================================================
+   23. Sidebar Enhanced — Gradient Active & Hover
+   ========================================================================= */
+
+.app-sidebar .nav-link {
+    position: relative;
+    border-radius: 0.625rem;
+    border-left: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar .nav-link::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) scaleY(0);
+    width: 3px;
+    height: 60%;
+    border-radius: 0 3px 3px 0;
+    background: var(--app-gradient-primary);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar .nav-link:hover {
+    background-color: rgba(37, 99, 235, 0.06);
+    color: var(--app-primary);
+    transform: translateX(4px);
+}
+
+.app-sidebar .nav-link.active {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(124, 58, 237, 0.06) 100%);
+    color: var(--app-primary);
+    font-weight: 600;
+    border-left: none;
+}
+
+.app-sidebar .nav-link.active::before {
+    transform: translateY(-50%) scaleY(1);
+}
+
+.app-sidebar .nav-link.active .bi {
+    animation: iconPulse 0.4s ease;
+}
+
+@keyframes iconPulse {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* =========================================================================
+   24. Enhanced Toast Notifications
+   ========================================================================= */
+
+.toast {
+    border-radius: 0.75rem !important;
+    overflow: hidden;
+    animation: toastSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none !important;
+}
+
+@keyframes toastSlideIn {
+    from { opacity: 0; transform: translateX(100%); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.toast .toast-header {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.toast-progress-bar {
+    height: 3px;
+    background: var(--app-gradient-primary);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    border-radius: 0 0 0.75rem 0.75rem;
+    animation: toastProgress 4.5s linear forwards;
+}
+
+@keyframes toastProgress {
+    from { width: 100%; }
+    to   { width: 0%; }
+}
+
+.toast-success { border-left: 4px solid #10b981 !important; }
+.toast-danger  { border-left: 4px solid #ef4444 !important; }
+.toast-warning { border-left: 4px solid #f59e0b !important; }
+.toast-info    { border-left: 4px solid #2563eb !important; }
+
+/* =========================================================================
+   25. Status Badge Glow Effects
+   ========================================================================= */
+
+.app-status-badge {
+    position: relative;
+    transition: var(--app-transition-smooth);
+}
+
+.badge-status-pending     { box-shadow: 0 0 8px rgba(245, 158, 11, 0.2); }
+.badge-status-approved    { box-shadow: 0 0 8px rgba(3, 105, 161, 0.2); }
+.badge-status-ready_for_delivery { box-shadow: 0 0 8px rgba(30, 64, 175, 0.2); }
+.badge-status-picked_up   { box-shadow: 0 0 8px rgba(91, 33, 182, 0.2); }
+.badge-status-out_for_delivery { box-shadow: 0 0 8px rgba(154, 52, 18, 0.2); }
+.badge-status-delivered   { box-shadow: 0 0 8px rgba(22, 101, 52, 0.2); }
+.badge-status-cancelled   { box-shadow: 0 0 8px rgba(153, 27, 27, 0.2); }
+
+/* =========================================================================
+   26. Timeline Stepper Pulse Animation
+   ========================================================================= */
+
+.timeline-step.active .timeline-step-icon {
+    animation: timelinePulse 2s ease-in-out infinite;
+}
+
+@keyframes timelinePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+    50%      { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+}
+
+.timeline-step.completed .timeline-step-icon {
+    animation: timelineCheck 0.3s ease;
+}
+
+@keyframes timelineCheck {
+    0%   { transform: scale(0.8); }
+    50%  { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* =========================================================================
+   27. Login Page — Full-Screen Gradient Background
+   ========================================================================= */
+
+.auth-login-page {
+    min-height: calc(100vh - 56px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background: var(--app-bg-body, #f8f9fa);
+    position: relative;
+    overflow: hidden;
+    margin-top: auto;
+}
+
+.auth-login-page::before,
+.auth-login-page::after {
+    display: none;
+}
+
+.auth-login-container {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 440px;
+}
+
+.auth-brand-logo {
+    width: 80px;
+    height: 80px;
+    background: var(--app-gradient-primary);
+    border-radius: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+}
+
+
+.auth-card {
+    border-radius: 1.25rem;
+    border: none;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+    width: 100%;
+    background: #fff;
+    animation: authCardIn 0.5s ease-out;
+}
+
+@keyframes authCardIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.auth-card .form-control,
+.auth-card .form-select {
+    border-radius: 0.625rem;
+    padding: 0.7rem 1rem;
+    border-color: #e2e8f0;
+}
+
+.auth-card .form-control:focus {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.auth-card .btn-primary {
+    padding: 0.7rem;
+    font-size: 1rem;
+    border-radius: 0.625rem;
+}
+
+@media (max-width: 575.98px) {
+    .auth-login-page {
+        padding: 1rem 0.75rem;
+        justify-content: flex-start;
+        padding-top: 3rem;
+    }
+    .auth-brand-logo {
+        width: 64px;
+        height: 64px;
+        font-size: 2rem;
+    }
+    .auth-card {
+        border-radius: 1rem;
+    }
+}
+
+/* =========================================================================
+   28. Glass Card Utility
+   ========================================================================= */
+
+.glass-card {
+    background: var(--app-glass-bg);
+    backdrop-filter: var(--app-glass-blur);
+    -webkit-backdrop-filter: var(--app-glass-blur);
+    border: 1px solid var(--app-glass-border);
+    border-radius: 1rem;
+}
+
+/* =========================================================================
+   30. Navbar Enhancements
+   ========================================================================= */
+
+.app-navbar {
+    background: var(--app-gradient-dark) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.app-navbar .navbar-brand {
+    transition: opacity 0.2s ease;
+}
+
+.app-navbar .navbar-brand:hover {
+    opacity: 0.9;
+}
+
+.user-avatar-circle {
+    transition: var(--app-transition-smooth);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.user-avatar-circle:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+/* =========================================================================
+   31. Card Hover Lift Utilities
+   ========================================================================= */
+
+.hover-lift {
+    transition: var(--app-transition-smooth);
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--app-shadow-hover);
+}
+
+/* =========================================================================
+   32. Quick Action Card Hover
+   ========================================================================= */
+
+.d-grid .btn {
+    transition: var(--app-transition-smooth);
+    border-radius: 0.75rem;
+}
+
+.d-grid .btn:hover {
+    transform: translateX(4px);
+}
+
+/* =========================================================================
+   33. Empty State Enhancements
+   ========================================================================= */
+
+.card .fs-1.opacity-50 {
+    transition: var(--app-transition-smooth);
+}
+
+.card:hover .fs-1.opacity-50 {
+    transform: scale(1.1);
+    opacity: 0.7 !important;
+}
+
+/* =========================================================================
+   34. Table Row Hover Enhancements
+   ========================================================================= */
+
+.table-hover tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(37, 99, 235, 0.03) !important;
+}
+
+/* =========================================================================
+   35. Scrollbar Custom Styling
+   ========================================================================= */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* =========================================================================
+   36. AOS Custom Overrides
+   ========================================================================= */
+
+[data-aos] {
+    pointer-events: auto !important;
+}
+
+.aos-init {
+    opacity: 1 !important;
+}
+
+/* =========================================================================
+   37. Modal Enhancements
+   ========================================================================= */
+
+.modal-content {
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.modal-backdrop.show {
+    backdrop-filter: blur(4px);
+}
+

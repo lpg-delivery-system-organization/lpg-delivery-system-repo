@@ -101,7 +101,7 @@ $roleMenu = $menus[$role] ?? [];
         <!-- Sidebar Navigation Heading -->
         <div class="px-3 py-3 border-bottom d-none d-md-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-primary text-uppercase px-2 py-1"><?= e($role) ?></span>
+                <span class="badge text-uppercase px-2 py-1 fw-semibold" style="background: var(--app-gradient-primary); font-size: 0.7rem;"><?= e($role) ?></span>
                 <span class="small text-muted fw-semibold">Portal</span>
             </div>
         </div>

@@ -188,7 +188,7 @@ require_once __DIR__ . '/../../templates/header.php';
 
 <div class="container-fluid px-0" id="riderProfileContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
         <div>
             <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
                 <i class="bi bi-person-circle text-primary"></i>Rider Profile & Performance
@@ -206,7 +206,7 @@ require_once __DIR__ . '/../../templates/header.php';
         <!-- Left Column: Rider Overview Card & Performance Stats -->
         <div class="col-lg-4">
             <!-- User Summary Card -->
-            <div class="card border-0 shadow-sm text-center p-4 rounded-3 mb-4">
+            <div class="card border-0 shadow-sm text-center p-4 rounded-3 mb-4" data-aos="fade-right">
                 <div class="mx-auto mb-3">
                     <div class="user-avatar-circle" style="width: 80px; height: 80px; font-size: 2rem;">
                         <?= e(strtoupper(substr($rider['full_name'] ?? 'R', 0, 1))) ?>
@@ -236,7 +236,7 @@ require_once __DIR__ . '/../../templates/header.php';
             </div>
 
             <!-- Delivery Performance Stats Card -->
-            <div class="card border-0 shadow-sm rounded-3 mb-4">
+            <div class="card border-0 shadow-sm rounded-3 mb-4" data-aos="fade-right" data-aos-delay="100">
                 <div class="card-header bg-white py-3 border-bottom">
                     <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
                         <i class="bi bi-speedometer2 text-primary"></i>Delivery Performance
@@ -306,7 +306,7 @@ require_once __DIR__ . '/../../templates/header.php';
         <!-- Right Column: Edit Profile & Password Update Forms -->
         <div class="col-lg-8">
             <!-- Profile Details Form -->
-            <div class="card border-0 shadow-sm rounded-3 mb-4">
+            <div class="card border-0 shadow-sm rounded-3 mb-4" data-aos="fade-left">
                 <div class="card-header bg-white py-3 border-bottom">
                     <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
                         <i class="bi bi-person-gear text-primary"></i>Edit Rider Contact Details
@@ -413,7 +413,7 @@ require_once __DIR__ . '/../../templates/header.php';
             </div>
 
             <!-- Password Change Card -->
-            <div class="card border-0 shadow-sm rounded-3">
+            <div class="card border-0 shadow-sm rounded-3" data-aos="fade-left" data-aos-delay="100">
                 <div class="card-header bg-white py-3 border-bottom">
                     <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
                         <i class="bi bi-shield-lock text-primary"></i>Change Account Password

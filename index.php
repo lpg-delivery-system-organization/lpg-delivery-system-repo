@@ -79,148 +79,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once __DIR__ . '/templates/header.php';
 ?>
 
-<div class="container py-4 py-md-5">
-    <div class="row justify-content-center">
-        <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
+<div class="auth-login-page">
+    <div class="auth-login-container">
+        <!-- Branding Header -->
+        <div class="text-center mb-4" data-aos="fade-down">
+            <div class="auth-brand-logo mx-auto">
+                <i class="bi bi-fire text-warning"></i>
+            </div>
+            <h1 class="h3 fw-bold text-dark mb-1">LPG Delivery System</h1>
+            <p class="text-muted small">Fast, safe, and reliable LPG cylinder delivery</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="auth-card p-4 p-md-5" data-aos="fade-up" data-aos-delay="100">
             
-            <!-- App Branding Header -->
-            <div class="text-center mb-4">
-                <div class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-circle mb-3 shadow-sm" style="width: 60px; height: 60px;">
-                    <i class="bi bi-fire text-warning fs-2"></i>
+            <h2 class="h5 fw-bold text-dark mb-1">Sign In</h2>
+            <p class="text-muted small mb-3">Enter your credentials to access your account</p>
+
+            <?php if (!empty($errors)): ?>
+                <div class="alert alert-danger alert-dismissible fade show d-flex align-items-start shadow-sm mb-3" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill fs-5 me-2 flex-shrink-0 mt-1"></i>
+                    <div class="flex-grow-1 small">
+                        <?php if (count($errors) === 1): ?>
+                            <span><?= e($errors[0]) ?></span>
+                        <?php else: ?>
+                            <ul class="mb-0 ps-3">
+                                <?php foreach ($errors as $err): ?>
+                                    <li><?= e($err) ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-                <h1 class="h3 fw-bold text-dark mb-1"><?= e(defined('APP_NAME') ? APP_NAME : 'LPG Delivery System') ?></h1>
-                <p class="text-muted small">Fast, safe, and reliable LPG cylinder delivery</p>
+            <?php endif; ?>
+
+            <form action="<?= url('index.php') ?>" method="POST" novalidate id="loginForm">
+                <?= csrf_input() ?>
+
+                <!-- Email Input -->
+                <div class="mb-3">
+                    <label for="email" class="form-label fw-semibold small text-dark">
+                        Email Address <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted">
+                            <i class="bi bi-envelope"></i>
+                        </span>
+                        <input
+                            type="email"
+                            class="form-control border-start-0 ps-0"
+                            id="email"
+                            name="email"
+                            value="<?= e($email) ?>"
+                            placeholder="name@example.com"
+                            required
+                            autofocus
+                            autocomplete="username"
+                        >
+                    </div>
+                </div>
+
+                <!-- Password Input -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="password" class="form-label fw-semibold small text-dark mb-0">
+                            Password <span class="text-danger">*</span>
+                        </label>
+                        <a href="<?= url('forgot-password.php') ?>" class="text-decoration-none small fw-medium" style="color: var(--app-primary);">
+                            Forgot password?
+                        </a>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted">
+                            <i class="bi bi-lock"></i>
+                        </span>
+                        <input
+                            type="password"
+                            class="form-control border-start-0 border-end-0 px-0"
+                            id="password"
+                            name="password"
+                            placeholder="Enter your password"
+                            required
+                            autocomplete="current-password"
+                        >
+                        <button class="btn btn-outline-secondary border-start-0 bg-light text-muted toggle-password-btn" type="button" data-target="#password" aria-label="Toggle password visibility">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Remember Me -->
+                <div class="mb-4 form-check">
+                    <input type="checkbox" class="form-check-input" id="rememberMe" name="remember_me" value="1">
+                    <label class="form-check-label small text-muted user-select-none" for="rememberMe">
+                        Keep me signed in on this device
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-primary py-2 fw-semibold" id="loginBtn">
+                        <span class="btn-text"><i class="bi bi-box-arrow-in-right me-2"></i>Sign In</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Registration Link -->
+            <div class="text-center pt-3 border-top mt-3">
+                <p class="text-muted small mb-0">
+                    Don't have an account yet?
+                    <a href="<?= url('register.php') ?>" class="fw-semibold text-decoration-none ms-1" style="color: var(--app-primary);">
+                        Create an account
+                    </a>
+                </p>
             </div>
 
-            <!-- Login Card -->
-            <div class="card shadow-sm border-0 rounded-3">
-                <div class="card-body p-4 p-md-4">
-                    <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
-                        <h2 class="h5 fw-bold mb-0 text-dark">Sign In</h2>
-                        <span class="badge bg-light text-muted border px-2 py-1 small">Secure Portal</span>
-                    </div>
-
-                    <?php if (!empty($errors)): ?>
-                        <div class="alert alert-danger alert-dismissible fade show d-flex align-items-start shadow-sm mb-3" role="alert">
-                            <i class="bi bi-exclamation-triangle-fill fs-5 me-2 flex-shrink-0 mt-1"></i>
-                            <div class="flex-grow-1 small">
-                                <?php if (count($errors) === 1): ?>
-                                    <span><?= e($errors[0]) ?></span>
-                                <?php else: ?>
-                                    <ul class="mb-0 ps-3">
-                                        <?php foreach ($errors as $err): ?>
-                                            <li><?= e($err) ?></li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                <?php endif; ?>
-                            </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    <?php endif; ?>
-
-                    <form action="<?= url('index.php') ?>" method="POST" novalidate id="loginForm">
-                        <?= csrf_input() ?>
-
-                        <!-- Email Input -->
-                        <div class="mb-3">
-                            <label for="email" class="form-label fw-semibold small text-dark">
-                                Email Address <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted">
-                                    <i class="bi bi-envelope"></i>
-                                </span>
-                                <input
-                                    type="email"
-                                    class="form-control border-start-0 ps-0"
-                                    id="email"
-                                    name="email"
-                                    value="<?= e($email) ?>"
-                                    placeholder="name@example.com"
-                                    required
-                                    autofocus
-                                    autocomplete="username"
-                                >
-                            </div>
-                        </div>
-
-                        <!-- Password Input -->
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label for="password" class="form-label fw-semibold small text-dark mb-0">
-                                    Password <span class="text-danger">*</span>
-                                </label>
-                                <a href="<?= url('forgot-password.php') ?>" class="text-decoration-none small fw-medium text-primary">
-                                    Forgot password?
-                                </a>
-                            </div>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted">
-                                    <i class="bi bi-lock"></i>
-                                </span>
-                                <input
-                                    type="password"
-                                    class="form-control border-start-0 border-end-0 px-0"
-                                    id="password"
-                                    name="password"
-                                    placeholder="Enter your password"
-                                    required
-                                    autocomplete="current-password"
-                                >
-                                <button class="btn btn-outline-secondary border-start-0 bg-light text-muted toggle-password-btn" type="button" data-target="#password" aria-label="Toggle password visibility">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Remember / Session Notice -->
-                        <div class="mb-4 form-check">
-                            <input type="checkbox" class="form-check-input" id="rememberMe" name="remember_me" value="1">
-                            <label class="form-check-label small text-muted user-select-none" for="rememberMe">
-                                Keep me signed in on this device
-                            </label>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <div class="d-grid mb-3">
-                            <button type="submit" class="btn btn-primary py-2 fw-semibold shadow-sm" id="loginBtn">
-                                <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
-                            </button>
-                        </div>
-                    </form>
-
-                    <!-- Registration Link -->
-                    <div class="text-center pt-3 border-top mt-3">
-                        <p class="text-muted small mb-0">
-                            Don't have an account yet?
-                            <a href="<?= url('register.php') ?>" class="fw-semibold text-primary text-decoration-none ms-1">
-                                Create an account
-                            </a>
-                        </p>
-                    </div>
-
+            <!-- Demo Credentials -->
+            <div class="mt-3 p-2 rounded-3" style="background: rgba(37, 99, 235, 0.04); border: 1px solid rgba(37, 99, 235, 0.08);">
+                <div class="d-flex align-items-center mb-1 text-dark fw-semibold small">
+                    <i class="bi bi-info-circle me-1" style="color: var(--app-primary);"></i>
+                    Demo Credentials
                 </div>
-            </div>
-
-            <!-- Demo Account Credentials Helper -->
-            <div class="mt-4 p-3 bg-white rounded-3 shadow-sm border small text-muted">
-                <div class="d-flex align-items-center mb-2 text-dark fw-semibold">
-                    <i class="bi bi-info-circle-fill text-primary me-2"></i>
-                    <span>Demo Test Credentials</span>
-                </div>
-                <div class="row g-2 extra-small">
-                    <div class="col-12 border-bottom pb-1">
-                        <span class="badge bg-primary me-1">Admin</span>
-                        <code>admin@lpg.com</code> / <code>password</code>
-                    </div>
-                    <div class="col-12 border-bottom pb-1">
-                        <span class="badge bg-success me-1">Rider</span>
-                        <code>rider@lpg.com</code> / <code>password</code>
-                    </div>
-                    <div class="col-12">
-                        <span class="badge bg-info text-dark me-1">Customer</span>
-                        <code>customer@lpg.com</code> / <code>password</code>
-                    </div>
+                <div class="extra-small text-muted">
+                    <div class="mb-1"><span class="badge bg-primary me-1" style="font-size: 0.65rem;">Admin</span><code>admin@lpg.com</code> / <code>password</code></div>
+                    <div class="mb-1"><span class="badge bg-success me-1" style="font-size: 0.65rem;">Rider</span><code>rider@lpg.com</code> / <code>password</code></div>
+                    <div><span class="badge bg-info text-dark me-1" style="font-size: 0.65rem;">Customer</span><code>customer@lpg.com</code> / <code>password</code></div>
                 </div>
             </div>
 

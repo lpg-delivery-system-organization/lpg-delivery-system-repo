@@ -233,7 +233,7 @@ require_once __DIR__ . '/../../templates/header.php';
 
 <div class="container-fluid px-0" id="adminInventoryContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
         <div>
             <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
                 <i class="bi bi-tags text-primary"></i>Product Catalog & Inventory
@@ -250,12 +250,12 @@ require_once __DIR__ . '/../../templates/header.php';
     <!-- Inventory Stat Cards -->
     <div class="row g-3 mb-4">
         <!-- Total Products -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="0">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Total Catalog</span>
-                        <h3 class="fw-bold my-1 text-dark"><?= $totalProducts ?></h3>
+                        <h3 class="fw-bold my-1 text-dark" data-counter-target="<?= $totalProducts ?>"><?= $totalProducts ?></h3>
                         <span class="extra-small text-muted"><?= $activeCount ?> active, <?= $inactiveCount ?> inactive</span>
                     </div>
                     <div class="stat-icon-wrapper bg-primary-subtle text-primary">
@@ -266,12 +266,12 @@ require_once __DIR__ . '/../../templates/header.php';
         </div>
 
         <!-- Total Stock Units -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="100">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Total Units</span>
-                        <h3 class="fw-bold my-1 text-success"><?= $totalUnitsInStock ?></h3>
+                        <h3 class="fw-bold my-1 text-success" data-counter-target="<?= $totalUnitsInStock ?>"><?= $totalUnitsInStock ?></h3>
                         <span class="extra-small text-muted">Cylinders in warehouse</span>
                     </div>
                     <div class="stat-icon-wrapper bg-success-subtle text-success">
@@ -282,12 +282,12 @@ require_once __DIR__ . '/../../templates/header.php';
         </div>
 
         <!-- Low Stock Items -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="200">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3 <?= $lowStockCount > 0 ? 'border-start border-warning border-4' : '' ?>">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Low Stock</span>
-                        <h3 class="fw-bold my-1 text-warning"><?= $lowStockCount ?></h3>
+                        <h3 class="fw-bold my-1 text-warning" data-counter-target="<?= $lowStockCount ?>"><?= $lowStockCount ?></h3>
                         <span class="extra-small text-muted">Stock &le; 5 units</span>
                     </div>
                     <div class="stat-icon-wrapper bg-warning-subtle text-warning">
@@ -298,12 +298,12 @@ require_once __DIR__ . '/../../templates/header.php';
         </div>
 
         <!-- Out of Stock Items -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="300">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3 <?= $outOfStockCount > 0 ? 'border-start border-danger border-4' : '' ?>">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Out of Stock</span>
-                        <h3 class="fw-bold my-1 text-danger"><?= $outOfStockCount ?></h3>
+                        <h3 class="fw-bold my-1 text-danger" data-counter-target="<?= $outOfStockCount ?>"><?= $outOfStockCount ?></h3>
                         <span class="extra-small text-muted">Requires immediate replenishment</span>
                     </div>
                     <div class="stat-icon-wrapper bg-danger-subtle text-danger">
@@ -348,7 +348,7 @@ require_once __DIR__ . '/../../templates/header.php';
     </div>
 
     <!-- Inventory Table -->
-    <div class="card border-0 shadow-sm rounded-3">
+    <div class="card border-0 shadow-sm rounded-3" data-aos="fade-up">
         <div class="card-body p-0">
             <?php if (empty($products)): ?>
                 <div class="text-center py-5 px-3">

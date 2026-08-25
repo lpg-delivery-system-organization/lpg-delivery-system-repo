@@ -66,7 +66,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0" id="adminDashboardContainer">
     <!-- Header Banner -->
-    <div class="card border-0 shadow-sm mb-4 bg-dark text-white rounded-3 overflow-hidden position-relative">
+    <div class="card mb-4 rounded-3 overflow-hidden position-relative app-banner-dark text-white" data-aos="fade-down">
         <div class="card-body p-4 p-lg-5 position-relative" style="z-index: 2;">
             <div class="row align-items-center g-3">
                 <div class="col-lg-8">
@@ -96,15 +96,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 </div>
             </div>
         </div>
-        <div class="position-absolute end-0 bottom-0 opacity-10 d-none d-md-block" style="z-index: 1; transform: translate(10%, 20%); pointer-events: none;">
-            <i class="bi bi-speedometer2" style="font-size: 15rem; color: #fff;"></i>
-        </div>
     </div>
 
     <!-- 5 Core Operational Statistics Cards -->
     <div class="row g-3 mb-4">
         <!-- Card 1: Total Revenue -->
-        <div class="col-sm-6 col-xl">
+        <div class="col-sm-6 col-xl" data-aos="fade-up" data-aos-delay="0">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
@@ -120,12 +117,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
 
         <!-- Card 2: Pending Orders -->
-        <div class="col-sm-6 col-xl">
+        <div class="col-sm-6 col-xl" data-aos="fade-up" data-aos-delay="100">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3 <?= $pendingOrders > 0 ? 'border-start border-warning border-4' : '' ?>">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Pending Orders</span>
-                        <h3 class="fw-bold my-1 text-warning"><?= (int)$pendingOrders ?></h3>
+                        <h3 class="fw-bold my-1 text-warning" data-counter-target="<?= (int)$pendingOrders ?>"><?= (int)$pendingOrders ?></h3>
                         <span class="extra-small text-muted">Awaiting approval</span>
                     </div>
                     <div class="stat-icon-wrapper bg-warning-subtle text-warning">
@@ -136,12 +133,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
 
         <!-- Card 3: In-Transit Deliveries -->
-        <div class="col-sm-6 col-xl">
+        <div class="col-sm-6 col-xl" data-aos="fade-up" data-aos-delay="200">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">In-Transit</span>
-                        <h3 class="fw-bold my-1 text-info"><?= (int)$inTransitOrders ?></h3>
+                        <h3 class="fw-bold my-1 text-info" data-counter-target="<?= (int)$inTransitOrders ?>"><?= (int)$inTransitOrders ?></h3>
                         <span class="extra-small text-muted">Active deliveries</span>
                     </div>
                     <div class="stat-icon-wrapper bg-info-subtle text-info">
@@ -152,12 +149,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
 
         <!-- Card 4: Completed Deliveries -->
-        <div class="col-sm-6 col-xl">
+        <div class="col-sm-6 col-xl" data-aos="fade-up" data-aos-delay="300">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Delivered</span>
-                        <h3 class="fw-bold my-1 text-primary"><?= (int)$deliveredOrders ?></h3>
+                        <h3 class="fw-bold my-1 text-primary" data-counter-target="<?= (int)$deliveredOrders ?>"><?= (int)$deliveredOrders ?></h3>
                         <span class="extra-small text-muted">Completed orders</span>
                     </div>
                     <div class="stat-icon-wrapper bg-primary-subtle text-primary">
@@ -168,12 +165,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
 
         <!-- Card 5: Total Orders -->
-        <div class="col-sm-6 col-xl">
+        <div class="col-sm-6 col-xl" data-aos="fade-up" data-aos-delay="400">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Total Orders</span>
-                        <h3 class="fw-bold my-1 text-dark"><?= (int)$totalOrders ?></h3>
+                        <h3 class="fw-bold my-1 text-dark" data-counter-target="<?= (int)$totalOrders ?>"><?= (int)$totalOrders ?></h3>
                         <span class="extra-small text-muted"><?= (int)$cancelledOrders ?> cancelled</span>
                     </div>
                     <div class="stat-icon-wrapper bg-secondary-subtle text-secondary">
@@ -186,42 +183,42 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
     <!-- Secondary Metric Badges & System Shortcuts -->
     <div class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-4" data-aos="fade-up" data-aos-delay="0">
             <div class="card border-0 shadow-sm p-3 rounded-3 bg-light">
                 <div class="d-flex align-items-center gap-3">
                     <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-circle">
                         <i class="bi bi-people fs-4"></i>
                     </div>
                     <div>
-                        <div class="fw-bold text-dark fs-5"><?= (int)$totalCustomers ?> Customers</div>
+                        <div class="fw-bold text-dark fs-5" data-counter-target="<?= (int)$totalCustomers ?>"><?= (int)$totalCustomers ?> Customers</div>
                         <div class="small text-muted">Registered user accounts</div>
                     </div>
                     <a href="<?= url('pages/admin/users.php?role=customer') ?>" class="btn btn-sm btn-outline-primary ms-auto">View</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
             <div class="card border-0 shadow-sm p-3 rounded-3 bg-light">
                 <div class="d-flex align-items-center gap-3">
                     <div class="p-2 bg-warning bg-opacity-10 text-warning rounded-circle">
                         <i class="bi bi-truck fs-4"></i>
                     </div>
                     <div>
-                        <div class="fw-bold text-dark fs-5"><?= count($activeRidersList) ?> Active Riders</div>
+                        <div class="fw-bold text-dark fs-5" data-counter-target="<?= count($activeRidersList) ?>"><?= count($activeRidersList) ?> Active Riders</div>
                         <div class="small text-muted"><?= (int)$totalRiders ?> total enrolled</div>
                     </div>
                     <a href="<?= url('pages/admin/users.php?role=rider') ?>" class="btn btn-sm btn-outline-warning text-dark ms-auto">View</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
             <div class="card border-0 shadow-sm p-3 rounded-3 bg-light">
                 <div class="d-flex align-items-center gap-3">
                     <div class="p-2 bg-info bg-opacity-10 text-info rounded-circle">
                         <i class="bi bi-tags fs-4"></i>
                     </div>
                     <div>
-                        <div class="fw-bold text-dark fs-5"><?= (int)$activeProducts ?> Active Products</div>
+                        <div class="fw-bold text-dark fs-5" data-counter-target="<?= (int)$activeProducts ?>"><?= (int)$activeProducts ?> Active Products</div>
                         <div class="small text-muted"><?= (int)$totalProducts ?> items in catalog</div>
                     </div>
                     <a href="<?= url('pages/admin/inventory.php') ?>" class="btn btn-sm btn-outline-info ms-auto">Catalog</a>

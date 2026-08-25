@@ -65,7 +65,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0">
     <!-- Welcome Header Card -->
-    <div class="card border-0 shadow-sm mb-4 bg-primary text-white rounded-3 overflow-hidden position-relative">
+    <div class="card mb-4 rounded-3 overflow-hidden position-relative app-banner-gradient text-white" data-aos="fade-down">
         <div class="card-body p-4 p-lg-5 position-relative" style="z-index: 2;">
             <div class="row align-items-center g-3">
                 <div class="col-lg-8">
@@ -85,9 +85,6 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     </a>
                 </div>
             </div>
-        </div>
-        <div class="position-absolute end-0 bottom-0 opacity-10 d-none d-md-block" style="z-index: 1; transform: translate(10%, 20%); pointer-events: none;">
-            <i class="bi bi-fire" style="font-size: 15rem; color: #fff;"></i>
         </div>
     </div>
 
@@ -116,12 +113,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
     <!-- Status Metrics Grid -->
     <div class="row g-3 mb-4">
         <!-- Active Orders -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="0">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Active Orders</span>
-                        <h3 class="fw-bold my-1 text-primary"><?= (int)$activeCount ?></h3>
+                        <h3 class="fw-bold my-1 text-primary" data-counter-target="<?= (int)$activeCount ?>"><?= (int)$activeCount ?></h3>
                         <span class="extra-small text-muted">Pending & in-transit</span>
                     </div>
                     <div class="stat-icon-wrapper bg-primary-subtle text-primary">
@@ -132,12 +129,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
 
         <!-- Delivered Orders -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="100">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Delivered</span>
-                        <h3 class="fw-bold my-1 text-success"><?= (int)$deliveredCount ?></h3>
+                        <h3 class="fw-bold my-1 text-success" data-counter-target="<?= (int)$deliveredCount ?>"><?= (int)$deliveredCount ?></h3>
                         <span class="extra-small text-muted">Completed orders</span>
                     </div>
                     <div class="stat-icon-wrapper bg-success-subtle text-success">
@@ -148,7 +145,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
 
         <!-- Total Spent -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="200">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
@@ -164,12 +161,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
 
         <!-- Total Orders Placed -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="300">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">All Orders</span>
-                        <h3 class="fw-bold my-1 text-secondary"><?= count($allOrders) ?></h3>
+                        <h3 class="fw-bold my-1 text-secondary" data-counter-target="<?= count($allOrders) ?>"><?= count($allOrders) ?></h3>
                         <span class="extra-small text-muted">Lifetime transactions</span>
                     </div>
                     <div class="stat-icon-wrapper bg-secondary-subtle text-secondary">
@@ -181,7 +178,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
     </div>
 
     <!-- Main Content Area: Recent Orders & Quick Actions -->
-    <div class="row g-4">
+    <div class="row g-4" data-aos="fade-up">
         <!-- Recent Orders Table -->
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm h-100 rounded-3">

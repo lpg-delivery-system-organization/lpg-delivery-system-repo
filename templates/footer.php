@@ -35,6 +35,9 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
     <!-- Leaflet Map JS CDN -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+    <!-- AOS.js CDN (Animate On Scroll) -->
+    <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+
     <!-- Global Application JS -->
     <script src="<?= asset_v('assets/js/app.js') ?>"></script>
 

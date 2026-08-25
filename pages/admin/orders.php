@@ -260,7 +260,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0" id="adminOrdersContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
         <div>
             <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
                 <i class="bi bi-box-seam text-primary"></i>Order Management & Dispatch
@@ -337,7 +337,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
     </div>
 
     <!-- Orders Table -->
-    <div class="card border-0 shadow-sm rounded-3">
+    <div class="card border-0 shadow-sm rounded-3" data-aos="fade-up">
         <div class="card-body p-0">
             <?php if (empty($orders)): ?>
                 <div class="text-center py-5 px-3">

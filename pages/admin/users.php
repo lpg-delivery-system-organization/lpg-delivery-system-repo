@@ -215,7 +215,7 @@ require_once __DIR__ . '/../../templates/header.php';
 
 <div class="container-fluid px-0" id="adminUsersContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
         <div>
             <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
                 <i class="bi bi-people text-primary"></i>User Account Management
@@ -232,12 +232,12 @@ require_once __DIR__ . '/../../templates/header.php';
     <!-- User Metric Cards -->
     <div class="row g-3 mb-4">
         <!-- Total Users -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="0">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Total Accounts</span>
-                        <h3 class="fw-bold my-1 text-dark"><?= $totalUsers ?></h3>
+                        <h3 class="fw-bold my-1 text-dark" data-counter-target="<?= $totalUsers ?>"><?= $totalUsers ?></h3>
                         <span class="extra-small text-muted">Across all system roles</span>
                     </div>
                     <div class="stat-icon-wrapper bg-primary-subtle text-primary">
@@ -248,12 +248,12 @@ require_once __DIR__ . '/../../templates/header.php';
         </div>
 
         <!-- Customers -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="100">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Customers</span>
-                        <h3 class="fw-bold my-1 text-info"><?= $totalCustomers ?></h3>
+                        <h3 class="fw-bold my-1 text-info" data-counter-target="<?= $totalCustomers ?>"><?= $totalCustomers ?></h3>
                         <span class="extra-small text-muted">Registered LPG buyers</span>
                     </div>
                     <div class="stat-icon-wrapper bg-info-subtle text-info">
@@ -264,12 +264,12 @@ require_once __DIR__ . '/../../templates/header.php';
         </div>
 
         <!-- Riders -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="200">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Delivery Riders</span>
-                        <h3 class="fw-bold my-1 text-warning"><?= $totalRiders ?></h3>
+                        <h3 class="fw-bold my-1 text-warning" data-counter-target="<?= $totalRiders ?>"><?= $totalRiders ?></h3>
                         <span class="extra-small text-muted">Active dispatch crew</span>
                     </div>
                     <div class="stat-icon-wrapper bg-warning-subtle text-warning">
@@ -280,12 +280,12 @@ require_once __DIR__ . '/../../templates/header.php';
         </div>
 
         <!-- Admins / Suspended -->
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-xl-3" data-aos="fade-up" data-aos-delay="300">
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3 <?= $suspendedCount > 0 ? 'border-start border-danger border-4' : '' ?>">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Admins & Suspended</span>
-                        <h3 class="fw-bold my-1 text-dark"><?= $totalAdmins ?> <small class="text-danger fs-6 fw-normal">(<?= $suspendedCount ?> suspended)</small></h3>
+                        <h3 class="fw-bold my-1 text-dark" data-counter-target="<?= $totalAdmins ?>"><?= $totalAdmins ?> <small class="text-danger fs-6 fw-normal">(<?= $suspendedCount ?> suspended)</small></h3>
                         <span class="extra-small text-muted"><?= $totalAdmins ?> system administrators</span>
                     </div>
                     <div class="stat-icon-wrapper bg-danger-subtle text-danger">
@@ -340,7 +340,7 @@ require_once __DIR__ . '/../../templates/header.php';
     </div>
 
     <!-- Users Table -->
-    <div class="card border-0 shadow-sm rounded-3">
+    <div class="card border-0 shadow-sm rounded-3" data-aos="fade-up">
         <div class="card-body p-0">
             <?php if (empty($users)): ?>
                 <div class="text-center py-5 px-3">

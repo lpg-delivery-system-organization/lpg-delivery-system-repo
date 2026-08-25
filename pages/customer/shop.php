@@ -177,7 +177,7 @@ require_once __DIR__ . '/../../templates/header.php';
 
 <div class="container-fluid px-0" id="customerShopContainer">
     <!-- Page Title & Information Banner -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
         <div>
             <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
                 <i class="bi bi-shop text-primary"></i>LPG Cylinder Catalog
@@ -237,7 +237,7 @@ require_once __DIR__ . '/../../templates/header.php';
                         $isOutOfStock = ($pStock <= 0);
                         $isSelected = ($pId === $formData['product_id']);
                         ?>
-                        <div class="col-md-6 col-xl-4">
+                        <div class="col-md-6 col-xl-4" data-aos="fade-up" data-aos-delay="<?= ($pId % 3) * 100 ?>">
                             <div class="card app-product-card h-100 border-0 shadow-sm <?= $isSelected ? 'border-primary shadow-sm bg-light-subtle' : '' ?>" id="productCard_<?= $pId ?>">
                                 <div class="app-product-img-wrapper position-relative text-center p-3">
                                     <?php if (!empty($product['image_url']) && file_exists(dirname(__DIR__, 2) . '/' . ltrim($product['image_url'], '/'))): ?>

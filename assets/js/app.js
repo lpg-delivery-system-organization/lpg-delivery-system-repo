@@ -325,6 +325,221 @@
     }
 
     // =========================================================================
+    // 6. AOS (Animate On Scroll) Initialization
+    // =========================================================================
+    function initAOS() {
+        if (typeof AOS !== 'undefined') {
+            AOS.init({
+                duration: 600,
+                easing: 'ease-out-cubic',
+                once: true,
+                offset: 40,
+                disable: function () {
+                    return window.innerWidth < 768;
+                }
+            });
+        }
+    }
+
+    // =========================================================================
+    // 7. Animated Stat Counters
+    // =========================================================================
+    function initAnimatedCounters() {
+        const counters = document.querySelectorAll('[data-counter-target]');
+        if (!counters.length) return;
+
+        const observerCallback = function (entries, observer) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    const el = entry.target;
+                    const target = parseInt(el.getAttribute('data-counter-target'), 10) || 0;
+                    const duration = parseInt(el.getAttribute('data-counter-duration'), 10) || 1200;
+                    animateCounter(el, target, duration);
+                    observer.unobserve(el);
+                }
+            });
+        };
+
+        const observer = new IntersectionObserver(observerCallback, { threshold: 0.3 });
+        counters.forEach(function (c) { observer.observe(c); });
+    }
+
+    function animateCounter(el, target, duration) {
+        el.classList.add('counting');
+        var startTime = null;
+        var startValue = 0;
+
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            var progress = Math.min((timestamp - startTime) / duration, 1);
+            var eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+            var current = Math.floor(eased * target);
+            el.textContent = current.toLocaleString();
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                el.textContent = target.toLocaleString();
+                el.classList.remove('counting');
+            }
+        }
+
+        requestAnimationFrame(step);
+    }
+
+    // =========================================================================
+    // 8. Skeleton Loader Utility
+    // =========================================================================
+    function showSkeleton(targetSelector, type) {
+        var $target = $(targetSelector);
+        if (!$target.length) return;
+
+        type = type || 'card';
+        var count = parseInt($target.data('skeleton-count'), 10) || 4;
+        var html = '';
+
+        for (var i = 0; i < count; i++) {
+            if (type === 'card') {
+                html += '<div class="col-md-3 mb-3"><div class="app-stat-card p-3">' +
+                    '<div class="skeleton skeleton-circle mb-3"></div>' +
+                    '<div class="skeleton skeleton-title"></div>' +
+                    '<div class="skeleton skeleton-text"></div>' +
+                    '<div class="skeleton skeleton-text-sm"></div>' +
+                    '</div></div>';
+            } else if (type === 'row') {
+                html += '<div class="app-order-card p-3 mb-3">' +
+                    '<div class="d-flex align-items-center gap-3">' +
+                    '<div class="skeleton skeleton-circle"></div>' +
+                    '<div class="flex-grow-1">' +
+                    '<div class="skeleton skeleton-text" style="width:70%"></div>' +
+                    '<div class="skeleton skeleton-text-sm" style="width:50%"></div>' +
+                    '</div></div></div>';
+            } else if (type === 'list') {
+                html += '<div class="app-order-card p-3 mb-2">' +
+                    '<div class="d-flex justify-content-between align-items-center">' +
+                    '<div class="skeleton skeleton-text" style="width:40%"></div>' +
+                    '<div class="skeleton skeleton-text-sm" style="width:20%"></div>' +
+                    '</div></div>';
+            }
+        }
+
+        $target.html(html);
+    }
+
+    function hideSkeleton(targetSelector, realContent) {
+        $(targetSelector).html(realContent);
+    }
+
+    // =========================================================================
+    // 9. Enhanced Toast Notifications
+    // =========================================================================
+    function showToast(type, message, title) {
+        type = type || 'info';
+        title = title || type.charAt(0).toUpperCase() + type.slice(1);
+
+        var iconMap = {
+            success: 'bi-check-circle-fill',
+            danger: 'bi-x-circle-fill',
+            warning: 'bi-exclamation-triangle-fill',
+            info: 'bi-info-circle-fill'
+        };
+
+        var toastId = 'app-toast-' + Date.now();
+        var html = '<div id="' + toastId + '" class="toast align-items-center text-bg-' + type + ' border-0 shadow-lg toast-' + type + '" role="alert" aria-live="assertive" aria-atomic="true">' +
+            '<div class="toast-header">' +
+            '<i class="bi ' + (iconMap[type] || iconMap.info) + ' me-2 text-' + type + '"></i>' +
+            '<strong class="me-auto">' + title + '</strong>' +
+            '<button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>' +
+            '</div>' +
+            '<div class="toast-body">' + message + '</div>' +
+            '<div class="toast-progress-bar"></div>' +
+            '</div>';
+
+        var $container = $('#app-toast-container');
+        if (!$container.length) {
+            $('body').append('<div id="app-toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index:9999;"></div>');
+            $container = $('#app-toast-container');
+        }
+
+        $container.append(html);
+
+        var $toast = $('#' + toastId);
+        if (window.bootstrap && window.bootstrap.Toast) {
+            var bsToast = new window.bootstrap.Toast($toast[0], { delay: 4500 });
+            bsToast.show();
+            $toast.on('hidden.bs.toast', function () { $(this).remove(); });
+        } else if ($.fn.toast) {
+            $toast.toast({ delay: 4500 }).toast('show');
+            $toast.on('hidden.bs.toast', function () { $(this).remove(); });
+        } else {
+            setTimeout(function () { $toast.remove(); }, 5000);
+        }
+    }
+
+    // =========================================================================
+    // 10. Form Animations — Shake on Invalid, Focus Highlight
+    // =========================================================================
+    function initFormAnimations() {
+        // Add shake class on invalid submission
+        $(document).on('invalid', '.form-control, .form-select', function () {
+            var $el = $(this);
+            $el.addClass('form-shake');
+            setTimeout(function () { $el.removeClass('form-shake'); }, 500);
+        });
+
+        // Floating label effect: add 'filled' class when input has value
+        $(document).on('input change', '.form-control, .form-select', function () {
+            var $input = $(this);
+            if ($input.val()) {
+                $input.addClass('filled');
+            } else {
+                $input.removeClass('filled');
+            }
+        });
+
+        // Trigger initial state on page load
+        $('.form-control, .form-select').each(function () {
+            if ($(this).val()) {
+                $(this).addClass('filled');
+            }
+        });
+    }
+
+    // =========================================================================
+    // 11. Button Loading State Utility
+    // =========================================================================
+    function setBtnLoading($btn, loading) {
+        if (loading) {
+            $btn.addClass('btn-loading').attr('disabled', true);
+        } else {
+            $btn.removeClass('btn-loading').removeAttr('disabled');
+        }
+    }
+
+    // =========================================================================
+    // 12. Page Transition (optional: fade main content on navigation)
+    // =========================================================================
+    function initPageTransitions() {
+        // Add page-load class to main content
+        var $main = $('.app-main');
+        if ($main.length) {
+            $main.css('opacity', 0);
+            setTimeout(function () { $main.css('opacity', 1); }, 50);
+        }
+
+        // Fade out on internal link clicks
+        $(document).on('click', 'a.app-nav-link', function (e) {
+            var href = $(this).attr('href');
+            if (href && href !== '#' && !href.startsWith('javascript:') && !href.startsWith('mailto:')) {
+                e.preventDefault();
+                $main.css({ opacity: 0, transition: 'opacity 0.15s ease' });
+                setTimeout(function () {
+                    window.location.href = href;
+                }, 150);
+            }
+        });
+    }
+
+    // =========================================================================
     // DOM Ready Initialization
     // =========================================================================
     $(function () {
@@ -332,6 +547,18 @@
         initSidebar();
         initConfirmations();
         initBootstrapComponents();
+        initAOS();
+        initAnimatedCounters();
+        initFormAnimations();
+        initPageTransitions();
     });
+
+    // Expose utilities for inline usage
+    window.AppUI = {
+        showToast: showToast,
+        setBtnLoading: setBtnLoading,
+        showSkeleton: showSkeleton,
+        hideSkeleton: hideSkeleton
+    };
 
 })(window, window.jQuery);

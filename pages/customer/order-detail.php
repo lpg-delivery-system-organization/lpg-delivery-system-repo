@@ -89,7 +89,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0">
     <!-- Breadcrumb & Top Bar -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom" data-aos="fade-down">
         <div class="d-flex align-items-center gap-3">
             <a href="<?= url('pages/customer/orders.php') ?>" class="btn btn-light border px-3">
                 <i class="bi bi-arrow-left me-1"></i>Back to My Orders
@@ -110,7 +110,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
     </div>
 
-    <div class="row g-4">
+    <div class="row g-4" data-aos="fade-up">
         <!-- 6-Step Visual Timeline (Always Visible) -->
         <?php if (!$isCancelled): ?>
             <div class="col-12">

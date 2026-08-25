@@ -117,7 +117,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0" id="riderAvailableContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
         <div>
             <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
                 <i class="bi bi-inbox text-primary"></i>Available Delivery Orders
@@ -136,12 +136,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
     <!-- Summary Metrics -->
     <div class="row g-3 mb-4">
-        <div class="col-sm-6 col-md-4">
+        <div class="col-sm-6 col-md-4" data-aos="fade-up" data-aos-delay="0">
             <div class="card app-stat-card border-0 shadow-sm p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <span class="text-muted extra-small text-uppercase fw-semibold">Available for Claiming</span>
-                        <h3 class="fw-bold my-1 text-primary"><?= $countAvailable ?></h3>
+                        <h3 class="fw-bold my-1 text-primary" data-counter-target="<?= $countAvailable ?>"><?= $countAvailable ?></h3>
                         <span class="extra-small text-muted"><?= $totalItemsCount ?> total LPG cylinder(s)</span>
                     </div>
                     <div class="stat-icon-wrapper bg-primary-subtle text-primary">
@@ -151,7 +151,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
             </div>
         </div>
 
-        <div class="col-sm-6 col-md-4">
+        <div class="col-sm-6 col-md-4" data-aos="fade-up" data-aos-delay="100">
             <div class="card app-stat-card border-0 shadow-sm p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
@@ -166,7 +166,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
             </div>
         </div>
 
-        <div class="col-sm-12 col-md-4">
+        <div class="col-sm-12 col-md-4" data-aos="fade-up" data-aos-delay="200">
             <div class="card app-stat-card border-0 shadow-sm p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
@@ -244,7 +244,9 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                      data-customer="<?= e(strtolower($customerName)) ?>"
                      data-address="<?= e(strtolower($deliveryAddress)) ?>"
                      data-phone="<?= e($contactPhone) ?>"
-                     data-payment="<?= e($paymentMethod) ?>">
+                     data-payment="<?= e($paymentMethod) ?>"
+                     data-aos="fade-up"
+                     data-aos-delay="<?= ($orderId % 2) * 100 ?>">
 
                     <div class="card app-order-card app-clickable-card shadow-sm border-0 h-100 d-flex flex-column" data-href="<?= url('pages/rider/order-detail.php?id=' . $orderId) ?>">
                         <!-- Card Header -->
