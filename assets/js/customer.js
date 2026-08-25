@@ -71,6 +71,7 @@
         $(document).on('click', '.btn-select-product', function (e) {
             e.preventDefault();
             const $btn = $(this);
+            if ($btn.prop('disabled')) return;
             const $card = $btn.closest('.app-product-card');
 
             const id = $btn.data('id');
@@ -79,6 +80,18 @@
             const weight = $btn.data('weight');
             const price = parseFloat($btn.data('price')) || 0;
             const stock = parseInt($btn.data('stock'), 10) || 0;
+
+            // Reset every other product button back to default "Select" state
+            $('.btn-select-product').not($btn).each(function () {
+                const $b = $(this);
+                if ($b.prop('disabled')) return; // keep "Sold Out" buttons untouched
+                $b.removeClass('btn-primary').addClass('btn-outline-primary')
+                  .html('<i class="bi bi-hand-index me-1"></i>Select');
+            });
+
+            // Mark the clicked product as the selected one
+            $btn.removeClass('btn-outline-primary').addClass('btn-primary')
+                .html('<i class="bi bi-check2 me-1"></i>Selected');
 
             // Highlight selected product card
             $('.app-product-card').removeClass('border-primary shadow-sm ring-2 ring-primary bg-light-subtle');
@@ -102,11 +115,17 @@
             // Show checkout section if hidden
             $orderSection.removeClass('d-none');
 
-            // Scroll to order section smoothly on mobile
+            // Navigate to the order form smoothly on mobile
             if ($(window).width() < 992) {
                 $('html, body').animate({
                     scrollTop: $orderSection.offset().top - 80
                 }, 400);
+            } else {
+                // Desktop: pulse-highlight the pinned checkout card to draw attention
+                $orderSection.addClass('shop-checkout-flash');
+                setTimeout(function () {
+                    $orderSection.removeClass('shop-checkout-flash');
+                }, 1200);
             }
         });
 

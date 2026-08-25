@@ -215,10 +215,11 @@ require_once __DIR__ . '/../../templates/header.php';
     <div class="row g-4">
         <!-- Products Grid Column -->
         <div class="col-lg-7 col-xl-8">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-                <h5 class="fw-bold mb-0 text-dark">Available Products (<?= count($products) ?>)</h5>
-                <small class="text-muted">Click any item to configure order</small>
-            </div>
+            <div class="shop-products-scroll">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h5 class="fw-bold mb-0 text-dark">Available Products (<?= count($products) ?>)</h5>
+                    <small class="text-muted">Click any item to configure order</small>
+                </div>
 
             <?php if (empty($products)): ?>
                 <div class="card border-0 shadow-sm p-5 text-center">
@@ -303,11 +304,12 @@ require_once __DIR__ . '/../../templates/header.php';
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+            </div>
         </div>
 
         <!-- Order Summary & Checkout Column -->
         <div class="col-lg-5 col-xl-4">
-            <div class="card border-0 shadow-sm rounded-3 sticky-top" style="top: 80px;" id="orderCheckoutSection">
+            <div class="card border-0 shadow-sm rounded-3 shop-checkout-card" id="orderCheckoutSection">
                 <div class="card-header bg-white py-3 border-bottom">
                     <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
                         <i class="bi bi-cart-check text-primary"></i>Order & Delivery Details

@@ -148,6 +148,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('success', "Order #{$orderId} has been cancelled and product stock restored.");
                 break;
 
+            case 'create_order':
+                $walkInName = sanitize_input($_POST['customer_name'] ?? '');
+                $selectedCustomerId = (int)($_POST['customer_id'] ?? 0);
+
+                if ($walkInName !== '') {
+                    // Walk-in customer: create account with auto-generated credentials
+                    // (falls back to the shared contact fields if walk-in-specific ones are empty)
+                    $walkInPhone = sanitize_input($_POST['customer_phone'] ?? '');
+                    $walkInAddress = sanitize_input($_POST['customer_address'] ?? '');
+
+                    $customerId = $userModel->create([
+                        'full_name' => $walkInName,
+                        'email'     => 'walkin.' . time() . mt_rand(1000, 9999) . '@walkin.local',
+                        'password'  => bin2hex(random_bytes(16)),
+                        'role'      => 'customer',
+                        'phone'     => $walkInPhone !== '' ? $walkInPhone : sanitize_input($_POST['contact_phone'] ?? ''),
+                        'address'   => $walkInAddress !== '' ? $walkInAddress : sanitize_input($_POST['delivery_address'] ?? ''),
+                        'status'    => 'active'
+                    ]);
+                } elseif ($selectedCustomerId > 0) {
+                    $customerId = $selectedCustomerId;
+                    $customer = $userModel->findById($customerId);
+                    if (!$customer || $customer['role'] !== 'customer') {
+                        throw new InvalidArgumentException('Please select a valid customer.');
+                    }
+                } else {
+                    throw new InvalidArgumentException('Please choose a registered customer or enter a walk-in customer name.');
+                }
+
+                $createdOrderId = $orderModel->place([
+                    'customer_id'      => $customerId,
+                    'product_id'       => (int)($_POST['product_id'] ?? 0),
+                    'quantity'         => (int)($_POST['quantity'] ?? 0),
+                    'payment_method'   => strtolower(sanitize_input($_POST['payment_method'] ?? 'cod')),
+                    'delivery_address' => sanitize_input($_POST['delivery_address'] ?? ''),
+                    'contact_phone'    => sanitize_input($_POST['contact_phone'] ?? ''),
+                    'notes'            => sanitize_input($_POST['notes'] ?? ''),
+                    'status'           => 'pending',
+                ]);
+
+                if (is_ajax()) {
+                    json_response([
+                        'success'  => true,
+                        'message'  => "Walk-in order #{$createdOrderId} created successfully.",
+                        'order_id' => $createdOrderId
+                    ]);
+                }
+                set_flash('success', "Walk-in order #{$createdOrderId} created successfully.");
+                break;
+
             default:
                 throw new InvalidArgumentException('Unknown management action requested.');
         }
@@ -169,6 +219,12 @@ $orders = $orderModel->getAll();
 $allRiders = $userModel->getAllByRole('rider');
 $activeRiders = array_values(array_filter($allRiders, function ($r) {
     return ($r['status'] ?? '') === 'active';
+}));
+
+// Retrieve active products and customers for walk-in order creation
+$activeProducts = $productModel->getActive();
+$activeCustomers = array_values(array_filter($userModel->getAllByRole('customer'), function ($c) {
+    return ($c['status'] ?? '') === 'active';
 }));
 
 // Calculate status counts for filtering badges
@@ -212,6 +268,9 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
             <p class="text-muted small mb-0">Approve incoming customer orders, assign active delivery riders, and manage order lifecycles.</p>
         </div>
         <div class="d-flex gap-2">
+            <button type="button" class="btn btn-success btn-sm px-3 shadow-sm btn-open-create-order">
+                <i class="bi bi-plus-circle me-1"></i>Create Order
+            </button>
             <a href="<?= url('pages/admin/dashboard.php') ?>" class="btn btn-outline-secondary btn-sm px-3">
                 <i class="bi bi-arrow-left me-1"></i>Dashboard
             </a>
@@ -621,6 +680,115 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
             <div class="modal-footer bg-light border-top">
                 <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Close</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Walk-in Order Modal -->
+<div class="modal fade" id="createOrderModal" tabindex="-1" aria-labelledby="createOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="<?= url('pages/admin/orders.php') ?>" method="POST" id="createOrderForm">
+                <?= csrf_input() ?>
+                <input type="hidden" name="action" value="create_order">
+
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold" id="createOrderModalLabel">
+                        <i class="bi bi-plus-circle me-2"></i>Create Walk-in Order
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Customer Source -->
+                    <label class="form-label fw-semibold text-muted extra-small text-uppercase">Customer</label>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6" id="createExistingCustomerWrap">
+                            <label for="createCustomerId" class="form-label fw-semibold">Registered Customer</label>
+                            <select class="form-select" name="customer_id" id="createCustomerId">
+                                <option value="">-- Choose a registered customer --</option>
+                                <?php foreach ($activeCustomers as $c): ?>
+                                    <option value="<?= (int)$c['id'] ?>"
+                                            data-phone="<?= e($c['phone'] ?? '') ?>"
+                                            data-address="<?= e($c['address'] ?? '') ?>">
+                                        <?= e($c['full_name']) ?> (<?= e($c['phone'] ?? 'No phone') ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text small">Leave blank if this is a walk-in.</div>
+                        </div>
+
+                        <!-- New Walk-in Customer Fields -->
+                        <div class="col-md-6" id="createNewCustomerWrap">
+                            <label for="createCustomerName" class="form-label fw-semibold">Walk-in Customer Name</label>
+                            <input type="text" class="form-control" name="customer_name" id="createCustomerName" maxlength="255" placeholder="e.g. Juan Dela Cruz">
+                            <div class="form-text small">Fill this in to create a new walk-in customer.</div>
+                        </div>
+                    </div>
+
+                    <!-- Contact & Address (shared) -->
+                    <div class="row g-3 mb-1">
+                        <div class="col-md-5">
+                            <label for="createPhone" class="form-label fw-semibold">Contact Phone <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" name="contact_phone" id="createPhone" maxlength="20" placeholder="e.g. 09171234567" required>
+                        </div>
+                        <div class="col-md-7">
+                            <label for="createAddress" class="form-label fw-semibold">Delivery Address <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="delivery_address" id="createAddress" rows="2" required placeholder="Complete delivery address..."></textarea>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Product & Quantity -->
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <label for="createProductId" class="form-label fw-semibold">Product <span class="text-danger">*</span></label>
+                            <select class="form-select" name="product_id" id="createProductId" required>
+                                <option value="">-- Choose an LPG product --</option>
+                                <?php foreach ($activeProducts as $p): ?>
+                                    <option value="<?= (int)$p['id'] ?>"
+                                            data-price="<?= e((string)($p['price'] ?? 0)) ?>"
+                                            data-stock="<?= (int)($p['stock'] ?? 0) ?>">
+                                        <?= e($p['name']) ?> &mdash; <?= e(format_currency($p['price'] ?? 0)) ?> (Stock: <?= (int)($p['stock'] ?? 0) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="createQuantity" class="form-label fw-semibold">Quantity <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="quantity" id="createQuantity" min="1" step="1" value="1" required>
+                            <div class="form-text small" id="createQtyHint">Select a product to see available stock.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold d-block">Payment Method <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_method" id="createPayCod" value="cod" checked>
+                                    <label class="form-check-label fw-semibold" for="createPayCod"><i class="bi bi-cash me-1 text-success"></i>COD</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_method" id="createPayGcash" value="gcash">
+                                    <label class="form-check-label fw-semibold" for="createPayGcash"><i class="bi bi-phone me-1 text-primary"></i>GCash</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label for="createNotes" class="form-label fw-semibold">Delivery Notes <span class="text-muted fw-normal">(optional)</span></label>
+                            <textarea class="form-control" name="notes" id="createNotes" rows="2" placeholder="e.g. Call upon arrival, landmark instructions..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-light border small mt-3 mb-0">
+                        <i class="bi bi-info-circle me-1"></i>The order will be created with <strong>Pending</strong> status &mdash; stock is reserved immediately and the total is computed at the current unit price.
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success px-4 fw-semibold">
+                        <i class="bi bi-plus-circle me-1"></i>Create Order
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

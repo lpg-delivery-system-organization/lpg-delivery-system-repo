@@ -688,3 +688,54 @@ body.app-body {
     transform: translate(-50%, -50%) !important;
 }
 
+/* =========================================================================
+   12. Customer Shop Page — Independent Column Scrolling
+   Products grid and Order & Delivery details each get their own scrollbar
+   on desktop screens (lg and up). Mobile keeps normal page scrolling.
+   ========================================================================= */
+
+@media (min-width: 992px) {
+    .shop-products-scroll {
+        max-height: calc(100vh - 170px);
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+
+    .shop-checkout-card {
+        position: sticky;
+        top: 88px;
+        max-height: calc(100vh - 104px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .shop-checkout-card > .card-body {
+        overflow-y: auto;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    /* Thin, subtle scrollbars for both panels */
+    .shop-products-scroll::-webkit-scrollbar,
+    .shop-checkout-card > .card-body::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .shop-products-scroll::-webkit-scrollbar-thumb,
+    .shop-checkout-card > .card-body::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 3px;
+    }
+
+    /* Pulse highlight when a product is selected, guiding the eye to checkout */
+    .shop-checkout-flash {
+        animation: shopCheckoutFlash 1.2s ease;
+    }
+
+    @keyframes shopCheckoutFlash {
+        0%   { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.55); }
+        40%  { box-shadow: 0 0 0 8px rgba(13, 110, 253, 0.35); }
+        100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+    }
+}
+

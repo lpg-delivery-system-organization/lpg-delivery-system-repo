@@ -68,6 +68,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } else {
                 json_response(['success' => false, 'error' => 'Failed to transition order status.'], 500);
             }
+        } elseif ($action === 'update_customer_info') {
+            $customerName = sanitize_input($_POST['customer_name'] ?? '');
+            $contactPhone = sanitize_input($_POST['contact_phone'] ?? '');
+            $deliveryAddress = sanitize_input($_POST['delivery_address'] ?? '');
+
+            $updated = $orderModel->updateCustomerInfo($targetId, $customerName, $contactPhone, $deliveryAddress);
+            if ($updated) {
+                json_response(['success' => true, 'message' => 'Customer details for Order #' . $targetId . ' updated successfully.']);
+            } else {
+                json_response(['success' => false, 'error' => 'Failed to update customer details.'], 500);
+            }
         } elseif ($action === 'cancel_order') {
             $reason = trim($_POST['reason'] ?? 'Cancelled by administrator');
             $cancelled = $orderModel->cancel($targetId, $reason);
@@ -133,8 +144,15 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
     <div class="row g-4 mb-4">
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100 bg-white">
-                <div class="card-header bg-white py-3 border-bottom">
+                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 class="fw-bold text-dark mb-0"><i class="bi bi-person text-primary me-2"></i>Customer Information</h6>
+                    <button type="button" class="btn btn-sm btn-light border btn-open-edit-customer-info"
+                            data-customer-name="<?= e($order['customer_name'] ?? '') ?>"
+                            data-phone="<?= e($order['contact_phone'] ?? '') ?>"
+                            data-address="<?= e($order['delivery_address'] ?? '') ?>"
+                            title="Edit customer details (walk-in)">
+                        <i class="bi bi-pencil me-1"></i>Edit
+                    </button>
                 </div>
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center gap-3 mb-3">
@@ -436,6 +454,44 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 <div class="modal-footer bg-light border-top">
                     <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-danger px-4 fw-semibold">Confirm Cancellation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Edit Customer Details (Walk-in) -->
+<div class="modal fade" id="editCustomerInfoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="editCustomerInfoForm">
+                <?= csrf_input() ?>
+                <input type="hidden" name="action" value="update_customer_info">
+                <input type="hidden" name="order_id" value="<?= $orderId ?>">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Edit Customer Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info small mb-3">
+                        <i class="bi bi-info-circle me-1"></i>Use this for walk-in orders &mdash; update the customer's name, contact number, and delivery address.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Customer Name <span class="text-danger">*</span></label>
+                        <input type="text" name="customer_name" id="editCustName" class="form-control" maxlength="255" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Contact Phone <span class="text-danger">*</span></label>
+                        <input type="tel" name="contact_phone" id="editCustPhone" class="form-control" maxlength="20" required>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold">Delivery Address <span class="text-danger">*</span></label>
+                        <textarea name="delivery_address" id="editCustAddress" class="form-control" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top">
+                    <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-semibold">Save Changes</button>
                 </div>
             </form>
         </div>

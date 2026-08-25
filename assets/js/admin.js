@@ -263,6 +263,93 @@
             }
         });
 
+        // Open Edit Customer Details Modal on Admin Order Details (walk-in)
+        $(document).on('click', '.btn-open-edit-customer-info', function (e) {
+            e.preventDefault();
+            $('#editCustName').val($(this).data('customer-name') || '');
+            $('#editCustPhone').val($(this).data('phone') || '');
+            $('#editCustAddress').val($(this).data('address') || '');
+
+            const modalEl = document.getElementById('editCustomerInfoModal');
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        });
+
+        // Edit Customer Details Form AJAX Submit (walk-in)
+        $(document).on('submit', '#editCustomerInfoForm', function (e) {
+            e.preventDefault();
+            const $form = $(this);
+            const formData = $form.serialize();
+
+            window.ajaxAction({
+                url: window.location.href,
+                data: formData,
+                onSuccess: function (res) {
+                    window.showToast(res.message || 'Customer details updated successfully.', 'success');
+                    setTimeout(function () { window.location.reload(); }, 500);
+                }
+            });
+        });
+
+        // Open Create Walk-in Order Modal
+        $(document).on('click', '.btn-open-create-order', function (e) {
+            e.preventDefault();
+            const modalEl = document.getElementById('createOrderModal');
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        });
+
+        // Prefill phone/address when selecting a registered customer (walk-in name field stays independent)
+        $(document).on('change', '#createCustomerId', function () {
+            syncCreateOrderCustomerDefaults();
+        });
+
+        // Show stock limit hint when choosing a product
+        $(document).on('change', '#createProductId', function () {
+            const stock = parseInt($(this).find('option:selected').data('stock'), 10) || 0;
+            if (stock > 0) {
+                $('#createQuantity').attr('max', stock);
+                $('#createQtyHint').text('Available stock: ' + stock + ' unit(s).');
+            } else {
+                $('#createQuantity').removeAttr('max');
+                $('#createQtyHint').text('Select a product to see available stock.');
+            }
+        });
+
+        // Prefill helper: copy selected existing customer's contact details into the form
+        function syncCreateOrderCustomerDefaults() {
+            const $opt = $('#createCustomerId option:selected');
+            if ($opt.val()) {
+                $('#createPhone').val($opt.data('phone') || '');
+                $('#createAddress').val($opt.data('address') || '');
+            }
+        }
+
+        // Create Walk-in Order Form AJAX Submit
+        $(document).on('submit', '#createOrderForm', function (e) {
+            e.preventDefault();
+            const $form = $(this);
+            const formData = $form.serialize();
+
+            window.ajaxAction({
+                url: $form.attr('action'),
+                data: formData,
+                onSuccess: function (res) {
+                    window.showToast(res.message || 'Walk-in order created successfully.', 'success');
+                    const target = res.order_id ? 'pages/admin/order-detail.php?id=' + res.order_id : null;
+                    setTimeout(function () {
+                        if (target && window.location.pathname.indexOf('pages/admin/orders.php') !== -1) {
+                            window.location.href = target;
+                        } else {
+                            window.location.reload();
+                        }
+                    }, 600);
+                }
+            });
+        });
+
         // Assign Rider Modal Opener
         $(document).on('click', '.btn-open-assign-rider', function (e) {
             e.preventDefault();

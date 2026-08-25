@@ -449,6 +449,65 @@ class Order {
     }
 
     /**
+     * Update customer-facing details of an order (walk-in editing support).
+     * Updates contact_phone and delivery_address on the order, refreshes
+     * drop-off coordinates via geocode fallback, and syncs the customer's
+     * full_name on their user profile.
+     *
+     * @param int $orderId
+     * @param string $customerName
+     * @param string $contactPhone
+     * @param string $deliveryAddress
+     * @return bool
+     * @throws InvalidArgumentException
+     * @throws Throwable
+     */
+    public function updateCustomerInfo(int $orderId, string $customerName, string $contactPhone, string $deliveryAddress): bool {
+        $customerName = trim($customerName);
+        $contactPhone = trim($contactPhone);
+        $deliveryAddress = trim($deliveryAddress);
+
+        if ($customerName === '' || $contactPhone === '' || $deliveryAddress === '') {
+            throw new InvalidArgumentException("Customer name, contact phone, and delivery address are required.");
+        }
+
+        $stmt = $this->db->prepare("SELECT id, customer_id FROM orders WHERE id = ? LIMIT 1");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+
+        if (!$order) {
+            throw new InvalidArgumentException("Order #{$orderId} not found.");
+        }
+
+        // Refresh drop-off coordinates for the new address (never throws)
+        [$deliveryLatitude, $deliveryLongitude] = $this->resolveDeliveryCoordinates($deliveryAddress, null, null);
+
+        $this->db->beginTransaction();
+
+        try {
+            $updOrder = $this->db->prepare("
+                UPDATE orders
+                SET contact_phone = ?, delivery_address = ?,
+                    delivery_latitude = ?, delivery_longitude = ?, updated_at = NOW()
+                WHERE id = ?
+            ");
+            $updOrder->execute([$contactPhone, $deliveryAddress, $deliveryLatitude, $deliveryLongitude, $orderId]);
+
+            $updUser = $this->db->prepare("UPDATE users SET full_name = ? WHERE id = ?");
+            $updUser->execute([$customerName, (int)$order['customer_id']]);
+
+            $this->db->commit();
+            return true;
+
+        } catch (Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
      * Concurrency-safe rider assignment / order claim
      * Only succeeds if the order is currently unassigned (rider_id IS NULL)
      * and in an assignable status ('approved' or 'ready_for_delivery').
