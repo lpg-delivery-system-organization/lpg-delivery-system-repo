@@ -127,9 +127,14 @@ $roleMenu = $menus[$role] ?? [];
         <div class="app-sidebar-footer border-top p-3 bg-light">
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-2 overflow-hidden">
-                    <div class="user-avatar-circle flex-shrink-0">
-                        <?= e($initial) ?>
-                    </div>
+                    <?php $sidebarAvatar = $_SESSION['user']['profile_picture'] ?? null; ?>
+                    <?php if ($sidebarAvatar && is_file(dirname(__DIR__) . '/' . ltrim($sidebarAvatar, '/'))): ?>
+                        <img src="<?= e(url($sidebarAvatar)) ?>" alt="Your profile picture" class="rounded-circle flex-shrink-0" style="width: 38px; height: 38px; object-fit: cover;">
+                    <?php else: ?>
+                        <div class="user-avatar-circle flex-shrink-0">
+                            <?= e($initial) ?>
+                        </div>
+                    <?php endif; ?>
                     <div class="overflow-hidden">
                         <div class="fw-semibold text-truncate small text-dark"><?= e($userName) ?></div>
                         <div class="text-muted text-truncate extra-small"><?= e($userEmail) ?></div>

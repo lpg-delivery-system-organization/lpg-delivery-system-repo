@@ -564,6 +564,23 @@
     // =========================================================================
     // 3. Profile Management Interactivity (profile.php)
     // =========================================================================
+    function initAvatarUploadInteractivity() {
+        const $avatarForm = $('#riderAvatarForm');
+        if ($avatarForm.length === 0) return;
+
+        // Clicking "Upload Photo" opens the file browser directly
+        $('#riderAvatarBtn').on('click', function () {
+            $('#profile_picture').trigger('click');
+        });
+
+        // Auto-submit the form once the user picks an image
+        $('#profile_picture').on('change', function () {
+            if (this.files && this.files.length > 0) {
+                $avatarForm[0].submit();
+            }
+        });
+    }
+
     function initProfileInteractivity() {
         const $profileForm = $('#riderProfileForm');
         if ($profileForm.length === 0) return;
@@ -648,6 +665,7 @@
     // =========================================================================
     $(function () {
         [initDeliveriesInteractivity, initAvailableInteractivity, initProfileInteractivity,
+         initAvatarUploadInteractivity,
          initCopyAddressHandler,
          function () { if (window.AppMaps) AppMaps.initPinLocationMaps(); },
          function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with the customer' }); }

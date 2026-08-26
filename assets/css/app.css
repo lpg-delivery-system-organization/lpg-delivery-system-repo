@@ -43,8 +43,8 @@ body.app-body {
 }
 
 .app-logo-badge {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
 }
 
 /* User Avatar Initial Circle */
@@ -61,6 +61,60 @@ body.app-body {
     justify-content: center;
     text-transform: uppercase;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Larger avatar inside the top navigation bar */
+.app-navbar .user-avatar-circle {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+/* Uploaded photo version of the navbar avatar */
+.navbar-avatar-img {
+    width: 44px;
+    height: 44px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+/* Large profile picture on profile pages.
+   Fixed square box: any uploaded image is center-cropped into a perfect
+   circle without ever changing the layout height/width. */
+.profile-avatar-lg {
+    display: block;
+    width: 130px;
+    height: 130px;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center;
+    margin-inline: auto;
+    flex-shrink: 0;
+    max-width: none;
+}
+
+/* Responsive adjustments for small screens */
+@media (max-width: 575.98px) {
+    .profile-avatar-lg {
+        width: 110px;
+        height: 110px;
+    }
+
+    .app-logo-badge {
+        width: 34px;
+        height: 34px;
+    }
+
+    .app-navbar .user-avatar-circle {
+        width: 36px;
+        height: 36px;
+        font-size: 0.95rem;
+    }
+
+    .navbar-avatar-img {
+        width: 36px;
+        height: 36px;
+    }
 }
 
 /* Layout Split */

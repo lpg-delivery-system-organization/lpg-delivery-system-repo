@@ -63,7 +63,7 @@ if ($loggedIn) {
     <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css">
 
     <!-- Custom Application CSS -->
-    <link rel="stylesheet" href="<?= asset('assets/css/app.css') ?>">
+    <link rel="stylesheet" href="<?= asset_v('assets/css/app.css') ?>">
 </head>
 <body class="app-body d-flex flex-column min-vh-100">
 
@@ -93,9 +93,14 @@ if ($loggedIn) {
                     <!-- User Profile Dropdown -->
                     <div class="dropdown">
                         <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle app-user-dropdown" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <div class="user-avatar-circle me-2">
-                                <?= e($userInitial) ?>
-                            </div>
+                            <?php $userAvatar = $_SESSION['user']['profile_picture'] ?? null; ?>
+                            <?php if ($userAvatar && is_file(dirname(__DIR__) . '/' . ltrim($userAvatar, '/'))): ?>
+                                <img src="<?= e(url($userAvatar)) ?>" alt="Your profile picture" class="rounded-circle me-2 navbar-avatar-img" style="object-fit: cover;">
+                            <?php else: ?>
+                                <div class="user-avatar-circle me-2">
+                                    <?= e($userInitial) ?>
+                                </div>
+                            <?php endif; ?>
                             <span class="d-none d-md-inline fw-semibold small text-white"><?= e($userName) ?></span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userDropdown">

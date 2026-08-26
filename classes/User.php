@@ -155,7 +155,7 @@ class User {
      * Update user profile information
      *
      * @param int $userId
-     * @param array $data Contains full_name, phone, address, and optional valid_id_path
+     * @param array $data Contains full_name, phone, address, and optional valid_id_path / profile_picture
      * @return bool
      * @throws InvalidArgumentException
      */
@@ -178,6 +178,10 @@ class User {
         if (array_key_exists('valid_id_path', $data)) {
             $fields[] = "valid_id_path = ?";
             $params[] = $data['valid_id_path'];
+        }
+        if (array_key_exists('profile_picture', $data)) {
+            $fields[] = "profile_picture = ?";
+            $params[] = $data['profile_picture'];
         }
 
         if (empty($fields)) {

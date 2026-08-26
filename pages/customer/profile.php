@@ -36,6 +36,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         return;
     }
 
+    // 0. Profile Picture Upload (from summary card)
+    if ($action === 'upload_picture') {
+        if (!empty($_FILES['profile_picture']['name']) && $_FILES['profile_picture']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $avatarResult = validate_profile_picture_upload($_FILES['profile_picture']);
+            if (!$avatarResult['success']) {
+                $profileErrors[] = $avatarResult['error'];
+            } else {
+                try {
+                    $updated = $userModel->updateProfile($customerId, ['profile_picture' => $avatarResult['relative_path']]);
+                    if ($updated) {
+                        delete_old_avatar($customer['profile_picture'] ?? null);
+                        if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
+                            $_SESSION['user']['profile_picture'] = $avatarResult['relative_path'];
+                        }
+                        set_flash('success', 'Your profile picture has been updated successfully.');
+                        redirect('/pages/customer/profile.php');
+                        return;
+                    } else {
+                        $profileErrors[] = 'Failed to save profile picture. Please try again.';
+                    }
+                } catch (Throwable $e) {
+                    $profileErrors[] = 'Error uploading picture: ' . $e->getMessage();
+                }
+            }
+        } else {
+            $profileErrors[] = 'Please choose an image file (JPG, PNG, or WebP) to upload.';
+        }
+    }
+
     // 1. Profile Details Update
     if ($action === 'update_profile') {
         $fullName = sanitize_input($_POST['full_name'] ?? '');
@@ -66,6 +95,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        $avatarRelativePath = null;
+        if (!empty($_FILES['profile_picture']['name']) && $_FILES['profile_picture']['error'] !== UPLOAD_ERR_NO_FILE) {
+            $avatarResult = validate_profile_picture_upload($_FILES['profile_picture']);
+            if (!$avatarResult['success']) {
+                $profileErrors[] = $avatarResult['error'];
+            } else {
+                $avatarRelativePath = $avatarResult['relative_path'];
+            }
+        }
+
         if (empty($profileErrors)) {
             $updatePayload = [
                 'full_name' => $fullName,
@@ -77,9 +116,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $updatePayload['valid_id_path'] = $validIdRelativePath;
             }
 
+            if ($avatarRelativePath !== null) {
+                $updatePayload['profile_picture'] = $avatarRelativePath;
+            }
+
             try {
                 $updated = $userModel->updateProfile($customerId, $updatePayload);
                 if ($updated) {
+                    if ($avatarRelativePath !== null) {
+                        delete_old_avatar($customer['profile_picture'] ?? null);
+                    }
                     $_SESSION['user_name'] = $fullName;
                     if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
                         $_SESSION['user']['full_name'] = $fullName;
@@ -87,6 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['user']['address'] = $address;
                         if ($validIdRelativePath !== null) {
                             $_SESSION['user']['valid_id_path'] = $validIdRelativePath;
+                        }
+                        if ($avatarRelativePath !== null) {
+                            $_SESSION['user']['profile_picture'] = $avatarRelativePath;
                         }
                     }
                     set_flash('success', 'Your profile details have been successfully updated.');
@@ -186,10 +235,31 @@ require_once __DIR__ . '/../../templates/header.php';
             <!-- User Summary Card -->
             <div class="card border-0 shadow-sm text-center p-4 rounded-3 mb-4">
                 <div class="mx-auto mb-3">
-                    <div class="user-avatar-circle" style="width: 80px; height: 80px; font-size: 2rem;">
-                        <?= e(strtoupper(substr($customer['full_name'] ?? 'U', 0, 1))) ?>
-                    </div>
+                    <?php if (!empty($customer['profile_picture']) && is_file(dirname(__DIR__, 2) . '/' . ltrim($customer['profile_picture'], '/'))): ?>
+                        <img src="<?= e(url($customer['profile_picture'])) ?>"
+                             alt="Profile picture of <?= e($customer['full_name'] ?? 'Customer') ?>"
+                             class="rounded-circle shadow-sm profile-avatar-lg"
+                             style="border: 4px solid #e2e8f0;">
+                    <?php else: ?>
+                        <div class="user-avatar-circle profile-avatar-lg" style="font-size: 3rem;">
+                            <?= e(strtoupper(substr($customer['full_name'] ?? 'U', 0, 1))) ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
+                <!-- Profile Picture Upload (below the picture) -->
+                <form action="<?= url('pages/customer/profile.php') ?>" method="POST" enctype="multipart/form-data" class="mb-3" id="customerAvatarForm">
+                    <?= csrf_input() ?>
+                    <input type="hidden" name="action" value="upload_picture">
+                    <input type="file"
+                           name="profile_picture"
+                           id="profile_picture"
+                           class="d-none"
+                           accept="image/jpeg,image/png,image/webp">
+                    <button type="button" class="btn btn-sm btn-primary fw-semibold px-3" id="customerAvatarBtn">
+                        <i class="bi bi-upload me-1"></i>Upload Photo
+                    </button>
+                    <div class="form-text extra-small">Click to browse — JPG, PNG, or WebP (max 5MB).</div>
+                </form>
                 <h5 class="fw-bold mb-1 text-dark"><?= e($customer['full_name'] ?? 'Customer') ?></h5>
                 <p class="text-muted small mb-2"><?= e($customer['email'] ?? '') ?></p>
                 <div class="mb-3">

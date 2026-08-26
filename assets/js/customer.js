@@ -610,6 +610,23 @@
     // =========================================================================
     // 3. Customer Profile Interactivity
     // =========================================================================
+    function initAvatarUploadInteractivity() {
+        const $avatarForm = $('#customerAvatarForm');
+        if ($avatarForm.length === 0) return;
+
+        // Clicking "Upload Photo" opens the file browser directly
+        $('#customerAvatarBtn').on('click', function () {
+            $('#profile_picture').trigger('click');
+        });
+
+        // Auto-submit the form once the user picks an image
+        $('#profile_picture').on('change', function () {
+            if (this.files && this.files.length > 0) {
+                $avatarForm[0].submit();
+            }
+        });
+    }
+
     function initProfileInteractivity() {
         const $profileForm = $('#customerProfileForm');
         if ($profileForm.length === 0) return;
@@ -798,6 +815,7 @@
     // =========================================================================
     $(function () {
         [initShopInteractivity, initOrdersInteractivity, initProfileInteractivity,
+         initAvatarUploadInteractivity,
          function () { if (window.AppMaps) AppMaps.initPinLocationMaps(); },
          function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with your rider' }); },
          initCheckoutAddressPinPicker
