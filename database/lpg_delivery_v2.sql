@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 24, 2026 at 08:23 AM
+-- Generation Time: Aug 26, 2026 at 08:12 AM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -46,7 +46,11 @@ INSERT INTO `chat_messages` (`id`, `order_id`, `sender_id`, `message`, `created_
 (4, 1402, 3, 'san kana', '2026-08-23 13:35:08'),
 (5, 1402, 3, 'hwllo', '2026-08-23 13:35:14'),
 (6, 1402, 3, 'hinahanap ka na ni riaNNE WINLAB', '2026-08-23 13:35:31'),
-(7, 1402, 3, 'SISR MAY JATOT PO BA', '2026-08-23 13:35:42');
+(7, 1402, 3, 'SISR MAY JATOT PO BA', '2026-08-23 13:35:42'),
+(8, 1404, 3, 'kuya baha dito gamit ka eroplano', '2026-08-25 11:48:51'),
+(9, 1404, 2, 'sige hagis ko nalang lpg', '2026-08-25 11:49:05'),
+(10, 1428, 3, 'hello', '2026-08-26 03:46:45'),
+(11, 1428, 3, 'hoy', '2026-08-26 03:46:48');
 
 -- --------------------------------------------------------
 
@@ -79,7 +83,31 @@ CREATE TABLE `orders` (
 --
 
 INSERT INTO `orders` (`id`, `customer_id`, `product_id`, `rider_id`, `quantity`, `unit_price`, `total_amount`, `payment_method`, `status`, `delivery_address`, `delivery_latitude`, `delivery_longitude`, `contact_phone`, `notes`, `created_at`, `updated_at`, `delivered_at`) VALUES
-(1402, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'ready_for_delivery', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', 14.6007547, 120.9877683, '09228889900', '', '2026-08-23 13:33:40', '2026-08-23 13:34:11', NULL);
+(1402, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'cancelled', ', Emerald Tower, Ortigas Center, Pasig City', NULL, NULL, '09228889900', '\n[Cancelled: wala lang]', '2026-08-23 13:33:40', '2026-08-25 09:41:51', NULL),
+(1403, 3, 1, NULL, 1, 975.50, 975.50, 'gcash', 'cancelled', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', 14.5995000, 120.9842000, '09228889900', '\n[Cancelled: Cancelled by customer via order details]', '2026-08-25 10:46:56', '2026-08-25 10:47:18', NULL),
+(1404, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', 14.5982388, 120.9786869, '09228889900', '', '2026-08-25 11:46:12', '2026-08-25 11:47:03', NULL),
+(1405, 3, 1, NULL, 2, 975.50, 1951.00, 'gcash', 'pending', '123 Test Ave, Pasig City', NULL, NULL, '09181234567', 'Handle with care', '2026-08-26 01:09:03', '2026-08-26 01:09:03', NULL),
+(1406, 3, 1, NULL, 3, 975.50, 2926.50, 'cod', 'cancelled', 'Cancel Test St', NULL, NULL, '09171112233', '\n[Cancelled: Cancelled by customer via portal]', '2026-08-26 01:09:05', '2026-08-26 01:09:05', NULL),
+(1407, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'out_for_delivery', 'Test Address', 6.5244000, 3.3792000, '09171112233', NULL, '2026-08-26 01:09:08', '2026-08-26 01:09:08', NULL),
+(1409, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Test Approve Address', NULL, NULL, '09171234567', NULL, '2026-08-26 01:09:16', '2026-08-26 01:09:16', '2026-08-26 01:09:16'),
+(1410, 3, 1, NULL, 4, 975.50, 3902.00, 'cod', 'cancelled', 'Cancel Order St', NULL, NULL, '09171234567', '\n[Cancelled: Admin test cancellation]', '2026-08-26 01:09:20', '2026-08-26 01:09:20', NULL),
+(1412, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'delivered', '456 Test Street, Caloocan', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:27', '2026-08-26 01:09:27', '2026-08-26 01:09:27'),
+(1413, 3, 1, 50, 1, 850.00, 850.00, 'cod', 'picked_up', 'Other Rider St', NULL, NULL, '09172223344', NULL, '2026-08-26 01:09:27', '2026-08-26 01:09:27', NULL),
+(1414, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'State Test St', NULL, NULL, '09173334455', NULL, '2026-08-26 01:09:27', '2026-08-26 01:09:27', NULL),
+(1415, 3, 1, NULL, 1, 850.00, 850.00, 'cod', 'approved', 'Available Test St, Pasig City', NULL, NULL, '09179998888', NULL, '2026-08-26 01:09:27', '2026-08-26 01:09:27', NULL),
+(1416, 3, 1, 2, 2, 850.00, 1700.00, 'gcash', 'picked_up', 'Claim Test St', NULL, NULL, '09175556677', NULL, '2026-08-26 01:09:27', '2026-08-26 01:09:27', NULL),
+(1417, 3, 1, 2, 1, 850.00, 850.00, 'cod', 'picked_up', 'Concurrency Race St', NULL, NULL, '09176667788', NULL, '2026-08-26 01:09:27', '2026-08-26 01:09:27', NULL),
+(1419, 3, 1, 50, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Isolation Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:33', '2026-08-26 01:09:33', NULL),
+(1420, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Customer Privacy Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:35', '2026-08-26 01:09:35', NULL),
+(1421, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'approved', 'Admin Status Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:38', '2026-08-26 01:09:38', NULL),
+(1422, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Admin Assign Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:40', '2026-08-26 01:09:40', NULL),
+(1423, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'picked_up', 'Rider Claim Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:44', '2026-08-26 01:09:44', NULL),
+(1424, 3, 1, 2, 1, 920.50, 920.50, 'cod', 'delivered', 'Rider Advance Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:46', '2026-08-26 01:09:46', '2026-08-26 01:09:46'),
+(1425, 3, 1, NULL, 3, 920.50, 2761.50, 'cod', 'cancelled', 'Customer Cancel Test', NULL, NULL, '09171112233', '\n[Cancelled: Changed delivery time preference]', '2026-08-26 01:09:49', '2026-08-26 01:09:49', NULL),
+(1426, 3, 1, NULL, 1, 920.50, 920.50, 'cod', 'pending', 'Admin Get Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:53', '2026-08-26 01:09:53', NULL),
+(1427, 3, 1, NULL, 1, 975.50, 975.50, 'cod', 'pending', 'Invalid Transition Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:55', '2026-08-26 01:09:55', NULL),
+(1428, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'picked_up', 'Claim Conflict Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:09:57', '2026-08-26 01:09:57', NULL),
+(1429, 3, 1, 2, 1, 975.50, 975.50, 'cod', 'delivered', 'Cancel Delivered Test', NULL, NULL, '09171112233', NULL, '2026-08-26 01:10:01', '2026-08-26 01:10:01', '2026-08-26 01:10:01');
 
 -- --------------------------------------------------------
 
@@ -190,7 +218,12 @@ INSERT INTO `password_resets` (`id`, `user_id`, `token`, `expires_at`, `used`, `
 (103, 3, '20738a5ff453d8c49d520fa96c56ffafcd3a1def53d53df4a2445aee99fcf3bb', '2026-08-20 10:42:34', 0, '2026-08-20 09:42:34'),
 (104, 3, '28406cc57f8b9ca4b279d15d6c017598c195faa9588e19d222b0dd9d61d66f22', '2026-08-20 09:42:34', 1, '2026-08-20 09:42:34'),
 (105, 3, 'f48208b32b1f69ecd24513c533d35ce05eebd90742824978a4103151e8b04d40', '2026-08-20 09:32:34', 0, '2026-08-20 08:32:34'),
-(107, 3, 'caf707ae236afd0f3187bcc2ef1ce2bb16d8e2c9289c797b43e73db34f759ab1', '2026-08-20 10:42:35', 0, '2026-08-20 09:42:35');
+(107, 3, 'caf707ae236afd0f3187bcc2ef1ce2bb16d8e2c9289c797b43e73db34f759ab1', '2026-08-20 10:42:35', 0, '2026-08-20 09:42:35'),
+(108, 188, '5892f54ee4424ce42cb195d46610bba512d66018b04e8b0e79910ac019704ad4', '2026-08-26 01:08:39', 1, '2026-08-26 01:08:39'),
+(109, 3, '6ac3579736b9e9167323bc02dae280c0510771a30753645db16209544547e2b8', '2026-08-26 02:08:54', 0, '2026-08-26 01:08:54'),
+(110, 3, '41789f71ccc5e2b9a02ebcac24404867a52633c0b154ec93b207aa8c1d869825', '2026-08-26 01:08:54', 1, '2026-08-26 01:08:54'),
+(111, 3, '9a37cfe27544685711d93dc12a5631fce7d61762b93756dee1289fbd990fd674', '2026-08-26 00:58:54', 0, '2026-08-25 23:58:54'),
+(113, 3, '43880432ca4d3b9b31f27dc467fa4177e4d8267997c0ab908c816605895b9113', '2026-08-26 02:08:56', 0, '2026-08-26 01:08:56');
 
 -- --------------------------------------------------------
 
@@ -216,7 +249,7 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`id`, `name`, `brand`, `weight`, `price`, `stock`, `image_url`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'Gasul 11kg ', 'Gasul', '11kg', 975.50, 59, 'assets/img/products/1.png', 'active', '2026-08-20 08:32:06', '2026-08-23 13:33:40'),
+(1, 'Gasul 11kg ', 'Gasul', '11kg', 975.50, 62, 'assets/img/products/1.png', 'active', '2026-08-20 08:32:06', '2026-08-26 01:10:01'),
 (2, 'Solane 11kg', 'Solane', '11kg', 820.00, 30, 'assets/img/products/2.png', 'active', '2026-08-20 08:32:06', '2026-08-20 09:36:19'),
 (3, 'Solane 22kg', 'Solane', '22kg', 800.00, 20, 'assets/img/products/3.png', 'active', '2026-08-20 08:32:06', '2026-08-20 08:32:06'),
 (4, 'Phoenix LPG Super Test 11kg', 'Phoenix', '11kg', 1650.00, 15, 'assets/img/products/4.png', 'active', '2026-08-20 08:32:06', '2026-08-20 08:32:06'),
@@ -225,7 +258,8 @@ INSERT INTO `products` (`id`, `name`, `brand`, `weight`, `price`, `stock`, `imag
 (7, 'Super Kalan LPG 11kg', 'Super Kalan', '11kg', 835.50, 43, 'assets/img/products/7.png', 'active', '2026-08-20 08:40:26', '2026-08-20 08:40:26'),
 (8, 'Brent Gas 11kg', 'Brent', '11kg', 835.50, 43, 'assets/img/products/8.png', 'active', '2026-08-20 08:41:02', '2026-08-20 08:41:02'),
 (9, 'Petron Gasul 11kg', 'Petron', '11kg', 835.50, 43, 'assets/img/products/9.png', 'active', '2026-08-20 08:44:55', '2026-08-20 08:44:55'),
-(10, 'Total Gaz 15kg', 'Total', '15kg', 835.50, 43, 'assets/img/products/10.png', 'active', '2026-08-20 08:46:41', '2026-08-20 08:46:41');
+(10, 'Total Gaz 15kg', 'Total', '15kg', 835.50, 43, 'assets/img/products/10.png', 'active', '2026-08-20 08:46:41', '2026-08-20 08:46:41'),
+(59, 'Phoenix Super LPG 413af9', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-26 01:09:20', '2026-08-26 01:09:20');
 
 -- --------------------------------------------------------
 
@@ -258,6 +292,7 @@ CREATE TABLE `users` (
   `phone` varchar(20) NOT NULL,
   `address` text NOT NULL,
   `valid_id_path` varchar(500) DEFAULT NULL,
+  `profile_picture` varchar(500) DEFAULT NULL,
   `status` enum('active','inactive','suspended') NOT NULL DEFAULT 'active',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -267,35 +302,36 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `full_name`, `email`, `password`, `role`, `phone`, `address`, `valid_id_path`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'Maria Santos', 'admin@lpg.com', '$2y$10$Ujna0yVwceUnns86lCb8SuZ3y87FWmoLrqoerZ6P0qeH2mWIUfHWu', 'admin', '09289876543', 'Admin HQ, Quezon City', NULL, 'active', '2026-08-20 08:32:06', '2026-08-20 10:16:26'),
-(2, 'Pedro Updated Reyes', 'rider@lpg.com', '$2y$10$Ujna0yVwceUnns86lCb8SuZ3y87FWmoLrqoerZ6P0qeH2mWIUfHWu', 'rider', '09358887766', 'Unit 102, Sunrise Condominium, Quezon City', NULL, 'active', '2026-08-20 08:32:06', '2026-08-20 10:16:26'),
-(3, 'Janister Updated Singson', 'customer@lpg.com', '$2y$10$Ujna0yVwceUnns86lCb8SuZ3y87FWmoLrqoerZ6P0qeH2mWIUfHWu', 'customer', '09228889900', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', NULL, 'active', '2026-08-20 08:32:06', '2026-08-20 10:16:26'),
-(4, 'Updated User Name', 'test_user_1787214927@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 08:35:28', '2026-08-20 09:27:12'),
-(5, 'Updated User Name', 'test_user_1787215224@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 08:40:25', '2026-08-20 09:27:12'),
-(6, 'Updated User Name', 'test_user_1787215260@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 08:41:01', '2026-08-20 09:27:12'),
-(7, 'Updated User Name', 'test_user_1787215494@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 08:44:54', '2026-08-20 09:27:12'),
-(8, 'Updated User Name', 'test_user_1787215600@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 08:46:40', '2026-08-20 09:27:12'),
-(9, 'Updated User Name', 'test_user_1787215705@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 08:48:25', '2026-08-20 09:27:12'),
-(14, 'Updated User Name', 'test_user_1787215811@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 08:50:11', '2026-08-20 09:27:12'),
-(19, 'Updated User Name', 'test_user_1787215943@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 08:52:24', '2026-08-20 09:27:12'),
-(26, 'Other Customer', 'other_cust_12d4b69e@test.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09170000000', 'Other Address', NULL, 'active', '2026-08-20 08:54:50', '2026-08-20 09:27:12'),
-(30, 'Updated User Name', 'test_user_1787216116@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 08:55:16', '2026-08-20 09:27:12'),
-(40, 'Updated User Name', 'test_user_1787216410@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:00:10', '2026-08-20 09:27:12'),
-(50, 'Juan Dela Cruz', 'rider2@lpg.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'rider', '09359998888', '789 Rizal Ave, Manila', NULL, 'active', '2026-08-20 09:05:23', '2026-08-20 09:27:12'),
-(61, 'Updated User Name', 'test_user_1787216734@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:05:34', '2026-08-20 09:27:12'),
-(66, 'Maria Customer Two', 'customer2@lpg.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09177778888', '555 Taft Ave, Manila', NULL, 'active', '2026-08-20 09:09:40', '2026-08-20 09:27:12'),
-(76, 'Updated User Name', 'test_user_1787217007@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:10:07', '2026-08-20 09:27:12'),
-(87, 'Updated User Name', 'test_user_1787217152@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:12:32', '2026-08-20 09:27:12'),
-(98, 'Updated User Name', 'test_user_1787217166@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:12:46', '2026-08-20 09:27:12'),
-(100, 'Updated User Name', 'test_user_1787217225@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:13:46', '2026-08-20 09:27:12'),
-(111, 'Updated User Name', 'test_user_1787217268@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:14:29', '2026-08-20 09:27:12'),
-(122, 'Updated User Name', 'test_user_1787217310@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:15:10', '2026-08-20 09:27:12'),
-(133, 'Updated User Name', 'test_user_1787217384@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:16:24', '2026-08-20 09:27:12'),
-(144, 'Updated User Name', 'test_user_1787217817@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:23:37', '2026-08-20 09:27:12'),
-(155, 'Updated User Name', 'test_user_1787218136@example.com', '$2y$12$CMF3r3dEcHnC7UXlXQ/uhOCGSWKvkqRishYWXUBYbWv0aFdshZ7GC', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:28:56', '2026-08-20 09:28:57'),
-(166, 'Updated User Name', 'test_user_1787218580@example.com', '$2y$12$68sHnCkUtg3c9GwC6sR1PeCDlP/EjdhZ57NbAVvDclqLyYfLHrGmK', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:36:20', '2026-08-20 09:36:21'),
-(177, 'Updated User Name', 'test_user_1787218951@example.com', '$2y$12$8vc5V0oXD3VhX4yz1lT0c.9MIfNkiZ2Oa6MoOl7/5i82tkO6munve', 'customer', '09199998888', '999 New Street, Quezon City', NULL, 'active', '2026-08-20 09:42:31', '2026-08-20 09:42:32');
+INSERT INTO `users` (`id`, `full_name`, `email`, `password`, `role`, `phone`, `address`, `valid_id_path`, `profile_picture`, `status`, `created_at`, `updated_at`) VALUES
+(1, 'Maria Santos', 'admin@lpg.com', '$2y$10$Ujna0yVwceUnns86lCb8SuZ3y87FWmoLrqoerZ6P0qeH2mWIUfHWu', 'admin', '09289876543', 'Admin HQ, Quezon City', NULL, NULL, 'active', '2026-08-20 08:32:06', '2026-08-20 10:16:26'),
+(2, 'Pedro Updated Reyes', 'rider@lpg.com', '$2y$12$uOK9OxjyKmk/Ky1RJzs62u0cymThR882E.u0mZj.yuZutltJwyJ3a', 'rider', '09358887766', 'Unit 102, Sunrise Condominium, Quezon City', NULL, NULL, 'active', '2026-08-20 08:32:06', '2026-08-26 01:09:29'),
+(3, 'Janister Updated Singson', 'customer@lpg.com', '$2y$12$TgddvAtJShzP.QJsEwREbONmsPPBrVRVyr7..S4rbu4PNsA8yth36', 'customer', '09228889900', 'Unit 201, Emerald Tower, Ortigas Center, Pasig City', NULL, 'uploads/avatars/avatar_4108279c0fbf46944f68c98b55ef96bc.jpg', 'active', '2026-08-20 08:32:06', '2026-08-26 01:14:23'),
+(4, 'Updated User Name', 'test_user_1787214927@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 08:35:28', '2026-08-20 09:27:12'),
+(5, 'Updated User Name', 'test_user_1787215224@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 08:40:25', '2026-08-20 09:27:12'),
+(6, 'Updated User Name', 'test_user_1787215260@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 08:41:01', '2026-08-20 09:27:12'),
+(7, 'Updated User Name', 'test_user_1787215494@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 08:44:54', '2026-08-20 09:27:12'),
+(8, 'Updated User Name', 'test_user_1787215600@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 08:46:40', '2026-08-20 09:27:12'),
+(9, 'Updated User Name', 'test_user_1787215705@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 08:48:25', '2026-08-20 09:27:12'),
+(14, 'Updated User Name', 'test_user_1787215811@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 08:50:11', '2026-08-20 09:27:12'),
+(19, 'Updated User Name', 'test_user_1787215943@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 08:52:24', '2026-08-20 09:27:12'),
+(26, 'Other Customer', 'other_cust_12d4b69e@test.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09170000000', 'Other Address', NULL, NULL, 'active', '2026-08-20 08:54:50', '2026-08-20 09:27:12'),
+(30, 'Updated User Name', 'test_user_1787216116@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 08:55:16', '2026-08-20 09:27:12'),
+(40, 'Updated User Name', 'test_user_1787216410@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:00:10', '2026-08-20 09:27:12'),
+(50, 'Juan Dela Cruz', 'rider2@lpg.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'rider', '09359998888', '789 Rizal Ave, Manila', NULL, NULL, 'active', '2026-08-20 09:05:23', '2026-08-20 09:27:12'),
+(61, 'Updated User Name', 'test_user_1787216734@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:05:34', '2026-08-20 09:27:12'),
+(66, 'Maria Customer Two', 'customer2@lpg.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09177778888', '555 Taft Ave, Manila', NULL, NULL, 'active', '2026-08-20 09:09:40', '2026-08-20 09:27:12'),
+(76, 'Updated User Name', 'test_user_1787217007@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:10:07', '2026-08-20 09:27:12'),
+(87, 'Updated User Name', 'test_user_1787217152@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:12:32', '2026-08-20 09:27:12'),
+(98, 'Updated User Name', 'test_user_1787217166@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:12:46', '2026-08-20 09:27:12'),
+(100, 'Updated User Name', 'test_user_1787217225@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:13:46', '2026-08-20 09:27:12'),
+(111, 'Updated User Name', 'test_user_1787217268@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:14:29', '2026-08-20 09:27:12'),
+(122, 'Updated User Name', 'test_user_1787217310@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:15:10', '2026-08-20 09:27:12'),
+(133, 'Updated User Name', 'test_user_1787217384@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:16:24', '2026-08-20 09:27:12'),
+(144, 'Updated User Name', 'test_user_1787217817@example.com', '$2y$12$majJ5lylFF710.nyKEmOourpeRJ1hD9UEmyoEr3jg4eaYbGRdUvcm', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:23:37', '2026-08-20 09:27:12'),
+(155, 'Updated User Name', 'test_user_1787218136@example.com', '$2y$12$CMF3r3dEcHnC7UXlXQ/uhOCGSWKvkqRishYWXUBYbWv0aFdshZ7GC', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:28:56', '2026-08-20 09:28:57'),
+(166, 'Updated User Name', 'test_user_1787218580@example.com', '$2y$12$68sHnCkUtg3c9GwC6sR1PeCDlP/EjdhZ57NbAVvDclqLyYfLHrGmK', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:36:20', '2026-08-20 09:36:21'),
+(177, 'Updated User Name', 'test_user_1787218951@example.com', '$2y$12$8vc5V0oXD3VhX4yz1lT0c.9MIfNkiZ2Oa6MoOl7/5i82tkO6munve', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-20 09:42:31', '2026-08-25 16:19:30'),
+(188, 'Updated User Name', 'test_user_1787706516@example.com', '$2y$12$GitIoSicrtYQ71G636SQ4e.eQYJ2jdbBcH26o19TJXlgAY/5qsuxK', 'customer', '09199998888', '999 New Street, Quezon City', NULL, NULL, 'active', '2026-08-26 01:08:37', '2026-08-26 01:08:39');
 
 --
 -- Indexes for dumped tables
@@ -363,25 +399,25 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1403;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1430;
 
 --
 -- AUTO_INCREMENT for table `password_resets`
 --
 ALTER TABLE `password_resets`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=108;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=114;
 
 --
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=58;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
 
 --
 -- AUTO_INCREMENT for table `rider_locations`
@@ -393,7 +429,7 @@ ALTER TABLE `rider_locations`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=188;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=199;
 
 --
 -- Constraints for dumped tables
