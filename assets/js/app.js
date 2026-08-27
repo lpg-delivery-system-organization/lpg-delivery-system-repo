@@ -103,40 +103,6 @@
     }
 
     // =========================================================================
-    // 3. Sidebar Responsive Drawer
-    // =========================================================================
-    function initSidebar() {
-        const $body = $('body');
-        const $sidebarToggle = $('#sidebarToggle');
-        const $sidebarBackdrop = $('#sidebarBackdrop');
-
-        // Toggle button click
-        $sidebarToggle.on('click', function (e) {
-            e.preventDefault();
-            $body.toggleClass('sidebar-open');
-        });
-
-        // Backdrop click closes sidebar
-        $sidebarBackdrop.on('click', function () {
-            $body.removeClass('sidebar-open');
-        });
-
-        // Close sidebar when clicking links on mobile
-        $('.app-sidebar .nav-link').on('click', function () {
-            if ($(window).width() < 768) {
-                $body.removeClass('sidebar-open');
-            }
-        });
-
-        // Close on ESC key
-        $(document).on('keydown', function (e) {
-            if (e.key === 'Escape' && $body.hasClass('sidebar-open')) {
-                $body.removeClass('sidebar-open');
-            }
-        });
-    }
-
-    // =========================================================================
     // 4. Global Confirmation Modal System
     // =========================================================================
     /**
@@ -330,10 +296,10 @@
     function initAOS() {
         if (typeof AOS !== 'undefined') {
             AOS.init({
-                duration: 600,
+                duration: 500,
                 easing: 'ease-out-cubic',
                 once: true,
-                offset: 40,
+                offset: 30,
                 disable: function () {
                     return window.innerWidth < 768;
                 }
@@ -540,9 +506,71 @@
     }
 
     // =========================================================================
+    // 13. Sidebar User Footer — Show on Scroll
+    // =========================================================================
+    function initSidebarFooterScroll() {
+        var $footer = $('#sidebarUserFooter');
+        if (!$footer.length) return;
+
+        var $main = $('.app-main');
+        var threshold = 50;
+
+        function checkScroll() {
+            var scrollTop = $(window).scrollTop();
+            if (scrollTop > threshold) {
+                $footer.slideDown(200);
+            } else {
+                $footer.slideUp(200);
+            }
+        }
+
+        $(window).on('scroll', checkScroll);
+        checkScroll();
+    }
+
+    // =========================================================================
+    // 13. Sidebar Mobile Drawer
+    // =========================================================================
+    function initSidebar() {
+        var $body = $('body');
+        var $toggle = $('#sidebarToggle');
+        var $backdrop = $('#sidebarBackdrop');
+
+        if ($toggle.length) {
+            $toggle.on('click', function (e) {
+                e.preventDefault();
+                $body.toggleClass('sidebar-open');
+            });
+        }
+
+        if ($backdrop.length) {
+            $backdrop.on('click', function () {
+                $body.removeClass('sidebar-open');
+            });
+        }
+
+        // Close sidebar on nav link click (mobile only)
+        $('.app-sidebar .nav-link').on('click', function () {
+            if ($(window).width() < 992) {
+                $body.removeClass('sidebar-open');
+            }
+        });
+    }
+
+    function initSplash() {
+        var $splash = $('#appSplash');
+        if (!$splash.length) return;
+        setTimeout(function () {
+            $splash.addClass('fade-out');
+            setTimeout(function () { $splash.remove(); }, 500);
+        }, 2200);
+    }
+
+    // =========================================================================
     // DOM Ready Initialization
     // =========================================================================
     $(function () {
+        initSplash();
         initCsrf();
         initSidebar();
         initConfirmations();
@@ -551,6 +579,7 @@
         initAnimatedCounters();
         initFormAnimations();
         initPageTransitions();
+        initSidebarFooterScroll();
     });
 
     // Expose utilities for inline usage

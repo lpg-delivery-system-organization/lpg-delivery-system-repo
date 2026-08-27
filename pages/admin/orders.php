@@ -267,7 +267,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
             </h3>
             <p class="text-muted small mb-0">Approve incoming customer orders, assign active delivery riders, and manage order lifecycles.</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-success btn-sm px-3 shadow-sm btn-open-create-order">
                 <i class="bi bi-plus-circle me-1"></i>Create Order
             </button>
@@ -417,12 +417,24 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
                                     <!-- Product & Qty -->
                                     <td>
-                                        <div class="fw-medium text-dark"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></div>
-                                        <div class="small text-muted">
-                                            <?php if (!empty($order['product_brand'])): ?>
-                                                <span class="badge bg-light text-dark border me-1"><?= e($order['product_brand']) ?></span>
-                                            <?php endif; ?>
-                                            <span><strong><?= (int)$order['quantity'] ?></strong> unit(s)</span>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <?php $adminOrderImage = $order['product_image'] ?? ''; ?>
+                                            <div class="flex-shrink-0 rounded overflow-hidden" style="width: 36px; height: 36px;">
+                                                <?php if (!empty($adminOrderImage) && is_file(dirname(__DIR__, 2) . '/' . ltrim($adminOrderImage, '/'))): ?>
+                                                    <img src="<?= e(asset($adminOrderImage)) ?>" alt="<?= e($order['product_name'] ?? '') ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                                                <?php else: ?>
+                                                    <div class="bg-light d-flex align-items-center justify-content-center w-100 h-100"><i class="bi bi-fire text-warning"></i></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div>
+                                                <div class="fw-medium text-dark"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></div>
+                                                <div class="small text-muted">
+                                                    <?php if (!empty($order['product_brand'])): ?>
+                                                        <span class="badge bg-light text-dark border me-1"><?= e($order['product_brand']) ?></span>
+                                                    <?php endif; ?>
+                                                    <span><strong><?= (int)$order['quantity'] ?></strong> unit(s)</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
 
@@ -490,6 +502,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                                         data-order-id="<?= $orderId ?>"
                                                         data-customer="<?= e($order['customer_name'] ?? '') ?>"
                                                         data-product="<?= e($order['product_name'] ?? '') ?>"
+                                                        data-image="<?= e($order['product_image'] ?? '') ?>"
                                                         title="Assign Rider">
                                                     <i class="bi bi-truck me-1"></i>Assign Rider
                                                 </button>
@@ -563,8 +576,15 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 </div>
                 <div class="modal-body p-4">
                     <div class="p-3 bg-light rounded mb-3 border">
-                        <div class="fw-bold text-primary fs-6" id="assignModalOrderNumber">Order #</div>
-                        <div class="small text-muted" id="assignModalSummary">Customer Details</div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div id="assignModalProductImage" class="flex-shrink-0 rounded overflow-hidden d-none" style="width: 56px; height: 56px;">
+                                <img src="" alt="" style="width: 100%; height: 100%; object-fit: cover;">
+                            </div>
+                            <div>
+                                <div class="fw-bold text-primary fs-6" id="assignModalOrderNumber">Order #</div>
+                                <div class="small text-muted" id="assignModalSummary">Customer Details</div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">

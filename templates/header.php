@@ -62,74 +62,74 @@ if ($loggedIn) {
     <!-- AOS.js CSS CDN (Animate On Scroll) -->
     <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css">
 
+    <!-- Prevent flash of wrong theme -->
+    <script>
+    (function(){var s=localStorage.getItem('app-theme');if(s==='dark')document.documentElement.setAttribute('data-theme','dark');})();
+    </script>
+
     <!-- Custom Application CSS -->
     <link rel="stylesheet" href="<?= asset_v('assets/css/app.css') ?>">
 </head>
 <body class="app-body d-flex flex-column min-vh-100">
+
+    <!-- Post-Login Splash Screen -->
+    <?php if (!empty($_GET['splash'])): ?>
+    <div id="appSplash" class="app-splash">
+        <div class="app-splash-content">
+            <div class="app-splash-logo">
+                <i class="bi bi-fire"></i>
+            </div>
+            <div class="app-splash-text"><?= e($appName) ?></div>
+            <div class="app-splash-bar">
+                <div class="app-splash-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Top Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top app-navbar shadow-sm py-2">
         <div class="container-fluid px-3">
             <div class="d-flex align-items-center">
                 <?php if ($loggedIn): ?>
-                    <button class="btn btn-outline-secondary text-white border-0 me-2 d-md-none" id="sidebarToggle" type="button" aria-label="Toggle navigation">
-                        <i class="bi bi-list fs-4"></i>
-                    </button>
+                <button class="btn btn-outline-light border-0 me-2 d-lg-none" id="sidebarToggle" type="button" aria-label="Toggle sidebar">
+                    <i class="bi bi-list fs-4"></i>
+                </button>
                 <?php endif; ?>
                 <a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-white fs-5" href="<?= e($brandUrl) ?>">
-                    <span class="app-logo-badge bg-primary text-white rounded p-1 d-inline-flex align-items-center justify-content-center">
-                        <i class="bi bi-fire text-warning"></i>
+                    <span class="app-logo-badge d-inline-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #0d9488, #14b8a6); border-radius: 1.25rem; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3); padding: 0.35rem;">
+                        <i class="bi bi-fire" style="color: #fbbf24;"></i>
                     </span>
-                    <span><?= e($appName) ?></span>
+                    <span class="d-none d-sm-inline"><?= e($appName) ?></span>
                 </a>
             </div>
 
-            <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2">
                 <?php if ($loggedIn): ?>
+                    <!-- Theme Toggle -->
+                    <button type="button" class="theme-toggle-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+                        <i class="bi bi-moon-fill"></i>
+                    </button>
+
                     <div class="d-none d-sm-flex align-items-center gap-2">
                         <span class="badge bg-secondary text-uppercase px-2 py-1"><?= e($userRole) ?></span>
                     </div>
 
-                    <!-- User Profile Dropdown -->
-                    <div class="dropdown">
-                        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle app-user-dropdown" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <?php $userAvatar = $_SESSION['user']['profile_picture'] ?? null; ?>
-                            <?php if ($userAvatar && is_file(dirname(__DIR__) . '/' . ltrim($userAvatar, '/'))): ?>
-                                <img src="<?= e(url($userAvatar)) ?>" alt="Your profile picture" class="rounded-circle me-2 navbar-avatar-img" style="object-fit: cover;">
-                            <?php else: ?>
-                                <div class="user-avatar-circle me-2">
-                                    <?= e($userInitial) ?>
-                                </div>
-                            <?php endif; ?>
-                            <span class="d-none d-md-inline fw-semibold small text-white"><?= e($userName) ?></span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userDropdown">
-                            <li class="px-3 py-2 border-bottom">
-                                <div class="fw-bold small text-dark"><?= e($userName) ?></div>
-                                <div class="text-muted extra-small"><?= e($userEmail) ?></div>
-                            </li>
-                            <?php if ($userRole === 'customer'): ?>
-                                <li><a class="dropdown-item py-2" href="<?= url('pages/customer/dashboard.php') ?>"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</a></li>
-                                <li><a class="dropdown-item py-2" href="<?= url('pages/customer/shop.php') ?>"><i class="bi bi-shop me-2 text-primary"></i>Shop Products</a></li>
-                                <li><a class="dropdown-item py-2" href="<?= url('pages/customer/orders.php') ?>"><i class="bi bi-receipt me-2 text-primary"></i>My Orders</a></li>
-                                <li><a class="dropdown-item py-2" href="<?= url('pages/customer/profile.php') ?>"><i class="bi bi-person me-2 text-primary"></i>My Profile</a></li>
-                            <?php elseif ($userRole === 'rider'): ?>
-                                <li><a class="dropdown-item py-2" href="<?= url('pages/rider/profile.php') ?>"><i class="bi bi-person me-2 text-primary"></i>My Profile</a></li>
-                                <li><a class="dropdown-item py-2" href="<?= url('pages/rider/deliveries.php') ?>"><i class="bi bi-truck me-2 text-primary"></i>My Deliveries</a></li>
-                            <?php elseif ($userRole === 'admin'): ?>
-                                <li><a class="dropdown-item py-2" href="<?= url('pages/admin/dashboard.php') ?>"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</a></li>
-                            <?php endif; ?>
-                            <li><hr class="dropdown-divider my-1"></li>
-                            <li>
-                                <a class="dropdown-item text-danger py-2" href="<?= url('logout.php') ?>">
-                                    <i class="bi bi-box-arrow-right me-2"></i>Logout
-                                </a>
-                            </li>
-                        </ul>
+                    <!-- User Profile -->
+                    <div class="d-flex align-items-center text-white">
+                        <?php $userAvatar = $_SESSION['user']['profile_picture'] ?? null; ?>
+                        <?php if ($userAvatar && is_file(dirname(__DIR__) . '/' . ltrim($userAvatar, '/'))): ?>
+                            <img src="<?= e(url($userAvatar)) ?>" alt="Your profile picture" class="rounded-circle me-2 navbar-avatar-img" style="object-fit: cover;">
+                        <?php else: ?>
+                            <div class="user-avatar-circle me-2">
+                                <?= e($userInitial) ?>
+                            </div>
+                        <?php endif; ?>
+                        <span class="d-none d-md-inline fw-semibold small"><?= e($userName) ?></span>
                     </div>
                 <?php else: ?>
                     <a href="<?= url('index.php') ?>" class="btn btn-outline-light btn-sm px-3">Login</a>
-                    <a href="<?= url('register.php') ?>" class="btn btn-primary btn-sm px-3">Register</a>
+                    <a href="<?= url('index.php?tab=register') ?>" class="btn btn-primary btn-sm px-3">Register</a>
                 <?php endif; ?>
             </div>
         </div>

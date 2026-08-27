@@ -167,6 +167,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 $riderName = (string)($order['rider_name'] ?? '');
                 $riderPhone = (string)($order['rider_phone'] ?? '');
                 $productId = (int)($order['product_id'] ?? 0);
+                $productImage = (string)($order['product_image'] ?? $order['image_url'] ?? '');
                 ?>
                 <div class="card app-order-card app-clickable-card shadow-sm border-0 mb-4 customer-order-item" 
                      data-order-id="<?= $orderId ?>" 
@@ -206,7 +207,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             $currentIndex = array_search($status, $stepOrder, true);
                             if ($currentIndex === false) $currentIndex = 0;
                             ?>
-                            <div class="app-order-timeline d-none d-md-flex mb-4">
+                            <div class="app-order-timeline mb-4">
                                 <?php foreach ($stepOrder as $idx => $stepKey): ?>
                                     <?php
                                     $stepInfo = $steps[$stepKey];
@@ -229,8 +230,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <div class="col-lg-6">
                                 <h6 class="text-muted text-uppercase fw-semibold small mb-3">Item Summary</h6>
                                 <div class="d-flex align-items-start gap-3">
-                                    <div class="app-product-icon p-2 bg-light rounded text-center">
-                                        <i class="bi bi-fire fs-2 text-warning"></i>
+                                    <div class="app-product-icon p-2 bg-light rounded text-center flex-shrink-0" style="width: 64px; height: 64px;">
+                                        <?php if (!empty($productImage) && is_file(dirname(__DIR__, 2) . '/' . ltrim($productImage, '/'))): ?>
+                                            <img src="<?= e(asset($productImage)) ?>" alt="<?= e($productName) ?>" class="rounded" style="width: 100%; height: 100%; object-fit: cover;">
+                                        <?php else: ?>
+                                            <i class="bi bi-fire fs-2 text-warning"></i>
+                                        <?php endif; ?>
                                     </div>
                                     <div>
                                         <h6 class="mb-1 fw-bold text-dark"><?= e($productName) ?></h6>
@@ -434,7 +439,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 </div>
 
                 <!-- Leaflet Map Container -->
-                <div id="modal-live-map" style="height: 420px; width: 100%; position: relative; z-index: 1;"></div>
+                <div id="modal-live-map" class="order-live-map" style="width: 100%; position: relative; z-index: 1;"></div>
             </div>
             <div class="modal-footer bg-light py-2 px-3 d-flex justify-content-between align-items-center">
                 <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Real-time GPS simulation powered by OpenStreetMap & Leaflet</small>

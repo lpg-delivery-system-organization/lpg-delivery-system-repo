@@ -94,15 +94,15 @@ $roleMenu = $menus[$role] ?? [];
 ?>
 
 <!-- Mobile Sidebar Backdrop -->
-<div class="sidebar-backdrop d-md-none" id="sidebarBackdrop"></div>
+<div class="sidebar-backdrop d-lg-none" id="sidebarBackdrop"></div>
 
 <aside class="app-sidebar bg-white border-end shadow-sm" id="appSidebar">
     <div class="app-sidebar-inner d-flex flex-column h-100">
         <!-- Sidebar Navigation Heading -->
-        <div class="px-3 py-3 border-bottom d-none d-md-flex align-items-center justify-content-between">
+        <div class="px-3 py-3 border-bottom d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
                 <span class="badge text-uppercase px-2 py-1 fw-semibold" style="background: var(--app-gradient-primary); font-size: 0.7rem;"><?= e($role) ?></span>
-                <span class="small text-muted fw-semibold">Portal</span>
+                <span class="small text-muted fw-semibold sidebar-header-text">Portal</span>
             </div>
         </div>
 
@@ -114,7 +114,8 @@ $roleMenu = $menus[$role] ?? [];
                     <li class="nav-item">
                         <a class="nav-link d-flex align-items-center gap-2 px-3 py-2 <?= $isActive ? 'active' : 'text-dark' ?>" 
                            href="<?= e($item['url']) ?>"
-                           data-menu-key="<?= e($item['key']) ?>">
+                           data-menu-key="<?= e($item['key']) ?>"
+                           title="<?= e($item['label']) ?>">
                             <i class="bi <?= e($item['icon']) ?> fs-5"></i>
                             <span><?= e($item['label']) ?></span>
                         </a>
@@ -123,8 +124,8 @@ $roleMenu = $menus[$role] ?? [];
             </ul>
         </div>
 
-        <!-- Sidebar User Footer -->
-        <div class="app-sidebar-footer border-top p-3 bg-light">
+        <!-- Sidebar User Footer (hidden by default, shown on scroll) -->
+        <div class="app-sidebar-footer border-top p-3 bg-light" id="sidebarUserFooter" style="display: none;">
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-2 overflow-hidden">
                     <?php $sidebarAvatar = $_SESSION['user']['profile_picture'] ?? null; ?>
@@ -135,12 +136,12 @@ $roleMenu = $menus[$role] ?? [];
                             <?= e($initial) ?>
                         </div>
                     <?php endif; ?>
-                    <div class="overflow-hidden">
+                    <div class="overflow-hidden sidebar-footer-text">
                         <div class="fw-semibold text-truncate small text-dark"><?= e($userName) ?></div>
                         <div class="text-muted text-truncate extra-small"><?= e($userEmail) ?></div>
                     </div>
                 </div>
-                <a href="<?= url('logout.php') ?>" class="btn btn-outline-danger btn-sm p-1 px-2 flex-shrink-0" title="Logout" data-bs-toggle="tooltip" data-bs-placement="top">
+                <a href="<?= url('logout.php') ?>" class="btn btn-outline-danger btn-sm p-1 px-2 flex-shrink-0" title="Logout" data-bs-toggle="tooltip" data-bs-placement="right">
                     <i class="bi bi-box-arrow-right"></i>
                 </a>
             </div>

@@ -80,7 +80,7 @@
                 emoji = emoji || '🚴';
                 return L.divIcon({
                     className: 'rider-marker-wrapper',
-                    html: '<div class="rider-marker-icon" style="width:' + size + 'px;height:' + size + 'px;background:#2563eb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:' + Math.round(size * 0.5) + 'px;">' + emoji + '</div>',
+                    html: '<div class="rider-marker-icon" style="width:' + size + 'px;height:' + size + 'px;background:#0d9488;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:' + Math.round(size * 0.5) + 'px;">' + emoji + '</div>',
                     iconSize: [size, size],
                     iconAnchor: [size / 2, size / 2],
                     popupAnchor: [0, -(size / 2 + 2)]

@@ -317,7 +317,7 @@
             .openPopup();
 
         const routeLine = L.polyline([currentRiderCoord, customerCoord], {
-            color: '#2563eb',
+            color: '#0d9488',
             weight: 5,
             opacity: 0.85,
             dashArray: '8, 8',

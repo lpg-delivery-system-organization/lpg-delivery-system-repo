@@ -115,17 +115,19 @@ function redirect(string $path): void {
  * @param string|null $role
  * @return void
  */
-function redirect_by_role(?string $role = null): void {
+function redirect_by_role(?string $role = null, bool $splash = false): void {
     if ($role === null) {
         $role = function_exists('current_user_role') ? current_user_role() : ($_SESSION['user_role'] ?? 'customer');
     }
 
+    $qs = $splash ? '?splash=1' : '';
+
     if ($role === 'admin') {
-        redirect('/pages/admin/dashboard.php');
+        redirect('/pages/admin/dashboard.php' . $qs);
     } elseif ($role === 'rider') {
-        redirect('/pages/rider/deliveries.php');
+        redirect('/pages/rider/deliveries.php' . $qs);
     } else {
-        redirect('/pages/customer/shop.php');
+        redirect('/pages/customer/shop.php' . $qs);
     }
 }
 

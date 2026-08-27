@@ -57,6 +57,7 @@ if (!function_exists('render_order_card')) {
         $riderName = (string)($order['rider_name'] ?? '');
         $role = $options['role'] ?? (function_exists('current_user_role') ? current_user_role() : 'customer');
         $customActions = $options['actions_html'] ?? '';
+        $productImage = (string)($order['product_image'] ?? $order['image_url'] ?? '');
 
         ob_start();
         ?>
@@ -75,8 +76,12 @@ if (!function_exists('render_order_card')) {
                     <div class="col-md-6">
                         <h6 class="text-muted text-uppercase fw-semibold small mb-2">Item Details</h6>
                         <div class="d-flex align-items-start gap-3">
-                            <div class="app-product-icon p-2 bg-light rounded text-center">
-                                <i class="bi bi-fire fs-3 text-warning"></i>
+                            <div class="app-product-icon p-2 bg-light rounded text-center flex-shrink-0" style="width: 56px; height: 56px;">
+                                <?php if (!empty($productImage) && is_file(dirname(__DIR__, 2) . '/' . ltrim($productImage, '/'))): ?>
+                                    <img src="<?= e(asset($productImage)) ?>" alt="<?= e($productName) ?>" class="rounded" style="width: 100%; height: 100%; object-fit: cover;">
+                                <?php else: ?>
+                                    <i class="bi bi-fire fs-3 text-warning"></i>
+                                <?php endif; ?>
                             </div>
                             <div>
                                 <h6 class="mb-1 fw-bold"><?= e($productName) ?></h6>

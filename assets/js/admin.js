@@ -356,10 +356,20 @@
             const orderId = $(this).data('order-id');
             const customer = $(this).data('customer') || '';
             const product = $(this).data('product') || '';
+            const image = $(this).data('image') || '';
 
             $('#assignModalOrderId').val(orderId);
             $('#assignModalOrderNumber').text('Order #' + orderId);
             $('#assignModalSummary').text('Customer: ' + customer + ' • ' + product);
+
+            const $imgContainer = $('#assignModalProductImage');
+            if (image) {
+                const baseUrl = $('meta[name="base-url"]').attr('content') || '';
+                $imgContainer.find('img').attr('src', baseUrl + '/' + image.replace(/^\//, '')).attr('alt', product);
+                $imgContainer.removeClass('d-none');
+            } else {
+                $imgContainer.addClass('d-none');
+            }
 
             const modalEl = document.getElementById('assignRiderModal');
             if (modalEl && window.bootstrap && window.bootstrap.Modal) {
@@ -736,7 +746,7 @@
             .openPopup();
 
         const routeLine = L.polyline([riderStart, customerCoord], {
-            color: '#2563eb',
+            color: '#0d9488',
             weight: 5,
             opacity: 0.85,
             dashArray: '8, 8',

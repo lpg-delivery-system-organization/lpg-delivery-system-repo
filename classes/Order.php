@@ -380,7 +380,7 @@ class Order {
                 SELECT o.*,
                        c.full_name AS customer_name, c.email AS customer_email,
                        r.full_name AS rider_name,
-                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight
+                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 JOIN products p ON o.product_id = p.id
@@ -394,7 +394,7 @@ class Order {
                 SELECT o.*,
                        c.full_name AS customer_name, c.email AS customer_email,
                        r.full_name AS rider_name,
-                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight
+                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 JOIN products p ON o.product_id = p.id

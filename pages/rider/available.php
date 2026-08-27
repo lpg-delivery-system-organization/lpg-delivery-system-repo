@@ -238,6 +238,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 $paymentMethod = strtoupper((string)($order['payment_method'] ?? 'COD'));
                 $notes = (string)($order['notes'] ?? '');
                 $createdAt = (string)($order['created_at'] ?? '');
+                $productImage = (string)($order['product_image'] ?? $order['image_url'] ?? '');
                 ?>
                 <div class="col-lg-6 available-order-item"
                      data-order-id="<?= $orderId ?>"
@@ -267,8 +268,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         <div class="card-body p-3 p-md-4 flex-grow-1">
                             <!-- Product Summary -->
                             <div class="d-flex align-items-start gap-3 mb-3 p-3 bg-light rounded-3 border">
-                                <div class="app-product-icon p-2 bg-white rounded border text-center flex-shrink-0">
-                                    <i class="bi bi-fire fs-3 text-warning"></i>
+                                <div class="app-product-icon p-2 bg-white rounded border text-center flex-shrink-0 overflow-hidden" style="width: 56px; height: 56px;">
+                                    <?php if (!empty($productImage) && is_file(dirname(__DIR__, 2) . '/' . ltrim($productImage, '/'))): ?>
+                                        <img src="<?= e(asset($productImage)) ?>" alt="<?= e($productName) ?>" class="rounded" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <?php else: ?>
+                                        <i class="bi bi-fire fs-3 text-warning"></i>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="flex-grow-1">
                                     <h6 class="mb-1 fw-bold text-dark"><?= e($productName) ?></h6>

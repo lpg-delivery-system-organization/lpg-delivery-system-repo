@@ -195,7 +195,7 @@ class Mailer {
 <body style="font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333;">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
         <tr>
-            <td style="background-color: #0d6efd; padding: 24px; text-align: center; color: #ffffff;">
+            <td style="background-color: #0d9488; padding: 24px; text-align: center; color: #ffffff;">
                 <h1 style="margin: 0; font-size: 22px;">{$appName}</h1>
             </td>
         </tr>
@@ -204,11 +204,11 @@ class Mailer {
                 <p style="font-size: 16px; line-height: 1.5; margin-top: 0;">Hello <strong>{$safeName}</strong>,</p>
                 <p style="font-size: 15px; line-height: 1.5;">We received a request to reset the password for your account. Click the button below to set a new password:</p>
                 <p style="text-align: center; margin: 30px 0;">
-                    <a href="{$safeUrl}" style="background-color: #0d6efd; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset My Password</a>
+                    <a href="{$safeUrl}" style="background-color: #0d9488; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset My Password</a>
                 </p>
                 <p style="font-size: 13px; color: #6c757d; line-height: 1.4;">This link will expire in 60 minutes. If you did not request a password reset, please ignore this email or contact support if you suspect unauthorized access.</p>
                 <hr style="border: none; border-top: 1px solid #e9ecef; margin: 24px 0;">
-                <p style="font-size: 12px; color: #adb5bd; word-break: break-all;">If the button doesn't work, copy and paste this URL into your browser:<br><a href="{$safeUrl}" style="color: #0d6efd;">{$safeUrl}</a></p>
+                <p style="font-size: 12px; color: #adb5bd; word-break: break-all;">If the button doesn't work, copy and paste this URL into your browser:<br><a href="{$safeUrl}" style="color: #0d9488;">{$safeUrl}</a></p>
             </td>
         </tr>
         <tr>

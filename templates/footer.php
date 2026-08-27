@@ -26,6 +26,14 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
     <!-- Bootstrap 5 Toast Notification Container -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index: 1090;"></div>
 
+    <!-- Theme Toggle Script (runs immediately to prevent flash) -->
+    <script>
+    (function() {
+        var saved = localStorage.getItem('app-theme');
+        if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+    </script>
+
     <!-- jQuery 3.7.1 CDN -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
@@ -40,6 +48,40 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
 
     <!-- Global Application JS -->
     <script src="<?= asset_v('assets/js/app.js') ?>"></script>
+
+    <!-- Theme Toggle Handler -->
+    <script>
+    (function() {
+        var toggle = document.getElementById('themeToggle');
+        if (!toggle) return;
+
+        function isDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
+
+        function updateIcon() {
+            var icon = toggle.querySelector('i');
+            if (isDark()) {
+                icon.classList.remove('bi-moon-fill');
+                icon.classList.add('bi-sun-fill');
+            } else {
+                icon.classList.remove('bi-sun-fill');
+                icon.classList.add('bi-moon-fill');
+            }
+        }
+
+        toggle.addEventListener('click', function() {
+            if (isDark()) {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('app-theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('app-theme', 'dark');
+            }
+            updateIcon();
+        });
+
+        updateIcon();
+    })();
+    </script>
 
     <!-- Shared Map & Chat Modules (AppMaps / AppChat) -->
     <script src="<?= asset_v('assets/js/shared-maps.js') ?>"></script>

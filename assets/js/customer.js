@@ -94,8 +94,8 @@
                 .html('<i class="bi bi-check2 me-1"></i>Selected');
 
             // Highlight selected product card
-            $('.app-product-card').removeClass('border-primary shadow-sm ring-2 ring-primary bg-light-subtle');
-            $card.addClass('border-primary shadow-sm bg-light-subtle');
+            $('.app-product-card').removeClass('app-product-selected');
+            $card.addClass('app-product-selected');
 
             // Update state
             $productIdInput.val(id);
@@ -115,17 +115,12 @@
             // Show checkout section if hidden
             $orderSection.removeClass('d-none');
 
-            // Navigate to the order form smoothly on mobile
-            if ($(window).width() < 992) {
-                $('html, body').animate({
-                    scrollTop: $orderSection.offset().top - 80
-                }, 400);
-            } else {
-                // Desktop: pulse-highlight the pinned checkout card to draw attention
+            // Desktop: pulse-highlight the pinned checkout card to draw attention
+            if ($(window).width() >= 992) {
                 $orderSection.addClass('shop-checkout-flash');
                 setTimeout(function () {
                     $orderSection.removeClass('shop-checkout-flash');
-                }, 1200);
+                }, 1500);
             }
         });
 
@@ -350,7 +345,7 @@
                 .openPopup();
 
             const routeLine = L.polyline([riderStart, customerCoord], {
-                color: '#2563eb',
+                color: '#0d9488',
                 weight: 4,
                 opacity: 0.85,
                 dashArray: '8, 8'
@@ -438,7 +433,7 @@
 
             // Route Polyline
             const routeLine = L.polyline([riderStart, customerCoord], {
-                color: '#2563eb',
+                color: '#0d9488',
                 weight: 4,
                 opacity: 0.85,
                 dashArray: '8, 8',
@@ -557,7 +552,7 @@
                     .openPopup();
 
                 const routeLine = L.polyline([riderStart, customerCoord], {
-                    color: '#2563eb',
+                    color: '#0d9488',
                     weight: 5,
                     opacity: 0.85,
                     dashArray: '8, 8',

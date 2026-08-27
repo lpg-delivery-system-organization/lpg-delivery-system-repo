@@ -237,27 +237,15 @@ require_once __DIR__ . '/../../templates/header.php';
                         $isOutOfStock = ($pStock <= 0);
                         $isSelected = ($pId === $formData['product_id']);
                         ?>
-                        <div class="col-md-6 col-xl-4" data-aos="fade-up" data-aos-delay="<?= ($pId % 3) * 100 ?>">
-                            <div class="card app-product-card h-100 border-0 shadow-sm <?= $isSelected ? 'border-primary shadow-sm bg-light-subtle' : '' ?>" id="productCard_<?= $pId ?>">
+                        <div class="col-md-6 col-xl-4" data-aos="fade-up" data-aos-delay="<?= ($pId % 3) * 80 ?>">
+                            <div class="card app-product-card h-100 border-0 shadow-sm <?= $isSelected ? 'app-product-selected' : '' ?>" id="productCard_<?= $pId ?>">
                                 <div class="app-product-img-wrapper position-relative text-center p-3">
                                     <?php if (!empty($product['image_url']) && file_exists(dirname(__DIR__, 2) . '/' . ltrim($product['image_url'], '/'))): ?>
-                                        <img src="<?= asset($product['image_url']) ?>" alt="<?= e($product['name']) ?>" class="img-fluid">
+                                        <img src="<?= asset($product['image_url']) ?>" alt="<?= e($product['name']) ?>" style="max-height: 140px; max-width: 80%; object-fit: contain;">
                                     <?php else: ?>
-                                        <?php
-                                            // Build a normalized "Brand Weight" lookup key, e.g. "Gasul 11kg"
-                                            $placeholderKey = trim(($product['brand'] ?? '') . ' ' . ($product['weight'] ?? ''));
-                                            $placeholderSrc = null;
-                                            foreach ($productPlaceholderImages as $labelKey => $imgPath) {
-                                                if (strcasecmp(trim($labelKey), $placeholderKey) === 0) {
-                                                    $placeholderSrc = $imgPath;
-                                                    break;
-                                                }
-                                            }
-                                            $placeholderSrc = $placeholderSrc ?? $defaultProductImage;
-                                        ?>
-                                        <!-- DEBUG: product "<?= e($placeholderKey) ?>" is using image path: <?= e($placeholderSrc) ?> -->
-                                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-primary">
-                                            <img src="<?= asset($placeholderSrc) ?>" alt="<?= e($product['name']) ?>" class="img-fluid">
+                                        <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                                            <i class="bi bi-fire" style="font-size: 3rem; opacity: 0.4;"></i>
+                                            <small class="mt-1" style="font-size: 0.7rem; opacity: 0.5;">No Image</small>
                                         </div>
                                     <?php endif; ?>
 

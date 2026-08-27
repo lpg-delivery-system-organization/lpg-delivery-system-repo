@@ -151,8 +151,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 </div>
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center gap-3 p-3 bg-light rounded-3 mb-4">
-                        <div class="app-product-icon rounded-3 bg-primary text-white flex-shrink-0">
-                            <i class="bi bi-fire fs-4"></i>
+                        <div class="app-product-icon rounded-3 bg-primary text-white flex-shrink-0 overflow-hidden" style="width: 64px; height: 64px;">
+                            <?php $detailImage = $order['product_image'] ?? ''; ?>
+                            <?php if (!empty($detailImage) && is_file(dirname(__DIR__, 2) . '/' . ltrim($detailImage, '/'))): ?>
+                                <img src="<?= e(asset($detailImage)) ?>" alt="<?= e($order['product_name'] ?? 'LPG') ?>" style="width: 100%; height: 100%; object-fit: cover;">
+                            <?php else: ?>
+                                <i class="bi bi-fire fs-4"></i>
+                            <?php endif; ?>
                         </div>
                         <div class="flex-grow-1">
                             <h5 class="fw-bold text-dark mb-1"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></h5>
