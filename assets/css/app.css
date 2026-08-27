@@ -279,6 +279,12 @@ body.app-body {
     text-transform: uppercase;
 }
 
+.badge-status-pending_payment {
+    background-color: #fef9c3 !important;
+    color: #a16207 !important;
+    border: 1px solid #fef08a;
+}
+
 .badge-status-pending {
     background-color: #fef3c7 !important;
     color: #92400e !important;

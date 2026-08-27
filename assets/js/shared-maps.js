@@ -158,6 +158,44 @@
         },
 
         /**
+         * Fetch a real road-following route between two coordinates using the
+         * OSRM public routing API.
+         *
+         * @param {Array} from [lat, lng]
+         * @param {Array} to   [lat, lng]
+         * @returns {Promise} resolves to an array of [lat, lng] points along the
+         *                    road (GeoJSON LineString coordinates), or null if the
+         *                    request fails / no route is found (never rejects).
+         */
+        fetchRoute: function (from, to) {
+            if (typeof window.L === 'undefined' || !from || !to) {
+                return $.Deferred().resolve(null).promise();
+            }
+            const coords = from[1] + ',' + from[0] + ';' + to[1] + ',' + to[0];
+            return $.ajax({
+                url: 'https://router.project-osrm.org/route/v1/driving/' + coords,
+                type: 'GET',
+                data: {
+                    overview: 'full',
+                    geometries: 'geojson',
+                    steps: 'false'
+                },
+                dataType: 'json'
+            }).then(function (res) {
+                if (res && res.code === 'Ok' && res.routes && res.routes.length > 0) {
+                    const line = res.routes[0].geometry;
+                    if (line && line.coordinates && line.coordinates.length) {
+                        // GeoJSON geometry is [lng, lat]; convert to Leaflet [lat, lng].
+                        return line.coordinates.map(function (c) { return [c[1], c[0]]; });
+                    }
+                }
+                return null;
+            }, function () {
+                return null;
+            });
+        },
+
+        /**
          * Initialize all static ".pin-location-map" elements:
          * geocode their data-address and drop an exact pin.
          */
@@ -272,10 +310,46 @@
             let pollIntervalId = null;
             let simulateIntervalId = null;
 
+            // Real-time road-route state (throttled OSRM re-routing).
+            let routedTo = null;
+            let routeInFlight = false;
+            let lastRouteFetchAt = 0;
+            const routeThrottleMs = config.routeThrottleMs || 6000;
+
             function setRider(coord) {
                 riderCoord = coord;
                 riderMarker.setLatLng(riderCoord);
                 routeLine.setLatLngs([riderCoord, customerCoord]);
+            }
+
+            /**
+             * Re-fetch the OSRM road route between the rider's current position
+             * and the destination, throttled, and swap it into routeLine when it
+             * differs from the last routed position. Falls back to the straight
+             * line automatically if the routing API is unavailable.
+             */
+            function updateRoute() {
+                if (stopped || routeInFlight) return;
+
+                const now = Date.now();
+                if (now - lastRouteFetchAt < routeThrottleMs) return;
+                lastRouteFetchAt = now;
+
+                const origin = riderCoord;
+                const dest = customerCoord;
+                if (!origin || !dest) return;
+
+                routeInFlight = true;
+                AppMaps.fetchRoute(origin, dest).then(function (points) {
+                    routeInFlight = false;
+                    if (stopped) return;
+                    // Only apply if the rider has actually moved since this request
+                    // was issued (guards against race conditions from throttling).
+                    if (points && points.length > 1 && dest === customerCoord) {
+                        routeLine.setLatLngs(points);
+                        routedTo = origin;
+                    }
+                });
             }
 
             function renderStatus(html) {
@@ -298,6 +372,7 @@
                         if (stopped || !res || !res.success || !res.data) return;
                         hasRealLocation = true;
                         setRider([parseFloat(res.data.latitude), parseFloat(res.data.longitude)]);
+                        updateRoute();
                         map.fitBounds(L.latLngBounds([riderCoord, customerCoord]), { padding: padding });
                         if (config.onRealFix) config.onRealFix();
                     }
@@ -328,6 +403,7 @@
                 riderCoord = [riderCoord[0] + latDiff * stepRatio, riderCoord[1] + lngDiff * stepRatio];
                 riderMarker.setLatLng(riderCoord);
                 routeLine.setLatLngs([riderCoord, customerCoord]);
+                updateRoute();
 
                 const progressPercent = Math.min(95, Math.round((1 - (distanceRemaining / 0.022)) * 100));
                 renderStatus(texts.enroute(config.riderName, Math.max(5, progressPercent)));

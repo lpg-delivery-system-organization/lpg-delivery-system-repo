@@ -49,7 +49,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 
     try {
-        $orderModel->cancel($cancelOrderId, 'Cancelled by customer via portal');
+        $cancelReason = sanitize_input($_POST['cancel_reason'] ?? '');
+        if (strcasecmp($cancelReason, 'other') === 0) {
+            $other = sanitize_input($_POST['cancel_reason_other'] ?? '');
+            $cancelReason = $other !== '' ? $other : 'Other';
+        }
+        if ($cancelReason === '') {
+            $cancelReason = 'Cancelled by customer via portal';
+        }
+        $orderModel->cancel($cancelOrderId, $cancelReason);
         set_flash('success', "Order #{$cancelOrderId} has been successfully cancelled. Stock has been restored.");
     } catch (Throwable $e) {
         set_flash('error', 'Failed to cancel order: ' . $e->getMessage());
@@ -147,7 +155,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 <?php
                 $orderId = (int)$order['id'];
                 $status = (string)($order['status'] ?? 'pending');
-                $isPending = ($status === 'pending');
+                $isPending = in_array($status, ['pending', 'pending_payment'], true);
                 $isDelivered = ($status === 'delivered');
                 $isCancelled = ($status === 'cancelled');
                 $isInTransit = in_array($status, $inTransitStatuses, true);
@@ -354,7 +362,10 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <?php if ($isPending): ?>
                                 <button type="button" 
                                         class="btn btn-outline-danger btn-sm btn-open-cancel-modal px-3" 
-                                        data-order-id="<?= $orderId ?>">
+                                        data-order-id="<?= $orderId ?>"
+                                        data-order-number="<?= $orderId ?>"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#cancelOrderModal">
                                     <i class="bi bi-x-circle me-1"></i>Cancel Order
                                 </button>
                             <?php endif; ?>
@@ -396,7 +407,19 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 </div>
                 <div class="modal-body p-4">
                     <p class="mb-2">Are you sure you want to cancel <strong id="cancelModalOrderNumber" class="text-danger">Order</strong>?</p>
-                    <p class="text-muted small mb-0">This will release the reserved LPG cylinder(s) back into inventory immediately.</p>
+                    <p class="text-muted small mb-3">This will release the reserved LPG cylinder(s) back into inventory immediately.</p>
+
+                    <label for="cancelReasonSelect" class="form-label fw-semibold small text-muted text-uppercase">Reason for Cancellation</label>
+                    <select class="form-select mb-2" id="cancelReasonSelect" name="cancel_reason">
+                        <option value="" disabled selected>Select a reason...</option>
+                        <option value="Change of mind">Change of mind</option>
+                        <option value="Ordered by mistake">Ordered by mistake</option>
+                        <option value="Found a cheaper price elsewhere">Found a cheaper price elsewhere</option>
+                        <option value="Delivery takes too long">Delivery takes too long</option>
+                        <option value="Payment issue">Payment issue</option>
+                        <option value="other">Other (please specify)</option>
+                    </select>
+                    <input type="text" class="form-control d-none" id="cancelReasonOtherInput" name="cancel_reason_other" maxlength="255" placeholder="Please specify your reason...">
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">Keep Order</button>

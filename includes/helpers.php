@@ -62,6 +62,38 @@ function url(string $path = ''): string {
 }
 
 /**
+ * Generate an absolute URL (scheme + host) for a given path.
+ *
+ * Unlike url(), this always returns a fully-qualified URL so it can be used
+ * in contexts where a scheme/host is required (e.g. PayMongo `success_url`
+ * and `cancel_url`, or external redirects). Falls back to http://localhost
+ * when the request host is unavailable.
+ *
+ * @param string $path
+ * @return string
+ */
+function absolute_url(string $path = ''): string {
+    if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        return $path;
+    }
+
+    // Detect the scheme (behind a proxy use X-Forwarded-Proto when available).
+    $scheme = 'http';
+    if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== '' && $_SERVER['HTTPS'] !== 'off') {
+        $scheme = 'https';
+    } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+        $forwarded = strtolower(trim($_SERVER['HTTP_X_FORWARDED_PROTO']));
+        $scheme = ($forwarded === 'https') ? 'https' : 'http';
+    }
+
+    // Detect the host (behind a proxy use X-Forwarded-Host when available).
+    $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
+
+    $relative = url($path);
+    return $scheme . '://' . $host . $relative;
+}
+
+/**
  * Generate asset URL
  *
  * @param string $path

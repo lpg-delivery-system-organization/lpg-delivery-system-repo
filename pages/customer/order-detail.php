@@ -38,12 +38,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         json_response(['success' => false, 'error' => 'Unauthorized or order not found.'], 403);
     }
 
-    if ($order['status'] !== 'pending') {
+    if (!in_array($order['status'], ['pending', 'pending_payment'], true)) {
         json_response(['success' => false, 'error' => 'Only pending orders can be cancelled.'], 400);
     }
 
     try {
-        $success = $orderModel->cancel($targetId, 'Cancelled by customer via order details');
+        $cancelReason = sanitize_input($_POST['cancel_reason'] ?? '');
+        if (strcasecmp($cancelReason, 'other') === 0) {
+            $other = sanitize_input($_POST['cancel_reason_other'] ?? '');
+            $cancelReason = $other !== '' ? $other : 'Other';
+        }
+        if ($cancelReason === '') {
+            $cancelReason = 'Cancelled by customer via order details';
+        }
+        $success = $orderModel->cancel($targetId, $cancelReason);
         if ($success) {
             json_response(['success' => true, 'message' => 'Order #' . $targetId . ' has been successfully cancelled.']);
         } else {
@@ -208,6 +216,64 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <?= e($order['payment_method'] ?? 'COD') ?>
                         </span>
                     </div>
+
+                    <?php if (($order['payment_method'] ?? '') === 'GCASH'): ?>
+                        <?php
+                        $paymentStatus = strtolower((string)($order['payment_status'] ?? 'unpaid'));
+                        $refundStatus = strtolower((string)($order['refund_status'] ?? 'none'));
+                        $statusInfo = [
+                            'paid'   => ['label' => 'Paid',             'class' => 'text-success'],
+                            'failed' => ['label' => 'Payment Failed',   'class' => 'text-danger'],
+                            'unpaid' => ['label' => 'Awaiting Payment', 'class' => 'text-warning'],
+                        ];
+                        $info = $statusInfo[$paymentStatus] ?? ['label' => ucwords($paymentStatus), 'class' => 'text-secondary'];
+                        $refundInfo = [
+                            'none'      => ['label' => '', 'class' => ''],
+                            'requested' => ['label' => 'Refund Requested (Pending Approval)', 'class' => 'badge bg-warning-subtle text-warning-emphasis border border-warning-subtle'],
+                            'refunded'  => ['label' => 'Refunded', 'class' => 'badge bg-success-subtle text-success-emphasis border border-success-subtle'],
+                            'failed'    => ['label' => 'Refund Failed', 'class' => 'badge bg-danger-subtle text-danger-emphasis border border-danger-subtle'],
+                            'rejected'  => ['label' => 'Refund Declined', 'class' => 'badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle'],
+                        ];
+                        $rInfo = $refundInfo[$refundStatus] ?? ['label' => '', 'class' => ''];
+                        $canRequestRefund = ($paymentStatus === 'paid' && in_array($refundStatus, ['none', 'rejected', 'failed'], true) && $status !== 'cancelled');
+                        ?>
+                        <div class="p-3 rounded-3 border mt-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="text-muted extra-small text-uppercase fw-semibold d-block">Payment Status</span>
+                                    <strong class="<?= $info['class'] ?> fs-6"><i class="bi <?= $paymentStatus === 'paid' ? 'bi-check-circle-fill' : ($paymentStatus === 'failed' ? 'bi-x-circle-fill' : 'bi-hourglass-split') ?> me-1"></i><?= $info['label'] ?></strong>
+                                    <?php if (!empty($order['payment_reference'])): ?>
+                                        <div class="small text-muted mt-1">Reference: <code><?= e($order['payment_reference']) ?></code></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($order['paid_at'])): ?>
+                                        <div class="small text-muted">Paid on <?= e(format_date($order['paid_at'], 'M d, Y h:i A')) ?></div>
+                                    <?php endif; ?>
+                                    <?php if ($refundStatus !== 'none'): ?>
+                                        <div class="mt-2"><span class="<?= e($rInfo['class']) ?> px-2 py-1 small fw-semibold"><?= e($rInfo['label']) ?></span>
+                                            <?php if (!empty($order['refund_reason'])): ?>
+                                                <div class="small text-muted mt-1"><strong>Reason:</strong> <?= e($order['refund_reason']) ?></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($order['refund_processed_at'])): ?>
+                                                <div class="small text-muted">Processed on <?= e(format_date($order['refund_processed_at'], 'M d, Y h:i A')) ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if ($canRequestRefund): ?>
+                                    <button type="button" class="btn btn-outline-danger btn-sm fw-semibold flex-shrink-0"
+                                            data-bs-toggle="modal" data-bs-target="#refundRequestModal"
+                                            data-order-id="<?= $orderId ?>"
+                                            data-csrf="<?= csrf_token() ?>">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Request Refund
+                                    </button>
+                                <?php else: ?>
+                                    <?php if ($paymentStatus === 'unpaid' && in_array($status, ['pending_payment', 'pending'], true)): ?>
+                                        <i class="bi bi-credit-card text-muted fs-4"></i>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -270,10 +336,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 </div>
 
                 <div class="card-footer bg-white p-3 border-top d-flex gap-2 justify-content-end">
-                    <?php if ($isPending): ?>
+                    <?php if ($isPending || $status === 'pending_payment'): ?>
                         <button type="button" class="btn btn-outline-danger px-4 fw-semibold btn-cancel-order-detail"
                                 data-order-id="<?= $orderId ?>"
-                                data-csrf="<?= csrf_token() ?>">
+                                data-csrf="<?= csrf_token() ?>"
+                                data-bs-toggle="modal"
+                                data-bs-target="#cancelOrderModal">
                             <i class="bi bi-x-circle me-1"></i>Cancel Order
                         </button>
                     <?php endif; ?>
@@ -316,6 +384,64 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 </div>
             </div>
         <?php endif; ?>
+    </div>
+</div>
+
+<!-- Cancel Order Modal -->
+<div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h6 class="modal-title fw-bold" id="cancelOrderModalLabel"><i class="bi bi-x-circle me-2"></i>Cancel Order <span id="cancelModalOrderNumber">#0</span></h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="cancelModalOrderId" value="0">
+                <p class="mb-3">Are you sure you want to cancel <strong id="cancelModalOrderNumberText" class="text-danger">this order</strong>?</p>
+
+                <label for="cancelReasonSelect" class="form-label fw-semibold small text-muted text-uppercase">Reason for Cancellation</label>
+                <select class="form-select mb-2" id="cancelReasonSelect">
+                    <option value="" disabled selected>Select a reason...</option>
+                    <option value="Change of mind">Change of mind</option>
+                    <option value="Ordered by mistake">Ordered by mistake</option>
+                    <option value="Found a cheaper price elsewhere">Found a cheaper price elsewhere</option>
+                    <option value="Delivery takes too long">Delivery takes too long</option>
+                    <option value="Payment issue">Payment issue</option>
+                    <option value="other">Other (please specify)</option>
+                </select>
+                <input type="text" class="form-control d-none" id="cancelReasonOtherInput" maxlength="255" placeholder="Please specify your reason...">
+            </div>
+            <div class="modal-footer bg-light border-top">
+                <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal">Keep Order</button>
+                <button type="button" class="btn btn-danger px-3 fw-semibold" id="btnSubmitCancelOrderDetail">
+                    <i class="bi bi-x-circle me-1"></i>Yes, Cancel Order
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Refund Request Modal -->
+<div class="modal fade" id="refundRequestModal" tabindex="-1" aria-labelledby="refundRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h6 class="modal-title fw-bold text-dark" id="refundRequestModalLabel"><i class="bi bi-arrow-counterclockwise text-danger me-2"></i>Request Refund</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small">You've already paid for this order. Submitting a refund request notifies an administrator, who will review and approve the refund back to your payment method. Your order will only be cancelled once the refund is approved.</p>
+                <label class="text-muted extra-small text-uppercase fw-semibold d-block mb-1">Reason for Refund / Cancellation</label>
+                <textarea class="form-control" id="refundRequestReason" rows="3" maxlength="255" placeholder="e.g. I no longer need this order, please cancel and refund me."></textarea>
+                <div class="form-text text-end" id="refundReasonCount">0 / 255</div>
+            </div>
+            <div class="modal-footer bg-light border-top">
+                <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger px-3 fw-semibold" id="btnSubmitRefundRequest">
+                    <i class="bi bi-check-lg me-1"></i>Submit Refund Request
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 

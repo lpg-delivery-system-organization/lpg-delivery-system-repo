@@ -67,7 +67,17 @@ CREATE TABLE `orders` (
   `unit_price` decimal(10,2) NOT NULL,
   `total_amount` decimal(10,2) NOT NULL,
   `payment_method` enum('cod','gcash') NOT NULL DEFAULT 'cod',
-  `status` enum('pending','approved','ready_for_delivery','picked_up','out_for_delivery','delivered','cancelled') NOT NULL DEFAULT 'pending',
+  `payment_reference` varchar(64) DEFAULT NULL,
+  `payment_id` varchar(64) DEFAULT NULL,
+  `payment_status` enum('unpaid','paid','failed') NOT NULL DEFAULT 'unpaid',
+  `refund_status` enum('none','requested','refunded','failed','rejected') NOT NULL DEFAULT 'none',
+  `refund_reference` varchar(64) DEFAULT NULL,
+  `refund_reason` varchar(255) DEFAULT NULL,
+  `refund_requested_at` datetime DEFAULT NULL,
+  `refund_processed_at` datetime DEFAULT NULL,
+  `cancel_reason` varchar(255) DEFAULT NULL,
+  `paid_at` datetime DEFAULT NULL,
+  `status` enum('pending_payment','pending','approved','ready_for_delivery','picked_up','out_for_delivery','delivered','cancelled') NOT NULL DEFAULT 'pending',
   `delivery_address` text NOT NULL,
   `delivery_latitude` decimal(10,7) DEFAULT NULL,
   `delivery_longitude` decimal(10,7) DEFAULT NULL,
@@ -355,7 +365,10 @@ ALTER TABLE `orders`
   ADD KEY `idx_customer` (`customer_id`),
   ADD KEY `idx_rider` (`rider_id`),
   ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_created` (`created_at`);
+  ADD KEY `idx_created` (`created_at`),
+  ADD KEY `idx_payment_reference` (`payment_reference`),
+  ADD KEY `idx_payment_id` (`payment_id`),
+  ADD KEY `idx_refund_status` (`refund_status`);
 
 --
 -- Indexes for table `password_resets`

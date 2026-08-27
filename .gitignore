@@ -1,1 +1,5 @@
 .playwright-mcp/
+
+# Local PayMongo credentials (contains secret key) - never commit
+config/paymongo.local.php
+config/paymongo.php

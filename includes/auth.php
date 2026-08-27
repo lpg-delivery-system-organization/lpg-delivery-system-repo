@@ -36,7 +36,8 @@ if (!defined('RATE_LIMIT_LOCKOUT')) {
  *
  * Configures:
  * - httponly: true (prevents XSS access to cookie)
- * - samesite: Strict (CSRF mitigation)
+ * - samesite: Lax (blocks CSRF on cross-site subrequests but allows the
+ *   cookie on top-level navigations, e.g. the redirect back from PayMongo)
  * - secure: true when HTTPS is enabled
  * - use_strict_mode: true (prevents uninitialized session ID adoption)
  *
@@ -61,12 +62,12 @@ function init_session(?int $customLifetime = null): void {
                     'domain' => '',
                     'secure' => $isSecure,
                     'httponly' => true,
-                    'samesite' => 'Strict'
+                    'samesite' => 'Lax'
                 ]);
             } else {
                 session_set_cookie_params(
                     0,
-                    '/; samesite=Strict',
+                    '/; samesite=Lax',
                     '',
                     $isSecure,
                     true

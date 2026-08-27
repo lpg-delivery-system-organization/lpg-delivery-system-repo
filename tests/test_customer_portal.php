@@ -332,7 +332,7 @@ it('shop.php validates required fields, phone number format, and payment method'
     assert_contains('Please select a valid payment method', $html);
 });
 
-it('shop.php successfully places order, decrements stock atomically, and redirects to orders.php', function () use ($db, $testCustomer, $productModel, $orderModel, $customerId) {
+it('shop.php successfully places order (COD), decrements stock atomically, and redirects to order detail', function () use ($db, $testCustomer, $productModel, $orderModel, $customerId) {
     reset_customer_env();
     login_user($testCustomer);
     $token = csrf_token();
@@ -354,15 +354,16 @@ it('shop.php successfully places order, decrements stock atomically, and redirec
     $_POST['csrf_token'] = $token;
     $_POST['product_id'] = $productId;
     $_POST['quantity'] = $orderQty;
-    $_POST['payment_method'] = 'gcash';
+    $_POST['payment_method'] = 'cod';
     $_POST['delivery_address'] = '123 Test Ave, Pasig City';
     $_POST['contact_phone'] = '09181234567';
     $_POST['notes'] = 'Handle with care';
 
     render_page(__DIR__ . '/../pages/customer/shop.php');
 
-    // Verify redirect to orders.php
-    assert_equals(url('/pages/customer/orders.php'), $GLOBALS['LAST_REDIRECT']);
+    // Verify redirect to order detail (COD flow)
+    assert_true(isset($GLOBALS['LAST_REDIRECT']), 'expected a redirect');
+    assert_contains('/pages/customer/order-detail.php?id=', $GLOBALS['LAST_REDIRECT']);
     assert_true(has_flash());
     $flash = get_flash();
     assert_equals('success', $flash['type']);
@@ -378,12 +379,59 @@ it('shop.php successfully places order, decrements stock atomically, and redirec
     $latestOrder = $customerOrders[0];
     assert_equals($productId, (int)$latestOrder['product_id']);
     assert_equals($orderQty, (int)$latestOrder['quantity']);
-    assert_equals('gcash', $latestOrder['payment_method']);
+    assert_equals('cod', $latestOrder['payment_method']);
     assert_equals('pending', $latestOrder['status']);
     assert_equals('123 Test Ave, Pasig City', $latestOrder['delivery_address']);
     assert_equals('09181234567', $latestOrder['contact_phone']);
     assert_equals((float)$targetProduct['price'], (float)$latestOrder['unit_price']);
     assert_equals(round((float)$targetProduct['price'] * $orderQty, 2), (float)$latestOrder['total_amount']);
+});
+
+it('Order::place with status pending_payment does NOT decrement stock, and confirmPayment reserves it atomically', function () use ($db, $testCustomer, $productModel, $orderModel, $customerId) {
+    reset_customer_env();
+
+    // Get an active product, ensure enough stock, record initial
+    $products = $productModel->getActive();
+    assert_not_empty($products);
+    $targetProduct = $products[0];
+    $productId = (int)$targetProduct['id'];
+    if ((int)$targetProduct['stock'] < 3) {
+        $productModel->updateStock($productId, 10);
+    }
+    $initialStock = (int)$productModel->findById($productId)['stock'];
+    $orderQty = 2;
+
+    // Place an online order awaiting payment: stock must NOT be touched yet.
+    $newOrderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => $orderQty,
+        'payment_method'   => 'gcash',
+        'delivery_address' => '123 Test Ave, Pasig City',
+        'contact_phone'    => '09181234567',
+        'delivery_latitude'  => '14.5600',
+        'delivery_longitude' => '121.0800',
+        'notes'            => '',
+        'status'           => 'pending_payment'
+    ]);
+    assert_true($newOrderId > 0, 'order should be created');
+
+    // Stock unchanged while awaiting payment.
+    assert_equals($initialStock, (int)$productModel->findById($productId)['stock']);
+    $placed = $orderModel->findById($newOrderId);
+    assert_equals('pending_payment', $placed['status']);
+    assert_equals('unpaid', $placed['payment_status']);
+
+    // Simulate the PayMongo webhook confirming payment.
+    $confirmed = $orderModel->confirmPayment($newOrderId);
+    assert_true($confirmed, 'confirmPayment should succeed');
+
+    // Stock now reserved and order moved into the normal pending queue as paid.
+    assert_equals($initialStock - $orderQty, (int)$productModel->findById($productId)['stock']);
+    $paid = $orderModel->findById($newOrderId);
+    assert_equals('pending', $paid['status']);
+    assert_equals('paid', $paid['payment_status']);
+    assert_true(!empty($paid['paid_at']), 'paid_at should be recorded');
 });
 
 it('shop.php rejects order when requested quantity exceeds available stock', function () use ($db, $testCustomer, $productModel) {

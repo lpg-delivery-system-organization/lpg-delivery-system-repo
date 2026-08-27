@@ -360,7 +360,7 @@ switch ($action) {
                 return;
             }
 
-            if ($order['status'] !== 'pending') {
+            if (!in_array($order['status'], ['pending', 'pending_payment'], true)) {
                 json_response([
                     'success' => false,
                     'message' => "Orders with status '{$order['status']}' cannot be cancelled by customers.",
@@ -470,6 +470,102 @@ switch ($action) {
             'data'    => $order
         ], 200);
         return;
+
+    case 'request_refund':
+        // Allowed: Customer (own order) or Admin
+        {
+            $orderId = (int)($input['order_id'] ?? 0);
+            $reason = trim((string)($input['reason'] ?? $input['refund_reason'] ?? ''));
+            if ($orderId <= 0) {
+                json_response(['success' => false, 'message' => 'Order ID is required.', 'error' => 'Bad Request'], 400);
+                return;
+            }
+
+            $order = $orderModel->findById($orderId);
+            if (!$order) {
+                json_response(['success' => false, 'message' => "Order #{$orderId} not found.", 'error' => 'Not Found'], 404);
+                return;
+            }
+            if ($currentUserRole === 'customer' && (int)$order['customer_id'] !== $currentUserId) {
+                json_response(['success' => false, 'message' => 'Access denied. You can only request a refund for your own orders.', 'error' => 'Forbidden'], 403);
+                return;
+            }
+
+            try {
+                $done = $orderModel->requestRefund($orderId, $reason);
+                json_response([
+                    'success' => true,
+                    'message' => "Refund request submitted for order #{$orderId}. An administrator will review it shortly.",
+                    'data'    => $orderModel->findById($orderId)
+                ], 200);
+                return;
+            } catch (InvalidArgumentException $e) {
+                json_response(['success' => false, 'message' => $e->getMessage(), 'error' => 'Invalid Argument'], 400);
+                return;
+            } catch (Throwable $e) {
+                json_response(['success' => false, 'message' => $e->getMessage(), 'error' => 'Server Error'], 500);
+                return;
+            }
+        }
+
+    case 'approve_refund':
+        // Allowed: Admin only
+        if ($currentUserRole !== 'admin') {
+            json_response(['success' => false, 'message' => 'Access denied. Only administrators can approve refunds.', 'error' => 'Forbidden'], 403);
+            return;
+        }
+        {
+            $orderId = (int)($input['order_id'] ?? 0);
+            if ($orderId <= 0) {
+                json_response(['success' => false, 'message' => 'Order ID is required.', 'error' => 'Bad Request'], 400);
+                return;
+            }
+
+            $result = $orderModel->approveRefund($orderId);
+            if (!empty($result['refunded'])) {
+                json_response([
+                    'success' => true,
+                    'message' => "Refund issued for order #{$orderId} and the order was cancelled with stock restored.",
+                    'data'    => ['refund_id' => $result['refund_id'] ?? null, 'order' => $orderModel->findById($orderId)]
+                ], 200);
+                return;
+            }
+
+            json_response([
+                'success' => false,
+                'message' => "Refund could not be completed: " . ($result['error'] ?? 'Unknown error'),
+                'error'   => 'Refund Failed'
+            ], 400);
+            return;
+        }
+
+    case 'reject_refund':
+        // Allowed: Admin only
+        if ($currentUserRole !== 'admin') {
+            json_response(['success' => false, 'message' => 'Access denied. Only administrators can reject refunds.', 'error' => 'Forbidden'], 403);
+            return;
+        }
+        {
+            $orderId = (int)($input['order_id'] ?? 0);
+            $reason = trim((string)($input['reason'] ?? ''));
+            if ($orderId <= 0) {
+                json_response(['success' => false, 'message' => 'Order ID is required.', 'error' => 'Bad Request'], 400);
+                return;
+            }
+
+            try {
+                $done = $orderModel->rejectRefund($orderId, $reason);
+                json_response([
+                    'success' => true,
+                    'message' => "Refund request for order #{$orderId} was rejected.",
+                    'data'    => $orderModel->findById($orderId)
+                ], 200);
+                return;
+            } catch (Throwable $e) {
+                json_response(['success' => false, 'message' => $e->getMessage(), 'error' => 'Server Error'], 400);
+                return;
+            }
+        }
 
     default:
         json_response([

@@ -337,7 +337,27 @@
             currentRiderCoord = [lat, lng];
             riderMarker.setLatLng(currentRiderCoord);
             routeLine.setLatLngs([currentRiderCoord, customerCoord]);
+            updateRiderRoute();
         }
+
+        // Real-time road-following route (OSRM), throttled, with straight-line fallback.
+        let riderRouteInFlight = false;
+        let riderLastRouteFetchAt = 0;
+        function updateRiderRoute() {
+            if (riderRouteInFlight) return;
+            const now = Date.now();
+            if (now - riderLastRouteFetchAt < 6000) return;
+            riderLastRouteFetchAt = now;
+
+            riderRouteInFlight = true;
+            AppMaps.fetchRoute(currentRiderCoord, customerCoord).then(function (points) {
+                riderRouteInFlight = false;
+                if (points && points.length > 1) {
+                    routeLine.setLatLngs(points);
+                }
+            });
+        }
+        updateRiderRoute();
 
         function postLocationToServer(lat, lng, accuracy) {
             if (!riderIsBroadcasting) return;

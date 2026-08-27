@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../classes/Database.php';
 require_once __DIR__ . '/../../classes/Order.php';
 require_once __DIR__ . '/../../classes/Product.php';
 require_once __DIR__ . '/../../classes/User.php';
+require_once __DIR__ . '/../../classes/PayMongo.php';
 
 require_role('admin');
 
@@ -87,6 +88,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } else {
                 json_response(['success' => false, 'error' => 'Failed to cancel order.'], 500);
             }
+        } elseif ($action === 'approve_refund') {
+            $result = $orderModel->approveRefund($targetId);
+            if (!empty($result['refunded'])) {
+                json_response(['success' => true, 'message' => 'Refund issued for Order #' . $targetId . '. The order was cancelled and stock released.']);
+            } else {
+                json_response(['success' => false, 'error' => ($result['error'] ?? 'Refund could not be completed.')], 400);
+            }
+        } elseif ($action === 'reject_refund') {
+            $reason = trim($_POST['reason'] ?? 'Declined by administrator');
+            $rejected = $orderModel->rejectRefund($targetId, $reason);
+            if ($rejected) {
+                json_response(['success' => true, 'message' => 'Refund request for Order #' . $targetId . ' rejected.']);
+            } else {
+                json_response(['success' => false, 'error' => 'Failed to reject refund request.'], 500);
+            }
         }
     } catch (Throwable $e) {
         json_response(['success' => false, 'error' => $e->getMessage()], 500);
@@ -140,7 +156,67 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
     </div>
 
-    <!-- 3-Column Info Cards -->
+    <?php if (($order['payment_method'] ?? '') === 'GCASH' && ($order['payment_status'] ?? '') === 'paid'): ?>
+        <?php
+        $aRefundStatus = strtolower((string)($order['refund_status'] ?? 'none'));
+        $aRefundLabels = [
+            'requested' => ['title' => 'Refund Requested', 'badge' => 'bg-warning-subtle text-warning-emphasis border-warning-subtle'],
+            'refunded'  => ['title' => 'Refunded',         'badge' => 'bg-success-subtle text-success-emphasis border-success-subtle'],
+            'failed'    => ['title' => 'Refund Failed',    'badge' => 'bg-danger-subtle text-danger-emphasis border-danger-subtle'],
+            'rejected'  => ['title' => 'Refund Declined',  'badge' => 'bg-secondary-subtle text-secondary-emphasis border-secondary-subtle'],
+        ];
+        $aInfo = $aRefundLabels[$aRefundStatus] ?? null;
+        ?>
+        <?php if ($aRefundStatus === 'requested'): ?>
+            <div class="alert alert-warning border-0 shadow-sm d-flex flex-wrap align-items-center gap-3 p-3 mb-4">
+                <i class="bi bi-arrow-counterclockwise fs-3 text-warning"></i>
+                <div class="flex-grow-1">
+                    <strong class="d-block">Refund Requested</strong>
+                    <span class="small">Customer requested a refund for Order #<?= (int)$order['id'] ?>. Approving issues a PayMongo refund, cancels the order, and restores stock.</span>
+                    <?php if (!empty($order['refund_reason'])): ?>
+                        <div class="small mt-1"><em>Reason:</em> <?= e($order['refund_reason']) ?></div>
+                    <?php endif; ?>
+                    <?php if (!empty($order['refund_requested_at'])): ?>
+                        <div class="small text-muted">Requested on <?= e(format_date($order['refund_requested_at'], 'M d, Y h:i A')) ?></div>
+                    <?php endif; ?>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-success btn-sm fw-semibold btn-admin-dispatch-action"
+                            data-action="approve_refund" data-order-id="<?= (int)$order['id'] ?>"
+                            data-csrf="<?= csrf_token() ?>"
+                            data-confirm-title="Approve Refund #<?= (int)$order['id'] ?>"
+                            data-confirm-msg="Issue a refund of <?= e(format_currency($order['total_amount'] ?? 0)) ?> back to the customer and cancel this order? This cannot be undone."
+                            data-confirm-icon="bi-arrow-counterclockwise" data-confirm-color="text-success" data-confirm-btn="btn-success">
+                        <i class="bi bi-check-circle me-1"></i>Approve & Refund
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold btn-admin-dispatch-action"
+                            data-action="reject_refund" data-order-id="<?= (int)$order['id'] ?>"
+                            data-csrf="<?= csrf_token() ?>"
+                            data-confirm-title="Reject Refund #<?= (int)$order['id'] ?>"
+                            data-confirm-msg="Decline this customer's refund request? The order will remain as-is."
+                            data-confirm-icon="bi-x-circle" data-confirm-color="text-secondary" data-confirm-btn="btn-secondary">
+                        <i class="bi bi-x-lg me-1"></i>Reject
+                    </button>
+                </div>
+            </div>
+        <?php elseif ($aInfo): ?>
+            <div class="alert d-flex align-items-center gap-3 p-3 mb-4 border <?= e($aInfo['badge']) ?>">
+                <i class="bi bi-arrow-counterclockwise fs-4"></i>
+                <div class="flex-grow-1">
+                    <strong class="d-block"><?= e($aInfo['title']) ?></strong>
+                    <?php if ($aRefundStatus === 'refunded' && !empty($order['refund_reference'])): ?>
+                        <span class="small">Refund ID: <code><?= e($order['refund_reference']) ?></code></span>
+                    <?php endif; ?>
+                    <?php if (!empty($order['refund_reason'])): ?>
+                        <span class="small d-block">Reason: <?= e($order['refund_reason']) ?></span>
+                    <?php endif; ?>
+                    <?php if (!empty($order['refund_processed_at'])): ?>
+                        <span class="small d-block">Processed on <?= e(format_date($order['refund_processed_at'], 'M d, Y h:i A')) ?></span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+    <?php endif; ?>
     <div class="row g-4 mb-4">
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm h-100 bg-white">

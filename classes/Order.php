@@ -18,6 +18,7 @@ class Order {
      * Valid state machine transitions
      */
     public const TRANSITIONS = [
+        'pending_payment'    => ['pending', 'cancelled'],
         'pending'            => ['approved', 'cancelled'],
         'approved'           => ['ready_for_delivery', 'cancelled'],
         'ready_for_delivery' => ['picked_up', 'cancelled'],
@@ -62,6 +63,7 @@ class Order {
         $productId = (int)($orderData['product_id'] ?? 0);
         $quantity = (int)($orderData['quantity'] ?? 0);
         $paymentMethod = $orderData['payment_method'] ?? 'cod';
+        $paymentReference = isset($orderData['payment_reference']) ? trim((string)$orderData['payment_reference']) : null;
         $deliveryAddress = trim($orderData['delivery_address'] ?? '');
         $contactPhone = trim($orderData['contact_phone'] ?? '');
         $notes = isset($orderData['notes']) ? trim($orderData['notes']) : null;
@@ -112,20 +114,26 @@ class Order {
             $unitPrice = (float)$product['price'];
             $totalAmount = round($unitPrice * $quantity, 2);
 
-            // Decrement product inventory atomically
-            $decremented = $productModel->decrementStock($productId, $quantity);
-            if (!$decremented) {
-                throw new RuntimeException("Failed to reserve stock for product #{$productId}.");
+            // Decrement product inventory atomically.
+            // For 'pending_payment' orders (online checkout) stock is NOT
+            // reserved yet — it is decremented inside confirmPayment() once
+            // the payment webhook confirms. This prevents tying up stock for
+            // unpaid or abandoned online orders.
+            if ($status !== 'pending_payment') {
+                $decremented = $productModel->decrementStock($productId, $quantity);
+                if (!$decremented) {
+                    throw new RuntimeException("Failed to reserve stock for product #{$productId}.");
+                }
             }
 
             // Insert new order record
             $stmt = $this->db->prepare("
                 INSERT INTO orders (
                     customer_id, product_id, rider_id, quantity, unit_price, total_amount,
-                    payment_method, status, delivery_address, delivery_latitude, delivery_longitude,
+                    payment_method, payment_reference, status, delivery_address, delivery_latitude, delivery_longitude,
                     contact_phone, notes, created_at, updated_at
                 ) VALUES (
-                    ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()
+                    ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()
                 )
             ");
 
@@ -136,6 +144,7 @@ class Order {
                 $unitPrice,
                 $totalAmount,
                 $paymentMethod,
+                $paymentReference,
                 $status,
                 $deliveryAddress,
                 $deliveryLatitude,
@@ -290,6 +299,115 @@ class Order {
         $stmt->execute([$id]);
         $order = $stmt->fetch();
         return $order ?: null;
+    }
+
+    /**
+     * Find an order by its PayMongo payment reference.
+     *
+     * @param string $paymentReference
+     * @return array|null
+     */
+    public function findByPaymentReference(string $paymentReference): ?array {
+        $stmt = $this->db->prepare("
+            SELECT o.*
+            FROM orders o
+            WHERE o.payment_reference = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$paymentReference]);
+        $order = $stmt->fetch();
+        return $order ?: null;
+    }
+
+    /**
+     * Store the PayMongo reference on an order.
+     *
+     * @param int $orderId
+     * @param string $paymentReference
+     * @return bool
+     */
+    public function setPaymentReference(int $orderId, string $paymentReference): bool {
+        $stmt = $this->db->prepare("
+            UPDATE orders SET payment_reference = ?, updated_at = NOW() WHERE id = ?
+        ");
+        return $stmt->execute([$paymentReference, $orderId]);
+    }
+
+    /**
+     * Confirm payment for a pending_payment order (called by the payment
+     * webhook). Atomically reserves stock and transitions the order to
+     * 'pending' so it enters the normal admin approval queue.
+     *
+     * Idempotent: if the order has already been confirmed, this is a no-op
+     * and returns true.
+     *
+     * @param int $orderId
+     * @param string|null $paymentId PayMongo payment id (pay_...) to store for refunds
+     * @return bool
+     * @throws Throwable
+     */
+    public function confirmPayment(int $orderId, ?string $paymentId = null): bool {
+        $this->db->beginTransaction();
+
+        try {
+            $stmt = $this->db->prepare("
+                SELECT id, product_id, quantity, status, payment_status FROM orders WHERE id = ? FOR UPDATE
+            ");
+            $stmt->execute([$orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                throw new InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            // Already confirmed (e.g. duplicate webhook delivery) — no-op.
+            if ($order['payment_status'] === 'paid' && $order['status'] !== 'pending_payment') {
+                $this->db->commit();
+                return true;
+            }
+
+            if ($order['status'] !== 'pending_payment') {
+                throw new RuntimeException("Order #{$orderId} is not awaiting payment.");
+            }
+
+            // Reserve stock now that payment is confirmed.
+            $productModel = new Product($this->db);
+
+            // Pessimistic lock on product row to prevent overselling.
+            $product = $productModel->findByIdForUpdate((int)$order['product_id']);
+            if (!$product) {
+                throw new RuntimeException("Product #{$order['product_id']} not found.");
+            }
+            if ($product['status'] !== 'active') {
+                throw new RuntimeException("Product '{$product['name']}' is no longer active.");
+            }
+            if ((int)$product['stock'] < (int)$order['quantity']) {
+                throw new RuntimeException("Insufficient stock for '{$product['name']}'. Payment will be refunded separately.");
+            }
+
+            $decremented = $productModel->decrementStock((int)$order['product_id'], (int)$order['quantity']);
+            if (!$decremented) {
+                throw new RuntimeException("Failed to reserve stock for product #{$order['product_id']}.");
+            }
+
+            // Mark paid and move to normal pending queue.
+            $upd = $this->db->prepare("
+                UPDATE orders
+                SET status = 'pending', payment_status = 'paid', paid_at = NOW(),
+                    payment_id = COALESCE(?, payment_id), updated_at = NOW()
+                WHERE id = ?
+            ");
+            $upd->execute([$paymentId !== null && $paymentId !== '' ? $paymentId : null, $orderId]);
+
+            $this->db->commit();
+            return true;
+
+        } catch (Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -555,20 +673,26 @@ class Order {
                 throw new InvalidArgumentException("Order #{$orderId} in status '{$order['status']}' cannot be cancelled.");
             }
 
-            // Restore product stock
-            $productModel = new Product($this->db);
-            $productModel->incrementStock((int)$order['product_id'], (int)$order['quantity']);
+            // Restore product stock ONLY IF it was actually reserved.
+            // pending_payment orders (online checkout) never decremented stock,
+            // so cancelling them must not add stock back.
+            if ($order['status'] !== 'pending_payment') {
+                $productModel = new Product($this->db);
+                $productModel->incrementStock((int)$order['product_id'], (int)$order['quantity']);
+            }
 
             // Update order status
-            $notesAppend = $reason ? "\n[Cancelled: " . trim($reason) . "]" : "";
+            $cleanReason = $reason ? trim($reason) : '';
+            $notesAppend = $cleanReason !== '' ? "\n[Cancelled: " . $cleanReason . "]" : "";
             $stmt = $this->db->prepare("
                 UPDATE orders
                 SET status = 'cancelled',
+                    cancel_reason = ?,
                     notes = CONCAT(COALESCE(notes, ''), ?),
                     updated_at = NOW()
                 WHERE id = ?
             ");
-            $stmt->execute([$notesAppend, $orderId]);
+            $stmt->execute([$cleanReason !== '' ? $cleanReason : null, $notesAppend, $orderId]);
 
             $this->db->commit();
             return true;
@@ -579,6 +703,177 @@ class Order {
             }
             throw $e;
         }
+    }
+
+    /**
+     * Customer requests a refund for a paid online order.
+     *
+     * Only allowed when the order was paid online (payment_status = 'paid')
+     * and there is either no request yet, a rejected one, or a failed one.
+     *
+     * @param int $orderId
+     * @param string $reason
+     * @return bool
+     * @throws Throwable
+     */
+    public function requestRefund(int $orderId, string $reason = ''): bool {
+        $stmt = $this->db->prepare("SELECT id, payment_method, payment_status, refund_status, status FROM orders WHERE id = ? LIMIT 1");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+
+        if (!$order) {
+            throw new InvalidArgumentException("Order #{$orderId} not found.");
+        }
+        if (strtolower((string)$order['payment_method']) !== 'gcash') {
+            throw new RuntimeException("Only online (GCash) orders can be refunded.");
+        }
+        if ($order['payment_status'] !== 'paid') {
+            throw new RuntimeException("Only paid orders can be refunded.");
+        }
+        if ($order['refund_status'] === 'requested' || $order['refund_status'] === 'refunded') {
+            throw new RuntimeException("A refund is already pending or completed for this order.");
+        }
+        if ($order['status'] === 'cancelled') {
+            throw new RuntimeException("This order is already cancelled.");
+        }
+
+        $upd = $this->db->prepare("
+            UPDATE orders
+            SET refund_status = 'requested',
+                refund_reason = ?,
+                refund_requested_at = NOW(),
+                refund_processed_at = NULL,
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        return $upd->execute([trim($reason), $orderId]);
+    }
+
+    /**
+     * Admin approves a refund request: issues an automatic PayMongo refund,
+     * then cancels the order and restores stock.
+     *
+     * The PayMongo refund call runs BEFORE the DB transaction so we never
+     * hold a row lock across an external HTTP call. The final DB update is
+     * guarded by re-checking refund_status = 'requested' under FOR UPDATE so
+     * two concurrent approvals cannot refund the same payment twice.
+     *
+     * @param int $orderId
+     * @return array{refunded:bool,refund_id?:string,error?:string}
+     */
+    public function approveRefund(int $orderId): array {
+        $read = $this->db->prepare("SELECT id, payment_method, payment_status, refund_status, payment_id, total_amount, product_id, quantity, status FROM orders WHERE id = ? LIMIT 1");
+        $read->execute([$orderId]);
+        $order = $read->fetch();
+
+        if (!$order) {
+            return ['refunded' => false, 'error' => "Order #{$orderId} not found."];
+        }
+        if ($order['refund_status'] !== 'requested') {
+            return ['refunded' => false, 'error' => "Order #{$orderId} has no pending refund request."];
+        }
+        if ($order['payment_status'] !== 'paid' || empty($order['payment_id'])) {
+            return ['refunded' => false, 'error' => "Order #{$orderId} has no captured payment to refund."];
+        }
+
+        $paymongo = new PayMongo();
+        $amountCents = (int)round(((float)$order['total_amount']) * 100);
+
+        try {
+            $refund = $paymongo->createRefund(
+                (string)$order['payment_id'],
+                $amountCents,
+                'others',
+                'Refund for cancelled order #' . $orderId
+            );
+        } catch (Throwable $e) {
+            // Record the failure but don't cancel the order.
+            $this->markRefundFailed($orderId, $e->getMessage());
+            return ['refunded' => false, 'error' => $e->getMessage()];
+        }
+
+        $refundId = (string)($refund['id'] ?? '');
+
+        $this->db->beginTransaction();
+        try {
+            $lock = $this->db->prepare("SELECT refund_status FROM orders WHERE id = ? FOR UPDATE");
+            $lock->execute([$orderId]);
+            $locked = $lock->fetch();
+
+            if (!$locked || $locked['refund_status'] !== 'requested') {
+                throw new RuntimeException("Refund for order #{$orderId} was already processed by another request.");
+            }
+
+            // Stock was reserved when payment confirmed, so restore it now.
+            $productModel = new Product($this->db);
+            $productModel->incrementStock((int)$order['product_id'], (int)$order['quantity']);
+
+            $upd = $this->db->prepare("
+                UPDATE orders
+                SET status = 'cancelled',
+                    refund_status = 'refunded',
+                    refund_reference = ?,
+                    refund_processed_at = NOW(),
+                    notes = CONCAT(COALESCE(notes, ''), '\n[Refunded: ', ? , ']'),
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            $upd->execute([$refundId, trim((string)($order['refund_reason'] ?? 'Order cancelled, refunded')), $orderId]);
+
+            $this->db->commit();
+            return ['refunded' => true, 'refund_id' => $refundId];
+        } catch (Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            return ['refunded' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Admin rejects a pending refund request.
+     *
+     * @param int $orderId
+     * @param string $reason
+     * @return bool
+     */
+    public function rejectRefund(int $orderId, string $reason = ''): bool {
+        $stmt = $this->db->prepare("SELECT refund_status FROM orders WHERE id = ? LIMIT 1");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+
+        if (!$order || $order['refund_status'] !== 'requested') {
+            throw new RuntimeException("Order #{$orderId} has no pending refund request to reject.");
+        }
+
+        $upd = $this->db->prepare("
+            UPDATE orders
+            SET refund_status = 'rejected',
+                refund_processed_at = NOW(),
+                notes = CONCAT(COALESCE(notes, ''), '\n[Refund rejected: ', ?, ']'),
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        return $upd->execute([trim($reason) !== '' ? trim($reason) : 'Declined by administrator', $orderId]);
+    }
+
+    /**
+     * Mark a refund request as failed (approval ran but PayMongo rejected it).
+     *
+     * @param int $orderId
+     * @param string $error
+     * @return void
+     */
+    private function markRefundFailed(int $orderId, string $error): void {
+        $upd = $this->db->prepare("
+            UPDATE orders
+            SET refund_status = 'failed',
+                refund_processed_at = NOW(),
+                notes = CONCAT(COALESCE(notes, ''), '\n[Refund failed: ', ?, ']'),
+                updated_at = NOW()
+            WHERE id = ? AND refund_status = 'requested'
+        ");
+        $upd->execute([$error, $orderId]);
     }
 
     /**

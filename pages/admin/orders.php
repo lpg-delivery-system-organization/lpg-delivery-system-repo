@@ -459,6 +459,11 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                     <!-- Status Badge -->
                                     <td>
                                         <?= get_order_status_badge($status) ?>
+                                        <?php if (strtolower((string)($order['refund_status'] ?? 'none')) === 'requested'): ?>
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1" title="Pending refund request">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i>Refund
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
 
                                     <!-- Date Placed -->

@@ -108,6 +108,12 @@ $testSuites = [
         'description' => 'Product shop, transactional checkout, order history & profile'
     ],
     [
+        'id'          => 'refunds',
+        'name'        => 'Refund & PayMongo Flow',
+        'file'        => 'test_refunds.php',
+        'description' => 'Refund request lifecycle on paid online orders (guards only, no live API)'
+    ],
+    [
         'id'          => 'admin_portal',
         'name'        => 'Admin Management Portal',
         'file'        => 'test_admin_portal.php',

@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../classes/Database.php';
 require_once __DIR__ . '/../../classes/User.php';
 require_once __DIR__ . '/../../classes/Product.php';
 require_once __DIR__ . '/../../classes/Order.php';
+require_once __DIR__ . '/../../classes/PayMongo.php';
 
 // Enforce customer role access
 require_role('customer');
@@ -129,6 +130,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Process order if no validation errors
     if (empty($errors)) {
         try {
+            $isOnline = ($formData['payment_method'] === 'gcash');
+
             $newOrderId = $orderModel->place([
                 'customer_id'      => $customerId,
                 'product_id'       => $formData['product_id'],
@@ -139,8 +142,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'notes' => $formData['notes'],
                 'delivery_latitude' => $formData['delivery_latitude'],
                 'delivery_longitude' => $formData['delivery_longitude'],
-                'status'           => 'pending'
+                'status'           => $isOnline ? 'pending_payment' : 'pending'
             ]);
+
+            // Online payment: create a PayMongo hosted checkout session and
+            // redirect the customer to PayMongo to complete payment. Stock is
+            // NOT reserved until the payment webhook confirms.
+            if ($isOnline) {
+                $paymongo = new PayMongo();
+                if (!$paymongo->isEnabled()) {
+                    throw new RuntimeException('Online payment is currently unavailable. Please use Cash on Delivery.');
+                }
+
+                $selectedProduct = $productModel->findById($formData['product_id']);
+                $unitAmountCents = (int)round(((float)($selectedProduct['price'] ?? 0)) * 100);
+                $totalCents = $unitAmountCents * (int)$formData['quantity'];
+
+                $successUrl = absolute_url("pages/customer/order-detail.php?id={$newOrderId}");
+                $cancelUrl  = absolute_url("pages/customer/shop.php");
+
+                $session = $paymongo->createCheckoutSession(
+                    [[
+                        'name'     => (($selectedProduct['name'] ?? 'LPG Cylinder') . ' x' . (int)$formData['quantity']),
+                        'amount'   => $totalCents,
+                        'currency' => 'PHP',
+                        'quantity' => 1,
+                    ]],
+                    (string)$newOrderId,
+                    $successUrl,
+                    $cancelUrl,
+                    [],
+                    ['order_id' => (string)$newOrderId]
+                );
+
+                $orderModel->setPaymentReference($newOrderId, $session['id'] ?? '');
+                $checkoutUrl = $session['checkout_url'] ?? '';
+
+                if (is_ajax()) {
+                    json_response([
+                        'success'  => true,
+                        'message'  => "Redirecting you to complete payment for Order #{$newOrderId}...",
+                        'order_id' => $newOrderId,
+                        'redirect' => $checkoutUrl
+                    ]);
+                }
+
+                redirect($checkoutUrl);
+                return;
+            }
 
             if (is_ajax()) {
                 json_response([

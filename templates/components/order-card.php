@@ -16,6 +16,7 @@ if (!function_exists('get_order_status_badge')) {
     function get_order_status_badge(string $status): string {
         $status = strtolower($status);
         $labels = [
+            'pending_payment'    => ['label' => 'Pending Payment',    'class' => 'badge-status-pending_payment'],
             'pending'            => ['label' => 'Pending',            'class' => 'badge-status-pending'],
             'approved'           => ['label' => 'Approved',           'class' => 'badge-status-approved'],
             'ready_for_delivery' => ['label' => 'Ready for Delivery', 'class' => 'badge-status-ready_for_delivery'],

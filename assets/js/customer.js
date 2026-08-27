@@ -236,73 +236,118 @@
             }
         });
 
-        // Cancel order modal population & AJAX cancellation
+        // Cancel order modal population (orders list page)
         $(document).on('click', '.btn-open-cancel-modal', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
             const orderId = $(this).data('order-id');
-            const csrfToken = $('meta[name="csrf-token"]').attr('content') || '';
 
-            window.confirmAction({
-                title: 'Cancel Order #' + orderId,
-                message: 'Are you sure you want to cancel this pending order? Reserved LPG cylinders will be returned to inventory.',
-                icon: 'bi-exclamation-triangle-fill',
-                iconBg: 'bg-danger-subtle',
-                iconColor: 'text-danger',
-                confirmText: 'Yes, Cancel Order',
-                confirmClass: 'btn-danger',
-                onConfirm: function (closeModal) {
-                    window.ajaxAction({
-                        url: window.location.href,
-                        data: {
-                            action: 'cancel_order',
-                            order_id: orderId,
-                            csrf_token: csrfToken
-                        },
-                        onSuccess: function (res) {
-                            closeModal();
-                            window.showToast('Order #' + orderId + ' cancelled successfully.', 'success');
-                            setTimeout(function () { window.location.reload(); }, 600);
-                        },
-                        onError: function () {
-                            closeModal();
-                        }
-                    });
+            $('#cancelModalOrderId').val(orderId);
+            $('#cancelModalOrderNumber').text('#' + orderId);
+
+            // Reset reason fields
+            $('#cancelReasonSelect').val('');
+            $('#cancelReasonOtherInput').val('').addClass('d-none');
+            return true;
+        });
+
+        // Toggle the free-text "Other" reason input on the cancel modal
+        $(document).on('change', '#cancelReasonSelect', function () {
+            const showOther = ($(this).val() === 'other');
+            $('#cancelReasonOtherInput').toggleClass('d-none', !showOther);
+            if (!showOther) {
+                $('#cancelReasonOtherInput').val('');
+            }
+        });
+
+        // Cancel order from order detail page (populate cancel reason modal)
+        $(document).on('click', '.btn-cancel-order-detail', function (e) {
+            $('#cancelModalOrderId').val($(this).data('order-id'));
+            $('#cancelModalOrderNumber').text('#' + $(this).data('order-id'));
+            $('#cancelReasonSelect').val('');
+            $('#cancelReasonOtherInput').val('').addClass('d-none');
+            return true;
+        });
+
+        // Submit cancellation (AJAX) from the order detail page modal
+        $(document).on('click', '#btnSubmitCancelOrderDetail', function (e) {
+            e.preventDefault();
+            const $btn = $(this);
+            const $openBtn = $('.btn-cancel-order-detail');
+            const orderId = $('#cancelModalOrderId').val();
+            const csrfToken = $openBtn.data('csrf') || $('meta[name="csrf-token"]').attr('content') || '';
+
+            let reason = $.trim($('#cancelReasonSelect').val() || '');
+            if (reason === 'other') {
+                reason = $.trim($('#cancelReasonOtherInput').val() || '');
+                if (reason === '') reason = 'Other';
+            }
+            if (reason === '') {
+                window.showToast('Please select or provide a reason for cancellation.', 'error');
+                return;
+            }
+
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Cancelling...');
+            window.ajaxAction({
+                url: window.location.href,
+                data: {
+                    action: 'cancel_order',
+                    order_id: orderId,
+                    cancel_reason: reason,
+                    csrf_token: csrfToken
+                },
+                onSuccess: function (res) {
+                    $('#cancelOrderModal').modal('hide');
+                    window.showToast(res.message || 'Order #' + orderId + ' cancelled successfully.', 'success');
+                    setTimeout(function () { window.location.reload(); }, 600);
+                },
+                onError: function () {
+                    $btn.prop('disabled', false).html('<i class="bi bi-x-circle me-1"></i>Yes, Cancel Order');
+                    $('#cancelOrderModal').modal('hide');
                 }
             });
         });
 
-        // Cancel order from order detail page
-        $(document).on('click', '.btn-cancel-order-detail', function (e) {
-            e.preventDefault();
-            const orderId = $(this).data('order-id');
-            const csrfToken = $(this).data('csrf') || $('meta[name="csrf-token"]').attr('content') || '';
+        // Refund request reason char counter
+        $(document).on('input', '#refundRequestReason', function () {
+            const len = $(this).val().length;
+            $('#refundReasonCount').text(len + ' / 255');
+        });
 
-            window.confirmAction({
-                title: 'Cancel Order #' + orderId,
-                message: 'Are you sure you want to cancel this order? This action cannot be undone.',
-                icon: 'bi-exclamation-triangle-fill',
-                iconBg: 'bg-danger-subtle',
-                iconColor: 'text-danger',
-                confirmText: 'Yes, Cancel Order',
-                confirmClass: 'btn-danger',
-                onConfirm: function (closeModal) {
-                    window.ajaxAction({
-                        url: window.location.href,
-                        data: {
-                            action: 'cancel_order',
-                            order_id: orderId,
-                            csrf_token: csrfToken
-                        },
-                        onSuccess: function (res) {
-                            closeModal();
-                            window.showToast('Order #' + orderId + ' cancelled successfully.', 'success');
-                            setTimeout(function () { window.location.reload(); }, 600);
-                        },
-                        onError: function () {
-                            closeModal();
-                        }
-                    });
+        // Submit refund request for a paid online order
+        $(document).on('click', '#btnSubmitRefundRequest', function (e) {
+            e.preventDefault();
+            const $btn = $(this);
+            const reason = $.trim($('#refundRequestReason').val() || '');
+            const orderId = $('.btn[data-bs-target="#refundRequestModal"]').data('order-id');
+            const csrfToken = $('.btn[data-bs-target="#refundRequestModal"]').data('csrf') || $('meta[name="csrf-token"]').attr('content') || '';
+            const baseUrl = $('meta[name="base-url"]').attr('content') || '';
+
+            if (!orderId) {
+                window.showToast('Could not determine the order. Please refresh and try again.', 'error');
+                return;
+            }
+            if (reason.length === 0) {
+                window.showToast('Please provide a reason for your refund request.', 'error');
+                $('#refundRequestReason').focus();
+                return;
+            }
+
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Submitting...');
+            window.ajaxAction({
+                url: baseUrl + '/api/orders.php',
+                data: {
+                    action: 'request_refund',
+                    order_id: orderId,
+                    reason: reason,
+                    csrf_token: csrfToken
+                },
+                onSuccess: function (res) {
+                    $('#refundRequestModal').modal('hide');
+                    window.showToast(res.message || 'Refund request submitted.', 'success');
+                    setTimeout(function () { window.location.reload(); }, 800);
+                },
+                onError: function (msg) {
+                    $btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>Submit Refund Request');
+                    window.showToast(msg || 'Unable to submit refund request.', 'error');
                 }
             });
         });
