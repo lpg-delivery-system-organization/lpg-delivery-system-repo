@@ -475,7 +475,7 @@
                 const html = '<div class="chat-bubble ' + bubbleClass + '">'
                     + '<span class="chat-sender-label">' + senderLabel + '</span>'
                     + '<div class="chat-bubble-text">' + escapeHtml(msg.message) + '</div>'
-                    + '<div class="chat-bubble-meta">' + formatChatTime(msg.created_at) + '</div>'
+                    + '<div class="chat-bubble-meta">' + msg.created_at + '</div>'
                     + '</div>';
                 return html;
             }
