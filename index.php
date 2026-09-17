@@ -157,6 +157,20 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'register') {
     $activeTab = 'register';
     $page_title = 'Register';
 }
+
+// Consume any flash message (e.g. "signed out" after logout, or
+// "registration successful") so it can pop up as a toast on arrival.
+$flash = get_flash();
+$flashType = $flash['type'] ?? '';
+if ($flashType === 'error') $flashType = 'danger';
+if (!in_array($flashType, ['success', 'danger', 'warning', 'info'], true)) $flashType = 'info';
+$flashIcons = [
+    'success' => 'bi-check-circle-fill',
+    'danger'  => 'bi-exclamation-triangle-fill',
+    'warning' => 'bi-exclamation-circle-fill',
+    'info'    => 'bi-info-circle-fill',
+];
+$flashIcon = $flashIcons[$flashType];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -173,21 +187,173 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'register') {
     <link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/app.css">
     <script>
-    (function(){var s=localStorage.getItem('app-theme');if(s==='dark')document.documentElement.setAttribute('data-theme','dark');})();
+    (function(){try{var s=localStorage.getItem('app-theme');if(s==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();
     </script>
     <style>
         body.auth-body {
             min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            background-color: #042f2e;
+            background-image:
+                radial-gradient(700px 380px at 85% -8%, rgba(251, 191, 36, 0.16), transparent 60%),
+                radial-gradient(560px 320px at 8% 108%, rgba(20, 184, 166, 0.18), transparent 60%),
+                linear-gradient(150deg, #042f2e 0%, #0b3b36 35%, #0d9488 78%, #14b8a6 100%);
+            background-attachment: fixed;
+            color: #f0fdfa;
+        }
+        /* ── Split layout ─────────────────────────────── */
+        .auth-split {
+            display: flex;
+            min-height: 100vh;
+            width: 100%;
+        }
+        /* ── Brand showcase (left) ────────────────────── */
+        .auth-showcase {
+            flex: 1.05;
+            position: relative;
+            overflow: hidden;
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 2rem;
+            padding: 3rem 3rem 2.5rem;
+            color: #fff;
+            background: transparent;
+            border-right: 1px solid rgba(255,255,255,0.12);
+        }
+        @media (min-width: 992px) {
+            .auth-showcase { display: flex; }
+        }
+        .auth-showcase::before,
+        .auth-showcase::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .auth-showcase::before {
+            width: 480px; height: 480px;
+            top: -140px; right: -140px;
+            background: radial-gradient(circle, rgba(251,191,36,0.28) 0%, rgba(251,191,36,0.06) 45%, transparent 70%);
+        }
+        .auth-showcase::after {
+            width: 420px; height: 420px;
+            bottom: -160px; left: -120px;
+            background: radial-gradient(circle, rgba(255,255,255,0.14) 0%, transparent 65%);
+        }
+        .auth-showcase-dots {
+            position: absolute; inset: 0;
+            background-image: radial-gradient(rgba(255,255,255,0.13) 1px, transparent 1px);
+            background-size: 24px 24px;
+            -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 80%);
+            mask-image: linear-gradient(to bottom, black 0%, transparent 80%);
+            pointer-events: none;
+        }
+        .auth-showcase > *:not(.auth-showcase-dots):not(.auth-showcase-flame) {
+            position: relative;
+            z-index: 1;
+        }
+        .auth-showcase-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .auth-showcase-logo {
+            width: 52px; height: 52px;
+            border-radius: 1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            color: #fbbf24;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        .auth-showcase-hero h2 {
+            font-weight: 800;
+            font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+            line-height: 1.15;
+            margin-bottom: 0.75rem;
+        }
+        .auth-showcase-hero h2 .text-accent { color: #fbbf24; }
+        .auth-showcase-hero p {
+            color: rgba(255,255,255,0.75);
+            font-size: 1rem;
+            max-width: 26rem;
+            margin-bottom: 0;
+        }
+        .auth-feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 1.75rem 0 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .auth-feature-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+        }
+        .auth-feature-icon {
+            width: 44px; height: 44px;
+            flex-shrink: 0;
+            border-radius: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.18);
+        }
+        .auth-feature-list strong { display: block; font-size: 0.95rem; }
+        .auth-feature-list span { font-size: 0.83rem; color: rgba(255,255,255,0.7); }
+        .auth-showcase-stats {
+            display: flex;
+            gap: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255,255,255,0.18);
+        }
+        .auth-showcase-stats .stat b { display: block; font-size: 1.35rem; }
+        .auth-showcase-stats .stat small { color: rgba(255,255,255,0.65); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+        .auth-showcase-flame {
+            position: absolute;
+            right: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 22rem;
+            line-height: 1;
+            color: rgba(255,255,255,0.05);
+            pointer-events: none;
+        }
+        /* ── Form side (right) ────────────────────────── */
+        .auth-form-side {
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 50%, #f0fdfa 100%);
-            padding: 1.5rem 1rem;
-            font-family: 'Inter', sans-serif;
+            padding: 2rem 1.25rem;
+            min-width: 0;
+        }
+        @media (min-width: 992px) {
+            .auth-form-side {
+                max-height: 100vh;
+                overflow-y: auto;
+                padding: 2rem clamp(1.5rem, 4vw, 4rem);
+            }
         }
         .auth-wrapper {
             width: 100%;
-            max-width: 460px;
+            max-width: 440px;
+            margin: auto;
+        }
+        .auth-mobile-brand {
+            text-align: center;
+            margin-bottom: 1.25rem;
+        }
+        @media (min-width: 992px) {
+            .auth-mobile-brand { display: none; }
         }
         .auth-brand {
             text-align: center;
@@ -207,27 +373,64 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'register') {
             margin-bottom: 1rem;
         }
         .auth-card {
-            background: #fff;
-            border-radius: 1.25rem;
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
             overflow: hidden;
+            color: #f0fdfa;
+            container-type: inline-size;
         }
-        .auth-tabs .nav-link {
+        /* Register 2-column fields follow CARD width (not viewport) so they
+           stack single-column instead of squeezing inside the 440px card.
+           Older browsers ignore this and keep default Bootstrap behavior. */
+        @container (max-width: 499.98px) {
+            .auth-card #registerForm .row.g-3 > .col-md-6 { width: 100%; }
+        }
+        /* Light text over the dark glass card */
+        body.auth-body .auth-card .text-dark { color: #f0fdfa !important; }
+        body.auth-body .auth-card .text-muted { color: rgba(255,255,255,0.65) !important; }
+        body.auth-body .auth-card .form-text { color: rgba(255,255,255,0.6) !important; }
+        body.auth-body .auth-card .bg-light {
+            background-color: rgba(255,255,255,0.08) !important;
+            border-color: rgba(255,255,255,0.12) !important;
+        }
+        body.auth-body .auth-card .input-group-text { color: rgba(255,255,255,0.7); }
+        body.auth-body .auth-card .input-group-text .text-muted { color: rgba(255,255,255,0.7) !important; }
+        body.auth-body .auth-card .btn-outline-secondary {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.12);
+            color: rgba(255,255,255,0.75);
+        }
+        body.auth-body .auth-mobile-brand h1 { color: #fff !important; }
+        body.auth-body .auth-mobile-brand p { color: rgba(255,255,255,0.7) !important; }
+        body.auth-body .auth-form-body a[href*="forgot-password"] { color: #5eead4 !important; }
+        /* Segmented Sign in / Register switcher */
+        .auth-segment {
+            display: flex;
+            gap: 0.35rem;
+            padding: 0.4rem;
+            margin: 1rem 1rem 0;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 1rem;
+        }
+        .auth-segment .nav-item { flex: 1; }
+        .auth-segment .nav-link {
+            width: 100%;
             font-weight: 600;
-            color: #94a3b8;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.65);
             border: none;
-            border-bottom: 2px solid transparent;
-            padding: 1rem 1.25rem;
-            border-radius: 0;
-            transition: color 0.2s, border-color 0.2s;
+            border-radius: 0.7rem;
+            padding: 0.65rem 1rem;
+            transition: all 0.2s ease;
         }
-        .auth-tabs .nav-link.active {
-            color: #0d9488;
-            border-bottom-color: #0d9488;
-            background: transparent;
-        }
-        .auth-tabs .nav-link:hover:not(.active) {
-            color: #64748b;
+        .auth-segment .nav-link:hover:not(.active) { color: #fff; }
+        .auth-segment .nav-link.active {
+            color: #0b3b36;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
         }
         .auth-form-body {
             padding: 1.75rem 1.75rem 2rem;
@@ -249,42 +452,39 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'register') {
         }
         .auth-form-body .btn-primary {
             border-radius: 0.625rem;
-            padding: 0.65rem;
-            font-weight: 600;
+            padding: 0.7rem;
+            font-weight: 700;
             background: linear-gradient(135deg, #0d9488, #14b8a6);
             border: none;
+            box-shadow: 0 4px 14px rgba(13, 148, 136, 0.3);
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
         }
         .auth-form-body .btn-primary:hover {
             background: linear-gradient(135deg, #0f766e, #0d9488);
-            box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
+            box-shadow: 0 6px 20px rgba(13, 148, 136, 0.4);
+            transform: translateY(-1px);
         }
         .auth-demo-box {
-            background: rgba(13, 148, 136, 0.04);
-            border: 1px solid rgba(13, 148, 136, 0.08);
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
             border-radius: 0.75rem;
             padding: 0.75rem;
         }
+        body.auth-body .auth-demo-box .text-muted { color: rgba(255,255,255,0.65) !important; }
         .auth-footer-links {
             text-align: center;
             margin-top: 1rem;
             font-size: 0.85rem;
-            color: #64748b;
+            color: rgba(255,255,255,0.65);
         }
         .auth-footer-links a {
-            color: #0d9488;
+            color: #fbbf24;
             font-weight: 600;
             text-decoration: none;
         }
         .auth-footer-links a:hover {
             text-decoration: underline;
         }
-        .reg-scroll {
-            max-height: 70vh;
-            overflow-y: auto;
-            scrollbar-width: thin;
-        }
-        .reg-scroll::-webkit-scrollbar { width: 5px; }
-        .reg-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         .pw-rule { font-size: 0.8rem; padding: 2px 0; }
         .pw-rule .rule-icon { font-size: 0.75rem; width: 1rem; text-align: center; }
         .id-camera-container { border-radius: 0.5rem; }
@@ -294,8 +494,8 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'register') {
         }
 
         /* Auth page dark mode */
-        [data-theme="dark"] body.auth-body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 33%, #0f172a 66%, #1e293b 100%); background-size: 300% 300%; animation: bgShift 15s ease infinite; overflow: hidden; }
-        [data-theme="dark"] .auth-card { background: #1e293b; border-color: #334155; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        [data-theme="dark"] body.auth-body { background: linear-gradient(135deg, #020617 0%, #0b3b36 50%, #020617 100%); background-size: 300% 300%; animation: bgShift 15s ease infinite; overflow: hidden; }
+        [data-theme="dark"] .auth-card { background: rgba(255, 255, 255, 0.06); border-color: rgba(255,255,255,0.12); box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
         [data-theme="dark"] .auth-brand h1,
         [data-theme="dark"] .auth-brand p { color: #e2e8f0; }
         [data-theme="dark"] .auth-brand p { color: #94a3b8; }
@@ -318,16 +518,16 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'register') {
         [data-theme="dark"] .id-camera-container { border-color: #334155; }
         [data-theme="dark"] .auth-brand-icon { box-shadow: 0 8px 24px rgba(20, 184, 166, 0.25); }
 
-        .auth-theme-toggle {
-            position: fixed; top: 1rem; right: 1rem; z-index: 1000;
-            width: 40px; height: 40px; border-radius: 50%;
-            border: 1px solid rgba(13,148,136,0.25); background: rgba(255,255,255,0.8);
-            color: #0d9488; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; font-size: 1.15rem; transition: all 0.3s ease; padding: 0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        [data-theme="dark"] .auth-segment {
+            background: #0f172a;
+            border: 1px solid #334155;
         }
-        .auth-theme-toggle:hover { transform: rotate(20deg); background: rgba(255,255,255,1); }
-        [data-theme="dark"] .auth-theme-toggle { background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.3); color: #fbbf24; }
+        [data-theme="dark"] .auth-segment .nav-link { color: #94a3b8; }
+        [data-theme="dark"] .auth-segment .nav-link:hover:not(.active) { color: #14b8a6; }
+        [data-theme="dark"] .auth-segment .nav-link.active { background: #1e293b; color: #14b8a6; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+        [data-theme="dark"] .auth-demo-box { background: rgba(20,184,166,0.06); border-color: rgba(20,184,166,0.15); }
+        [data-theme="dark"] .auth-form-body .input-group-text { background: #0f172a; border-color: #334155; color: #94a3b8; }
+        [data-theme="dark"] .auth-form-body .btn-outline-secondary { background: #0f172a; border-color: #334155; color: #94a3b8; }
 
         /* === Dark mode glow effects === */
         @keyframes bgShift {
@@ -381,13 +581,51 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'register') {
     </style>
 </head>
 <body class="auth-body">
-<button type="button" class="auth-theme-toggle" id="authThemeToggle" title="Toggle dark mode">
-    <i class="bi bi-moon-fill"></i>
-</button>
 
+<div class="auth-split">
+    <!-- ═══════════ Brand showcase (desktop) ═══════════ -->
+    <aside class="auth-showcase" data-aos="fade-right" data-aos-duration="700">
+        <div class="auth-showcase-dots"></div>
+        <i class="bi bi-fire auth-showcase-flame"></i>
+        <div class="auth-showcase-brand">
+            <span class="auth-showcase-logo"><i class="bi bi-fire"></i></span>
+            <div>
+                <div class="fw-bold fs-5 lh-1">LPG Delivery System</div>
+                <small style="color: rgba(255,255,255,0.65);">Fast • Safe • Reliable</small>
+            </div>
+        </div>
+
+        <div class="auth-showcase-hero">
+            <h2>Cylinder refills, <span class="text-accent">delivered</span> to your door.</h2>
+            <p>Order genuine LPG cylinders in seconds and track your rider in real time — from warehouse to doorstep.</p>
+            <ul class="auth-feature-list">
+                <li>
+                    <span class="auth-feature-icon"><i class="bi bi-lightning-charge-fill"></i></span>
+                    <div><strong>Same-day delivery</strong><span>Dispatch to nearby riders in seconds.</span></div>
+                </li>
+                <li>
+                    <span class="auth-feature-icon"><i class="bi bi-geo-alt-fill"></i></span>
+                    <div><strong>Live order tracking</strong><span>Watch your cylinder arrive on the map.</span></div>
+                </li>
+                <li>
+                    <span class="auth-feature-icon"><i class="bi bi-shield-check"></i></span>
+                    <div><strong>Verified & secure</strong><span>ID-verified accounts, safe cashless payment.</span></div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="auth-showcase-stats">
+            <div class="stat"><b>11kg–50kg</b><small>Cylinder sizes</small></div>
+            <div class="stat"><b>24/7</b><small>Ordering</small></div>
+            <div class="stat"><b>100%</b><small>Genuine LPG</small></div>
+        </div>
+    </aside>
+
+    <!-- ═══════════ Form side ═══════════ -->
+    <div class="auth-form-side">
 <div class="auth-wrapper" data-aos="fade-up" data-aos-duration="600">
-    <!-- Branding -->
-    <div class="auth-brand" data-aos="fade-down" data-aos-delay="100">
+    <!-- Branding (mobile / tablet only) -->
+    <div class="auth-mobile-brand" data-aos="fade-down" data-aos-delay="100">
         <div class="auth-brand-icon"><i class="bi bi-fire"></i></div>
         <h1 class="h4 fw-bold text-dark mb-0">LPG Delivery System</h1>
         <p class="text-muted small mt-1 mb-0">Fast, safe, and reliable LPG cylinder delivery</p>
@@ -412,8 +650,8 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'register') {
             </div>
         <?php endif; ?>
 
-        <!-- Tabs -->
-        <ul class="nav nav-tabs auth-tabs border-bottom" role="tablist">
+        <!-- Segmented switcher -->
+        <ul class="nav auth-tabs auth-segment" role="tablist">
             <li class="nav-item flex-fill text-center" role="presentation">
                 <button class="nav-link <?= $activeTab === 'login' ? 'active' : '' ?>" id="tab-login" data-bs-toggle="tab" data-bs-target="#panel-login" type="button" role="tab">
                     <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
@@ -647,10 +885,71 @@ if (isset($_GET['tab']) && $_GET['tab'] === 'register') {
         </div>
     </div>
 </div>
+    </div><!-- /.auth-form-side -->
+</div><!-- /.auth-split -->
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+<?php if (!empty($flash['message'])): ?>
+<!-- Flash popup (e.g. after logout): transparent glass matching the login
+     card, spring entrance, plain 2-second auto-dismiss (no loader bar) -->
+<style>
+    .flash-popup {
+        position: fixed;
+        top: 1rem;
+        left: 50%;
+        transform: translate(-50%, -150%);
+        z-index: 1090;
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        max-width: min(92vw, 430px);
+        padding: 0.8rem 1.1rem;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 1rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+        color: #f0fdfa;
+        font-size: 0.9rem;
+        font-weight: 600;
+        opacity: 0;
+        transition: transform 0.45s cubic-bezier(0.34, 1.35, 0.64, 1), opacity 0.3s ease;
+    }
+    .flash-popup.show { transform: translate(-50%, 0); opacity: 1; }
+    .flash-popup-icon {
+        width: 34px;
+        height: 34px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05rem;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    .flash-popup.flash-success .flash-popup-icon { color: #6ee7b7; }
+    .flash-popup.flash-info .flash-popup-icon { color: #5eead4; }
+    .flash-popup.flash-warning .flash-popup-icon { color: #fcd34d; }
+    .flash-popup.flash-danger .flash-popup-icon { color: #fca5a5; }
+</style>
+<div id="flashPopup" class="flash-popup flash-<?= e($flashType) ?>" role="alert" aria-live="assertive" aria-atomic="true">
+    <span class="flash-popup-icon"><i class="bi <?= e($flashIcon) ?>"></i></span>
+    <span><?= e($flash['message']) ?></span>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById('flashPopup');
+    if (!el) return;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add('show'); }); });
+    setTimeout(function () { el.classList.remove('show'); }, 2000);
+    setTimeout(function () { el.remove(); }, 2500);
+});
+</script>
+<?php endif; ?>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     AOS.init({ duration: 500, easing: 'ease-out-cubic', once: true });
@@ -747,16 +1046,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (uploadTab) uploadTab.addEventListener('shown.bs.tab', function () { stopCam(); show(idle); });
     })();
 });
-</script>
-<script>
-(function(){
-    var t=document.getElementById('authThemeToggle');
-    if(!t)return;
-    function dk(){return document.documentElement.getAttribute('data-theme')==='dark';}
-    function up(){var i=t.querySelector('i');if(dk()){i.classList.remove('bi-moon-fill');i.classList.add('bi-sun-fill');}else{i.classList.remove('bi-sun-fill');i.classList.add('bi-moon-fill');}}
-    t.addEventListener('click',function(){if(dk()){document.documentElement.removeAttribute('data-theme');localStorage.setItem('app-theme','light');}else{document.documentElement.setAttribute('data-theme','dark');localStorage.setItem('app-theme','dark');}up();});
-    up();
-})();
 </script>
 </body>
 </html>

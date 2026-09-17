@@ -427,7 +427,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                                 <?php endif; ?>
                                             </div>
                                             <div>
-                                                <div class="fw-medium text-dark"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></div>
+                                                <div class="fw-medium text-dark text-truncate" style="max-width: 210px;" title="<?= e($order['product_name'] ?? 'LPG Cylinder') ?>"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></div>
                                                 <div class="small text-muted">
                                                     <?php if (!empty($order['product_brand'])): ?>
                                                         <span class="badge bg-light text-dark border me-1"><?= e($order['product_brand']) ?></span>

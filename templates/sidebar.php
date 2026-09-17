@@ -124,8 +124,8 @@ $roleMenu = $menus[$role] ?? [];
             </ul>
         </div>
 
-        <!-- Sidebar User Footer (hidden by default, shown on scroll) -->
-        <div class="app-sidebar-footer border-top p-3 bg-light" id="sidebarUserFooter" style="display: none;">
+        <!-- Sidebar User Footer (always visible, stuck at bottom) -->
+        <div class="app-sidebar-footer border-top p-3 bg-light" id="sidebarUserFooter">
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-2 overflow-hidden">
                     <?php $sidebarAvatar = $_SESSION['user']['profile_picture'] ?? null; ?>
@@ -137,13 +137,10 @@ $roleMenu = $menus[$role] ?? [];
                         </div>
                     <?php endif; ?>
                     <div class="overflow-hidden sidebar-footer-text">
-                        <div class="fw-semibold text-truncate small text-dark"><?= e($userName) ?></div>
+                        <div class="fw-semibold text-truncate small text-dark d-flex align-items-center gap-1"><?= e($userName) ?> <span class="badge bg-secondary text-uppercase px-1 py-1 flex-shrink-0" style="font-size: 0.6rem;"><?= e($role) ?></span></div>
                         <div class="text-muted text-truncate extra-small"><?= e($userEmail) ?></div>
                     </div>
                 </div>
-                <a href="<?= url('logout.php') ?>" class="btn btn-outline-danger btn-sm p-1 px-2 flex-shrink-0" title="Logout" data-bs-toggle="tooltip" data-bs-placement="right">
-                    <i class="bi bi-box-arrow-right"></i>
-                </a>
             </div>
         </div>
     </div>

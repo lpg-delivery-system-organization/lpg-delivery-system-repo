@@ -107,12 +107,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Total Revenue</span>
                         <h3 class="fw-bold my-1 text-success"><?= e(format_currency($totalRevenue)) ?></h3>
-                        <span class="extra-small text-muted">From <?= (int)$deliveredOrders ?> delivered orders</span>
+                        <span class="extra-small text-muted">From <?= (int)$deliveredOrders ?> delivered orders <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>
                     <div class="stat-icon-wrapper bg-success-subtle text-success">
                         <i class="bi bi-cash-stack"></i>
                     </div>
                 </div>
+                <a href="<?= url('pages/admin/orders.php') ?>" class="stretched-link" aria-label="View all orders"></a>
             </div>
         </div>
 
@@ -123,12 +124,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Pending Orders</span>
                         <h3 class="fw-bold my-1 text-warning" data-counter-target="<?= (int)$pendingOrders ?>"><?= (int)$pendingOrders ?></h3>
-                        <span class="extra-small text-muted">Awaiting approval</span>
+                        <span class="extra-small text-muted">Awaiting approval <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>
                     <div class="stat-icon-wrapper bg-warning-subtle text-warning">
                         <i class="bi bi-clock-history"></i>
                     </div>
                 </div>
+                <a href="<?= url('pages/admin/orders.php') ?>" class="stretched-link" aria-label="Review pending orders"></a>
             </div>
         </div>
 
@@ -139,12 +141,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">In-Transit</span>
                         <h3 class="fw-bold my-1 text-info" data-counter-target="<?= (int)$inTransitOrders ?>"><?= (int)$inTransitOrders ?></h3>
-                        <span class="extra-small text-muted">Active deliveries</span>
+                        <span class="extra-small text-muted">Active deliveries <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>
                     <div class="stat-icon-wrapper bg-info-subtle text-info">
                         <i class="bi bi-truck"></i>
                     </div>
                 </div>
+                <a href="<?= url('pages/admin/orders.php') ?>" class="stretched-link" aria-label="View in-transit deliveries"></a>
             </div>
         </div>
 
@@ -155,12 +158,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Delivered</span>
                         <h3 class="fw-bold my-1 text-primary" data-counter-target="<?= (int)$deliveredOrders ?>"><?= (int)$deliveredOrders ?></h3>
-                        <span class="extra-small text-muted">Completed orders</span>
+                        <span class="extra-small text-muted">Completed orders <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>
                     <div class="stat-icon-wrapper bg-primary-subtle text-primary">
                         <i class="bi bi-check2-circle"></i>
                     </div>
                 </div>
+                <a href="<?= url('pages/admin/orders.php') ?>" class="stretched-link" aria-label="View completed orders"></a>
             </div>
         </div>
 
@@ -171,12 +175,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Total Orders</span>
                         <h3 class="fw-bold my-1 text-dark" data-counter-target="<?= (int)$totalOrders ?>"><?= (int)$totalOrders ?></h3>
-                        <span class="extra-small text-muted"><?= (int)$cancelledOrders ?> cancelled</span>
+                        <span class="extra-small text-muted"><?= (int)$cancelledOrders ?> cancelled <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>
                     <div class="stat-icon-wrapper bg-secondary-subtle text-secondary">
                         <i class="bi bi-receipt"></i>
                     </div>
                 </div>
+                <a href="<?= url('pages/admin/orders.php') ?>" class="stretched-link" aria-label="View all orders"></a>
             </div>
         </div>
     </div>
@@ -186,42 +191,45 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         <div class="col-md-4" data-aos="fade-up" data-aos-delay="0">
             <div class="card border-0 shadow-sm p-3 rounded-3 bg-light">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-circle">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 46px; height: 46px;">
                         <i class="bi bi-people fs-4"></i>
                     </div>
                     <div>
                         <div class="fw-bold text-dark fs-5" data-counter-target="<?= (int)$totalCustomers ?>"><?= (int)$totalCustomers ?> Customers</div>
                         <div class="small text-muted">Registered user accounts</div>
                     </div>
-                    <a href="<?= url('pages/admin/users.php?role=customer') ?>" class="btn btn-sm btn-outline-primary ms-auto">View</a>
+                    <span class="btn btn-sm btn-outline-primary ms-auto">View</span>
+                    <a href="<?= url('pages/admin/users.php?role=customer') ?>" class="stretched-link" aria-label="View customer accounts"></a>
                 </div>
             </div>
         </div>
         <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
             <div class="card border-0 shadow-sm p-3 rounded-3 bg-light">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="p-2 bg-warning bg-opacity-10 text-warning rounded-circle">
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 46px; height: 46px;">
                         <i class="bi bi-truck fs-4"></i>
                     </div>
                     <div>
                         <div class="fw-bold text-dark fs-5" data-counter-target="<?= count($activeRidersList) ?>"><?= count($activeRidersList) ?> Active Riders</div>
                         <div class="small text-muted"><?= (int)$totalRiders ?> total enrolled</div>
                     </div>
-                    <a href="<?= url('pages/admin/users.php?role=rider') ?>" class="btn btn-sm btn-outline-warning text-dark ms-auto">View</a>
+                    <span class="btn btn-sm btn-outline-warning text-dark ms-auto">View</span>
+                    <a href="<?= url('pages/admin/users.php?role=rider') ?>" class="stretched-link" aria-label="View rider accounts"></a>
                 </div>
             </div>
         </div>
         <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
             <div class="card border-0 shadow-sm p-3 rounded-3 bg-light">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="p-2 bg-info bg-opacity-10 text-info rounded-circle">
+                    <div class="bg-info bg-opacity-10 text-info rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 46px; height: 46px;">
                         <i class="bi bi-tags fs-4"></i>
                     </div>
                     <div>
                         <div class="fw-bold text-dark fs-5" data-counter-target="<?= (int)$activeProducts ?>"><?= (int)$activeProducts ?> Active Products</div>
                         <div class="small text-muted"><?= (int)$totalProducts ?> items in catalog</div>
                     </div>
-                    <a href="<?= url('pages/admin/inventory.php') ?>" class="btn btn-sm btn-outline-info ms-auto">Catalog</a>
+                    <span class="btn btn-sm btn-outline-info ms-auto">Catalog</span>
+                    <a href="<?= url('pages/admin/inventory.php') ?>" class="stretched-link" aria-label="Open product catalog"></a>
                 </div>
             </div>
         </div>
@@ -285,7 +293,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <div class="fw-medium text-dark"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></div>
+                                                <div class="fw-medium text-dark text-truncate" style="max-width: 210px;" title="<?= e($order['product_name'] ?? 'LPG Cylinder') ?>"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></div>
                                                 <small class="text-muted extra-small"><?= (int)$order['quantity'] ?> unit(s)</small>
                                             </td>
                                             <td class="fw-bold text-dark"><?= e(format_currency($order['total_amount'])) ?></td>
@@ -363,21 +371,27 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div class="d-grid gap-2">
                         <a href="<?= url('pages/admin/orders.php') ?>" class="btn btn-outline-primary d-flex align-items-center justify-content-between p-3 text-start">
                             <div>
-                                <div class="fw-bold"><i class="bi bi-box-seam me-2"></i>Order Dispatch</div>
+                                <div class="fw-bold"><i class="bi bi-box-seam me-2"></i>Order Dispatch
+                                    <?php if ($pendingOrders > 0): ?><span class="badge bg-warning text-dark ms-1"><?= (int)$pendingOrders ?> pending</span><?php endif; ?>
+                                </div>
                                 <small class="text-muted">Approve, assign riders, and update delivery status</small>
                             </div>
                             <i class="bi bi-chevron-right"></i>
                         </a>
                         <a href="<?= url('pages/admin/inventory.php') ?>" class="btn btn-outline-secondary d-flex align-items-center justify-content-between p-3 text-start text-dark">
                             <div>
-                                <div class="fw-bold"><i class="bi bi-tags me-2 text-info"></i>Product Inventory</div>
+                                <div class="fw-bold"><i class="bi bi-tags me-2 text-info"></i>Product Inventory
+                                    <?php if (count($lowStockProducts) > 0): ?><span class="badge bg-danger ms-1"><?= count($lowStockProducts) ?> low</span><?php endif; ?>
+                                </div>
                                 <small class="text-muted">Update stock, adjust prices, and add new products</small>
                             </div>
                             <i class="bi bi-chevron-right"></i>
                         </a>
                         <a href="<?= url('pages/admin/users.php') ?>" class="btn btn-outline-secondary d-flex align-items-center justify-content-between p-3 text-start text-dark">
                             <div>
-                                <div class="fw-bold"><i class="bi bi-people me-2 text-warning"></i>User Accounts</div>
+                                <div class="fw-bold"><i class="bi bi-people me-2 text-warning"></i>User Accounts
+                                    <span class="badge bg-secondary ms-1"><?= (int)$totalCustomers + (int)$totalRiders ?> users</span>
+                                </div>
                                 <small class="text-muted">Inspect customer valid IDs and toggle user statuses</small>
                             </div>
                             <i class="bi bi-chevron-right"></i>

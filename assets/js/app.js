@@ -506,26 +506,13 @@
     }
 
     // =========================================================================
-    // 13. Sidebar User Footer — Show on Scroll
+    // 13. Sidebar User Footer — Always Visible (stuck at bottom)
     // =========================================================================
     function initSidebarFooterScroll() {
         var $footer = $('#sidebarUserFooter');
         if (!$footer.length) return;
 
-        var $main = $('.app-main');
-        var threshold = 50;
-
-        function checkScroll() {
-            var scrollTop = $(window).scrollTop();
-            if (scrollTop > threshold) {
-                $footer.slideDown(200);
-            } else {
-                $footer.slideUp(200);
-            }
-        }
-
-        $(window).on('scroll', checkScroll);
-        checkScroll();
+        $footer.show();
     }
 
     // =========================================================================
@@ -566,11 +553,27 @@
         }, 2200);
     }
 
+    // Logout transition: show "Logging out..." loading overlay briefly,
+    // then continue to logout.php (which lands on login + signed-out toast).
+    function initLogoutOverlay() {
+        $(document).on('click', 'a[href$="logout.php"]', function (e) {
+            var href = $(this).attr('href');
+            var $overlay = $('#logoutOverlay');
+            if (!$overlay.length || !href) return;
+            e.preventDefault();
+            $overlay.addClass('show');
+            setTimeout(function () {
+                window.location.href = href;
+            }, 1400);
+        });
+    }
+
     // =========================================================================
     // DOM Ready Initialization
     // =========================================================================
     $(function () {
         initSplash();
+        initLogoutOverlay();
         initCsrf();
         initSidebar();
         initConfirmations();

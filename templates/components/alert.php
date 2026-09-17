@@ -11,21 +11,10 @@ if (function_exists('get_flash')) {
     if ($flash && !empty($flash['message'])) {
         $type = (string)($flash['type'] ?? 'info');
         $bsType = ($type === 'error') ? 'danger' : $type;
-
-        $iconMap = [
-            'success' => 'bi-check-circle-fill',
-            'danger'  => 'bi-exclamation-triangle-fill',
-            'warning' => 'bi-exclamation-circle-fill',
-            'info'    => 'bi-info-circle-fill'
-        ];
-
-        $icon = $iconMap[$bsType] ?? 'bi-info-circle-fill';
+        // Hidden carrier: the message pops up as a toast (footer script),
+        // so no static banner is shown at the top of the page.
         ?>
-        <div class="alert alert-<?= e($bsType) ?> alert-dismissible fade show d-flex align-items-center shadow-sm mb-4 app-flash-alert" role="alert" data-flash-type="<?= e($bsType) ?>" data-flash-message="<?= e($flash['message']) ?>">
-            <i class="bi <?= $icon ?> fs-5 me-2 flex-shrink-0"></i>
-            <div class="flex-grow-1"><?= e($flash['message']) ?></div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
+        <div class="d-none app-flash-alert" role="alert" data-flash-type="<?= e($bsType) ?>" data-flash-message="<?= e($flash['message']) ?>"></div>
         <?php
     }
 }

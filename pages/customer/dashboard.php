@@ -55,6 +55,10 @@ foreach ($allOrders as $ord) {
 
 $recentOrders = array_slice($allOrders, 0, 5);
 
+// Time-based greeting for the welcome banner
+$hourNow = (int)date('G');
+$greeting = $hourNow < 12 ? 'Good morning' : ($hourNow < 18 ? 'Good afternoon' : 'Good evening');
+
 $page_title = 'Customer Dashboard';
 $current_page = 'dashboard';
 $page_js = 'customer.js';
@@ -70,7 +74,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
             <div class="row align-items-center g-3">
                 <div class="col-lg-8">
                     <span class="badge bg-white text-primary px-3 py-1 mb-2 fw-semibold">Customer Portal</span>
-                    <h2 class="fw-bold mb-2">Welcome back, <?= e($customer['full_name'] ?? $_SESSION['user_name'] ?? 'Customer') ?>!</h2>
+                    <h2 class="fw-bold mb-2"><?= e($greeting) ?>, <?= e($customer['full_name'] ?? $_SESSION['user_name'] ?? 'Customer') ?>!</h2>
                     <p class="mb-3 text-white-50 fs-6">
                         Manage your LPG cylinder orders, track real-time delivery status, and reorder with ease.
                     </p>
@@ -92,7 +96,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
     <?php if ($latestActiveOrder): ?>
         <div class="alert alert-info border-info-subtle shadow-sm d-flex flex-wrap align-items-center justify-content-between p-3 mb-4 rounded-3" role="alert">
             <div class="d-flex align-items-center gap-3 mb-2 mb-md-0">
-                <div class="p-2 bg-info bg-opacity-25 rounded-circle text-info">
+                <div class="bg-info bg-opacity-25 rounded-circle text-info d-inline-flex align-items-center justify-content-center flex-shrink-0 pulse-ring" style="width: 46px; height: 46px;">
                     <i class="bi bi-truck fs-4"></i>
                 </div>
                 <div>
@@ -119,12 +123,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Active Orders</span>
                         <h3 class="fw-bold my-1 text-primary" data-counter-target="<?= (int)$activeCount ?>"><?= (int)$activeCount ?></h3>
-                        <span class="extra-small text-muted">Pending & in-transit</span>
+                        <span class="extra-small text-muted">Pending & in-transit <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>
                     <div class="stat-icon-wrapper bg-primary-subtle text-primary">
                         <i class="bi bi-hourglass-split"></i>
                     </div>
                 </div>
+                <a href="<?= url('pages/customer/orders.php') ?>" class="stretched-link" aria-label="View active orders"></a>
             </div>
         </div>
 
@@ -135,12 +140,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Delivered</span>
                         <h3 class="fw-bold my-1 text-success" data-counter-target="<?= (int)$deliveredCount ?>"><?= (int)$deliveredCount ?></h3>
-                        <span class="extra-small text-muted">Completed orders</span>
+                        <span class="extra-small text-muted">Completed orders <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>
                     <div class="stat-icon-wrapper bg-success-subtle text-success">
                         <i class="bi bi-check2-circle"></i>
                     </div>
                 </div>
+                <a href="<?= url('pages/customer/orders.php') ?>" class="stretched-link" aria-label="View delivered orders"></a>
             </div>
         </div>
 
@@ -151,12 +157,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">Total Spent</span>
                         <h3 class="fw-bold my-1 text-dark"><?= e(format_currency($totalSpent)) ?></h3>
-                        <span class="extra-small text-muted">On delivered orders</span>
+                        <span class="extra-small text-muted">On delivered orders <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>
                     <div class="stat-icon-wrapper bg-warning-subtle text-warning">
                         <i class="bi bi-cash-stack"></i>
                     </div>
                 </div>
+                <a href="<?= url('pages/customer/orders.php') ?>" class="stretched-link" aria-label="View order history"></a>
             </div>
         </div>
 
@@ -167,12 +174,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div>
                         <span class="text-muted small text-uppercase fw-semibold">All Orders</span>
                         <h3 class="fw-bold my-1 text-secondary" data-counter-target="<?= count($allOrders) ?>"><?= count($allOrders) ?></h3>
-                        <span class="extra-small text-muted">Lifetime transactions</span>
+                        <span class="extra-small text-muted">Lifetime transactions <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>
                     <div class="stat-icon-wrapper bg-secondary-subtle text-secondary">
                         <i class="bi bi-receipt"></i>
                     </div>
                 </div>
+                <a href="<?= url('pages/customer/orders.php') ?>" class="stretched-link" aria-label="View all orders"></a>
             </div>
         </div>
     </div>

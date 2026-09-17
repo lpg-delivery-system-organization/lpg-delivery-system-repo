@@ -38,6 +38,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = sanitize_input($_POST['action'] ?? '');
     $productId = (int)($_POST['product_id'] ?? 0);
 
+    // Friendly label for feedback popups ("Phoenix 50kg" instead of #59)
+    $productLabel = "product #{$productId}";
+    if ($productId > 0) {
+        $foundProduct = $productModel->findById($productId);
+        if (!empty($foundProduct['name'])) {
+            $productLabel = "'" . $foundProduct['name'] . "'";
+        }
+    }
+
     try {
         switch ($action) {
             case 'create_product':
@@ -102,13 +111,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (is_ajax()) {
                     json_response([
                         'success' => true,
-                        'message' => "Stock and price updated for product #{$productId}.",
+                        'message' => "Stock and price updated for {$productLabel}.",
                         'product_id' => $productId,
                         'stock' => $stock,
                         'price' => $price
                     ]);
                 }
-                set_flash('success', "Stock level and unit price updated for product #{$productId}.");
+                set_flash('success', "Stock ({$stock} units) and price (" . format_currency($price) . ") updated for {$productLabel}.");
                 break;
 
             case 'update_product':
@@ -149,11 +158,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (is_ajax()) {
                     json_response([
                         'success' => true,
-                        'message' => "Product #{$productId} updated successfully.",
+                        'message' => "{$productLabel} updated successfully.",
                         'product_id' => $productId
                     ]);
                 }
-                set_flash('success', "Product '{$name}' details updated successfully.");
+                set_flash('success', "{$productLabel} details updated successfully.");
                 break;
 
             case 'toggle_status':
@@ -167,12 +176,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (is_ajax()) {
                     json_response([
                         'success' => true,
-                        'message' => "Product status toggled to {$newStatus}.",
+                        'message' => "{$productLabel} is now {$newStatus}.",
                         'product_id' => $productId,
                         'status' => $newStatus
                     ]);
                 }
-                set_flash('success', "Product #{$productId} status changed to " . ucfirst($newStatus) . ".");
+                set_flash('success', "{$productLabel} status changed to " . ucfirst($newStatus) . ".");
                 break;
 
             default:

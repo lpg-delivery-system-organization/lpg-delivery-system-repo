@@ -111,18 +111,21 @@ if (!$isTokenMode && $_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/app.css">
-    <script>
-    (function(){var s=localStorage.getItem('app-theme');if(s==='dark')document.documentElement.setAttribute('data-theme','dark');})();
-    </script>
     <style>
         body.auth-body {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 50%, #f0fdfa 100%);
+            background-color: #042f2e;
+            background-image:
+                radial-gradient(700px 380px at 85% -8%, rgba(251, 191, 36, 0.16), transparent 60%),
+                radial-gradient(560px 320px at 8% 108%, rgba(20, 184, 166, 0.18), transparent 60%),
+                linear-gradient(150deg, #042f2e 0%, #0b3b36 35%, #0d9488 78%, #14b8a6 100%);
+            background-attachment: fixed;
             padding: 1.5rem 1rem;
             font-family: 'Inter', sans-serif;
+            color: #f0fdfa;
         }
         .auth-wrapper {
             width: 100%;
@@ -132,24 +135,48 @@ if (!$isTokenMode && $_SERVER['REQUEST_METHOD'] === 'POST') {
             text-align: center;
             margin-bottom: 1.5rem;
         }
+        .auth-brand h1 { color: #fff !important; }
+        .auth-brand p { color: rgba(255,255,255,0.7) !important; }
         .auth-brand-icon {
             width: 72px;
             height: 72px;
-            background: linear-gradient(135deg, #0d9488, #14b8a6);
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
             border-radius: 1.25rem;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             font-size: 2.25rem;
             color: #fbbf24;
-            box-shadow: 0 8px 24px rgba(13, 148, 136, 0.3);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
             margin-bottom: 1rem;
         }
         .auth-card {
-            background: #fff;
-            border-radius: 1.25rem;
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
             overflow: hidden;
+            color: #f0fdfa;
+        }
+        /* Light text over the transparent card */
+        .auth-card .text-dark { color: #f0fdfa !important; }
+        .auth-card .text-muted { color: rgba(255,255,255,0.65) !important; }
+        .auth-card .bg-light {
+            background-color: rgba(255,255,255,0.08) !important;
+            border-color: rgba(255,255,255,0.12) !important;
+        }
+        .auth-card .input-group-text { color: rgba(255,255,255,0.7); }
+        .auth-card .input-group-text .text-muted { color: rgba(255,255,255,0.7) !important; }
+        .auth-card .btn-outline-secondary {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.16);
+            color: #f0fdfa;
+        }
+        .auth-card .btn-outline-secondary:hover {
+            background: rgba(255,255,255,0.16);
+            border-color: rgba(255,255,255,0.25);
+            color: #fff;
         }
         .auth-form-body {
             padding: 1.75rem 1.75rem 2rem;
@@ -171,14 +198,17 @@ if (!$isTokenMode && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .auth-form-body .btn-primary {
             border-radius: 0.625rem;
-            padding: 0.65rem;
-            font-weight: 600;
+            padding: 0.7rem;
+            font-weight: 700;
             background: linear-gradient(135deg, #0d9488, #14b8a6);
             border: none;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
         }
         .auth-form-body .btn-primary:hover {
             background: linear-gradient(135deg, #0f766e, #0d9488);
-            box-shadow: 0 4px 16px rgba(13, 148, 136, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+            transform: translateY(-1px);
         }
         .pw-rule { font-size: 0.8rem; padding: 2px 0; }
         .pw-rule .rule-icon { font-size: 0.75rem; width: 1rem; text-align: center; }
@@ -187,21 +217,21 @@ if (!$isTokenMode && $_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 1rem;
         }
         .auth-back-link a {
-            color: #64748b;
+            color: #fbbf24;
             font-size: 0.85rem;
-            font-weight: 500;
+            font-weight: 600;
             text-decoration: none;
         }
         .auth-back-link a:hover {
-            color: #0d9488;
+            color: #fcd34d;
             text-decoration: underline;
         }
         @media (max-width: 575.98px) {
             .auth-form-body { padding: 1.25rem 1rem 1.5rem; }
             .auth-brand-icon { width: 60px; height: 60px; font-size: 1.85rem; border-radius: 1rem; }
         }
-        [data-theme="dark"] body.auth-body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
-        [data-theme="dark"] .auth-card { background: #1e293b; border-color: #334155; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        [data-theme="dark"] body.auth-body { background: linear-gradient(135deg, #020617 0%, #0b3b36 50%, #020617 100%); }
+        [data-theme="dark"] .auth-card { background: rgba(255, 255, 255, 0.06); border-color: rgba(255,255,255,0.12); box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
         [data-theme="dark"] .auth-brand h1, [data-theme="dark"] .auth-brand p { color: #e2e8f0; }
         [data-theme="dark"] .auth-brand p { color: #94a3b8; }
         [data-theme="dark"] .form-floating > .form-control, [data-theme="dark"] .form-floating > .form-select { background: #0f172a; border-color: #334155; color: #e2e8f0; }
@@ -212,22 +242,9 @@ if (!$isTokenMode && $_SERVER['REQUEST_METHOD'] === 'POST') {
         [data-theme="dark"] .auth-brand-icon { box-shadow: 0 8px 24px rgba(20, 184, 166, 0.25); }
         [data-theme="dark"] .form-control { background: #0f172a; border-color: #334155; color: #e2e8f0; }
         [data-theme="dark"] .form-control:focus { background: #0f172a; color: #e2e8f0; border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,0.15); }
-        .auth-theme-toggle {
-            position: fixed; top: 1rem; right: 1rem; z-index: 1000;
-            width: 40px; height: 40px; border-radius: 50%;
-            border: 1px solid rgba(13,148,136,0.25); background: rgba(255,255,255,0.8);
-            color: #0d9488; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; font-size: 1.15rem; transition: all 0.3s ease; padding: 0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .auth-theme-toggle:hover { transform: rotate(20deg); background: rgba(255,255,255,1); }
-        [data-theme="dark"] .auth-theme-toggle { background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.3); color: #fbbf24; }
     </style>
 </head>
 <body class="auth-body">
-<button type="button" class="auth-theme-toggle" id="authThemeToggle" title="Toggle dark mode">
-    <i class="bi bi-moon-fill"></i>
-</button>
 
 <div class="auth-wrapper" data-aos="fade-up" data-aos-duration="600">
     <!-- Branding -->
@@ -422,16 +439,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     checkPw();
 });
-</script>
-<script>
-(function(){
-    var t=document.getElementById('authThemeToggle');
-    if(!t)return;
-    function dk(){return document.documentElement.getAttribute('data-theme')==='dark';}
-    function up(){var i=t.querySelector('i');if(dk()){i.classList.remove('bi-moon-fill');i.classList.add('bi-sun-fill');}else{i.classList.remove('bi-sun-fill');i.classList.add('bi-moon-fill');}}
-    t.addEventListener('click',function(){if(dk()){document.documentElement.removeAttribute('data-theme');localStorage.setItem('app-theme','light');}else{document.documentElement.setAttribute('data-theme','dark');localStorage.setItem('app-theme','dark');}up();});
-    up();
-})();
 </script>
 </body>
 </html>

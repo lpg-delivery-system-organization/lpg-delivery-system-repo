@@ -111,22 +111,10 @@ if ($loggedIn) {
                         <i class="bi bi-moon-fill"></i>
                     </button>
 
-                    <div class="d-none d-sm-flex align-items-center gap-2">
-                        <span class="badge bg-secondary text-uppercase px-2 py-1"><?= e($userRole) ?></span>
-                    </div>
-
-                    <!-- User Profile -->
-                    <div class="d-flex align-items-center text-white">
-                        <?php $userAvatar = $_SESSION['user']['profile_picture'] ?? null; ?>
-                        <?php if ($userAvatar && is_file(dirname(__DIR__) . '/' . ltrim($userAvatar, '/'))): ?>
-                            <img src="<?= e(url($userAvatar)) ?>" alt="Your profile picture" class="rounded-circle me-2 navbar-avatar-img" style="object-fit: cover;">
-                        <?php else: ?>
-                            <div class="user-avatar-circle me-2">
-                                <?= e($userInitial) ?>
-                            </div>
-                        <?php endif; ?>
-                        <span class="d-none d-md-inline fw-semibold small"><?= e($userName) ?></span>
-                    </div>
+                    <!-- Logout (top right) -->
+                    <a href="<?= url('logout.php') ?>" class="btn btn-outline-danger btn-sm px-3 fw-semibold" title="Logout">
+                        <i class="bi bi-box-arrow-right me-1"></i>Logout
+                    </a>
                 <?php else: ?>
                     <a href="<?= url('index.php') ?>" class="btn btn-outline-light btn-sm px-3">Login</a>
                     <a href="<?= url('index.php?tab=register') ?>" class="btn btn-primary btn-sm px-3">Register</a>

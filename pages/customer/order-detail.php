@@ -77,12 +77,12 @@ $isPending = ($status === 'pending');
 $isInTransit = in_array($status, ['approved', 'ready_for_delivery', 'picked_up', 'out_for_delivery'], true);
 
 $steps = [
-    'pending'            => ['label' => 'Order Placed', 'icon' => '1'],
-    'approved'           => ['label' => 'Approved',     'icon' => '2'],
-    'ready_for_delivery' => ['label' => 'Ready',        'icon' => '3'],
-    'picked_up'          => ['label' => 'Picked Up',    'icon' => '4'],
-    'out_for_delivery'   => ['label' => 'Out for Delivery', 'icon' => '5'],
-    'delivered'          => ['label' => 'Delivered',    'icon' => '✓']
+    'pending'            => ['label' => 'Order Placed', 'icon' => '<i class="bi bi-receipt"></i>'],
+    'approved'           => ['label' => 'Approved',     'icon' => '<i class="bi bi-patch-check"></i>'],
+    'ready_for_delivery' => ['label' => 'Ready',        'icon' => '<i class="bi bi-box-seam"></i>'],
+    'picked_up'          => ['label' => 'Picked Up',    'icon' => '<i class="bi bi-bag-check"></i>'],
+    'out_for_delivery'   => ['label' => 'Out for Delivery', 'icon' => '<i class="bi bi-truck"></i>'],
+    'delivered'          => ['label' => 'Delivered',    'icon' => '<i class="bi bi-house-check"></i>']
 ];
 $stepOrder = array_keys($steps);
 $currentIndex = array_search($status, $stepOrder, true);
@@ -125,6 +125,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 <div class="card border-0 shadow-sm p-4 bg-white">
                     <h6 class="fw-bold text-dark mb-3">Order Status Progression</h6>
                     <div class="app-order-timeline m-0">
+                        <div class="timeline-progress-fill" style="--p: <?= $currentIndex / (count($stepOrder) - 1) ?>"></div>
                         <?php foreach ($stepOrder as $idx => $stepKey): ?>
                             <?php
                             $isCompleted = ($idx <= $currentIndex);
@@ -132,7 +133,10 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             $stepClass = $isCompleted ? ($isActive ? 'active' : 'completed') : '';
                             ?>
                             <div class="timeline-step <?= $stepClass ?>">
-                                <div class="timeline-step-icon"><?= $steps[$stepKey]['icon'] ?></div>
+                                <?php if ($isActive): ?>
+                                    <span class="timeline-rider" title="Your rider is here"><i class="bi bi-bicycle"></i></span>
+                                <?php endif; ?>
+                                <div class="timeline-step-icon"><?= ($isCompleted && !$isActive) ? '<i class="bi bi-check-lg"></i>' : $steps[$stepKey]['icon'] ?></div>
                                 <div class="timeline-step-label"><?= $steps[$stepKey]['label'] ?></div>
                             </div>
                         <?php endforeach; ?>

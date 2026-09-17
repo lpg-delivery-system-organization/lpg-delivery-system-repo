@@ -269,7 +269,7 @@ INSERT INTO `products` (`id`, `name`, `brand`, `weight`, `price`, `stock`, `imag
 (8, 'Brent Gas 11kg', 'Brent', '11kg', 835.50, 43, 'assets/img/products/8.png', 'active', '2026-08-20 08:41:02', '2026-08-20 08:41:02'),
 (9, 'Petron Gasul 11kg', 'Petron', '11kg', 835.50, 43, 'assets/img/products/9.png', 'active', '2026-08-20 08:44:55', '2026-08-20 08:44:55'),
 (10, 'Total Gaz 15kg', 'Total', '15kg', 835.50, 43, 'assets/img/products/10.png', 'active', '2026-08-20 08:46:41', '2026-08-20 08:46:41'),
-(59, 'Phoenix Super LPG 413af9', 'Phoenix', '11kg', 860.00, 30, 'assets/img/products/phoenix-11kg.png', 'active', '2026-08-26 01:09:20', '2026-08-26 01:09:20');
+(59, 'Phoenix 50kg', 'Phoenix', '50kg', 3100.00, 30, 'assets/img/products/phoenix-50kg.png', 'active', '2026-08-26 01:09:20', '2026-08-26 01:09:20');
 
 -- --------------------------------------------------------
 

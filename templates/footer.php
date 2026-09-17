@@ -26,6 +26,16 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
     <!-- Bootstrap 5 Toast Notification Container -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index: 1090;"></div>
 
+    <!-- Logout Transition Overlay ("Logging out..." loading screen) -->
+    <div id="logoutOverlay" class="logout-overlay" aria-hidden="true">
+        <div class="logout-overlay-content">
+            <div class="logout-overlay-logo"><i class="bi bi-fire"></i></div>
+            <div class="logout-spinner" role="status" aria-label="Logging out"></div>
+            <div class="logout-overlay-text">Logging out<span class="logout-dots"></span></div>
+            <small>See you soon!</small>
+        </div>
+    </div>
+
     <!-- Theme Toggle Script (runs immediately to prevent flash) -->
     <script>
     (function() {
@@ -48,6 +58,27 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
 
     <!-- Global Application JS -->
     <script src="<?= asset_v('assets/js/app.js') ?>"></script>
+
+    <!-- Session flash -> popup toast (e.g. "Stock updated for 'Phoenix 50kg'")
+         so every save/edit/toggle across the app pops a notification on arrival -->
+    <script>
+    (function() {
+        function popFlash() {
+            var el = document.querySelector('.app-flash-alert');
+            if (!el || !window.showToast) return;
+            var type = el.getAttribute('data-flash-type') || 'info';
+            var msg = el.getAttribute('data-flash-message') || '';
+            if (!msg) return;
+            var titles = { success: 'Updated', danger: 'Error', warning: 'Warning', info: 'Notice' };
+            window.showToast(msg, type, titles[type] || 'Notice');
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', popFlash);
+        } else {
+            popFlash();
+        }
+    })();
+    </script>
 
     <!-- Theme Toggle Handler -->
     <script>

@@ -353,6 +353,25 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         </div>
                     </div>
 
+                    <?php
+                    // Delivery progress: 1 = picked up, 2 = out for delivery, 3 = delivered
+                    $stepIndex = match ($status) {
+                        'picked_up' => 1,
+                        'out_for_delivery' => 2,
+                        'delivered' => 3,
+                        default => 0,
+                    };
+                    $stepLabels = ['Picked up', 'On the way', 'Delivered'];
+                    ?>
+                    <div class="px-3 px-md-4 pt-3">
+                        <ol class="delivery-steps" aria-label="Delivery progress">
+                            <?php foreach ($stepLabels as $i => $label): ?>
+                                <?php $stepNo = $i + 1; ?>
+                                <li class="<?= $stepNo <= $stepIndex ? 'done' : ($stepNo === $stepIndex + 1 && $stepIndex < 3 ? 'current' : '') ?>"><?= e($label) ?></li>
+                            <?php endforeach; ?>
+                        </ol>
+                    </div>
+
                     <!-- Card Body -->
                     <div class="card-body p-3 p-md-4">
                         <div class="row g-4">

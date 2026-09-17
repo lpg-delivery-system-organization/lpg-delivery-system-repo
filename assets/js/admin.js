@@ -537,47 +537,58 @@
         // Quick Adjust Stock & Price Modal Opener
         $(document).on('click', '.btn-open-stock-modal', function (e) {
             e.preventDefault();
-            const id = $(this).data('id');
-            const name = $(this).data('name');
-            const stock = $(this).data('stock');
-            const price = $(this).data('price');
+            const $btn = $(this);
+            const id = $btn.attr('data-id');
+            const name = $btn.attr('data-name') || '';
+            const stock = $btn.attr('data-stock');
+            const price = parseFloat($btn.attr('data-price'));
 
             $('#stockModalProductId').val(id);
             $('#stockModalProductIdDisplay').text('#' + id);
             $('#stockModalProductName').text(name);
-            $('#stockModalStock').val(stock);
-            $('#stockModalPrice').val(parseFloat(price).toFixed(2));
+            $('#stockModalStock').val(stock === undefined ? '' : stock);
+            $('#stockModalPrice').val(isNaN(price) ? '' : price.toFixed(2));
 
             const modalEl = document.getElementById('editStockPriceModal');
             if (modalEl && window.bootstrap && window.bootstrap.Modal) {
                 window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            } else {
+                console.error('Stock modal cannot open: modal element or Bootstrap JS missing.');
             }
         });
 
         // Full Edit Product Modal Opener
         $(document).on('click', '.btn-open-edit-modal', function (e) {
             e.preventDefault();
-            const id = $(this).data('id');
-            const name = $(this).data('name');
-            const brand = $(this).data('brand');
-            const weight = $(this).data('weight');
-            const price = $(this).data('price');
-            const stock = $(this).data('stock');
-            const image = $(this).data('image') || '';
-            const status = $(this).data('status') || 'active';
+            const $btn = $(this);
+            const id = $btn.attr('data-id');
+            const name = $btn.attr('data-name') || '';
+            const brand = $btn.attr('data-brand') || '';
+            const weight = $btn.attr('data-weight') || '';
+            const price = parseFloat($btn.attr('data-price'));
+            const stock = $btn.attr('data-stock');
+            const image = $btn.attr('data-image') || '';
+            const status = String($btn.attr('data-status') || 'active').toLowerCase().trim();
 
             $('#editProdId').val(id);
             $('#editProdName').val(name);
             $('#editProdBrand').val(brand);
             $('#editProdWeight').val(weight);
-            $('#editProdPrice').val(parseFloat(price).toFixed(2));
-            $('#editProdStock').val(stock);
+            $('#editProdPrice').val(isNaN(price) ? '' : price.toFixed(2));
+            $('#editProdStock').val(stock === undefined ? '' : stock);
             $('#editProdImage').val(image);
-            $('#editProdStatus').val(status);
+            const $statusSel = $('#editProdStatus');
+            if ($statusSel.find('option[value="' + status + '"]').length) {
+                $statusSel.val(status);
+            } else {
+                $statusSel.val('active');
+            }
 
             const modalEl = document.getElementById('editProductModal');
             if (modalEl && window.bootstrap && window.bootstrap.Modal) {
                 window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            } else {
+                console.error('Edit modal cannot open: modal element or Bootstrap JS missing.');
             }
         });
 
@@ -671,13 +682,14 @@
         // Edit User Modal Opener
         $(document).on('click', '.btn-open-edit-user', function (e) {
             e.preventDefault();
-            const id = $(this).data('id');
-            const name = $(this).data('name');
-            const email = $(this).data('email');
-            const phone = $(this).data('phone');
-            const address = $(this).data('address');
-            const role = $(this).data('role') || 'customer';
-            const status = $(this).data('status') || 'active';
+            const $btn = $(this);
+            const id = $btn.attr('data-id');
+            const name = $btn.attr('data-name') || '';
+            const email = $btn.attr('data-email') || '';
+            const phone = $btn.attr('data-phone') || '';
+            const address = $btn.attr('data-address') || '';
+            const role = ($btn.attr('data-role') || 'customer').toLowerCase().trim();
+            const status = ($btn.attr('data-status') || 'active').toLowerCase().trim();
 
             $('#editUserId').val(id);
             $('#editUserIdDisplay').text('#' + id);
@@ -686,11 +698,16 @@
             $('#editFullName').val(name);
             $('#editPhone').val(phone);
             $('#editAddress').val(address);
-            $('#editStatus').val(status);
+            const $editStatus = $('#editStatus');
+            if ($editStatus.find('option[value="' + status + '"]').length) {
+                $editStatus.val(status);
+            }
 
             const modalEl = document.getElementById('editUserModal');
             if (modalEl && window.bootstrap && window.bootstrap.Modal) {
                 window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            } else {
+                console.error('Edit user modal cannot open: modal element or Bootstrap JS missing.');
             }
         });
 
