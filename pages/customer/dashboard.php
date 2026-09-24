@@ -56,12 +56,20 @@ foreach ($allOrders as $ord) {
 $recentOrders = array_slice($allOrders, 0, 5);
 
 // Time-based greeting for the welcome banner
+// Morning (12:00 AM - 11:59 AM) / Afternoon (12:00 PM - 5:59 PM) / Evening (6:00 PM - 11:59 PM)
 $hourNow = (int)date('G');
-$greeting = $hourNow < 12 ? 'Good morning' : ($hourNow < 18 ? 'Good afternoon' : 'Good evening');
+if ($hourNow >= 0 && $hourNow < 12) {
+    $greeting = 'Good morning';
+} elseif ($hourNow >= 12 && $hourNow < 18) {
+    $greeting = 'Good afternoon';
+} else {
+    $greeting = 'Good evening';
+}
 
 $page_title = 'Customer Dashboard';
 $current_page = 'dashboard';
 $page_js = 'customer.js';
+$needs_maps = false; // no maps on this page — skip Leaflet for faster mobile loads
 
 require_once __DIR__ . '/../../templates/header.php';
 require_once __DIR__ . '/../../templates/components/order-card.php';
@@ -70,11 +78,11 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 <div class="container-fluid px-0">
     <!-- Welcome Header Card -->
     <div class="card mb-4 rounded-3 overflow-hidden position-relative app-banner-gradient text-white" data-aos="fade-down">
-        <div class="card-body p-4 p-lg-5 position-relative" style="z-index: 2;">
+        <div class="card-body p-4 position-relative" style="z-index: 2;">
             <div class="row align-items-center g-3">
                 <div class="col-lg-8">
                     <span class="badge bg-white text-primary px-3 py-1 mb-2 fw-semibold">Customer Portal</span>
-                    <h2 class="fw-bold mb-2"><?= e($greeting) ?>, <?= e($customer['full_name'] ?? $_SESSION['user_name'] ?? 'Customer') ?>!</h2>
+                    <h2 class="fw-bold mb-2 welcome-greeting"><?= e($greeting) ?>, <?= e($customer['full_name'] ?? $_SESSION['user_name'] ?? 'Customer') ?>!</h2>
                     <p class="mb-3 text-white-50 fs-6">
                         Manage your LPG cylinder orders, track real-time delivery status, and reorder with ease.
                     </p>

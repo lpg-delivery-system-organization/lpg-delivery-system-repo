@@ -237,17 +237,23 @@ require_once __DIR__ . '/../../templates/header.php';
 
 <div class="container-fluid px-0" id="riderProfileContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
-        <div>
-            <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
-                <i class="bi bi-person-circle text-primary"></i>Rider Profile & Performance
-            </h3>
-            <p class="text-muted small mb-0">View delivery performance stats, update contact details, and manage password security.</p>
-        </div>
-        <div>
-            <span class="badge bg-primary text-uppercase px-3 py-2">
-                <i class="bi bi-shield-check me-1"></i>Official Delivery Rider
-            </span>
+    <div class="card mb-3 rounded-3 overflow-hidden position-relative app-banner-gradient app-banner-compact text-white" data-aos="fade-down">
+        <div class="card-body position-relative" style="z-index: 2;">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="banner-icon"><i class="bi bi-person-circle"></i></span>
+                <div class="flex-grow-1" style="min-width: 200px;">
+                    <h5 class="fw-bold mb-0">Rider Profile & Performance</h5>
+                    <p class="text-white-50 banner-sub mb-0">View delivery performance stats, update contact details, and manage password security.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    <span class="banner-chip">
+                        <i class="bi bi-graph-up-arrow"></i><?= $totalCompleted ?> completed &bull; <?= $totalActive ?> active
+                    </span>
+                    <span class="banner-chip banner-chip-primary">
+                        <i class="bi bi-shield-check"></i>Official Delivery Rider
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 

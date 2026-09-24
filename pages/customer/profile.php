@@ -209,23 +209,27 @@ $customer = $userModel->findById($customerId);
 $page_title = 'My Profile';
 $current_page = 'profile';
 $page_js = 'customer.js';
+$needs_maps = false; // no maps on this page — skip Leaflet for faster mobile loads
 
 require_once __DIR__ . '/../../templates/header.php';
 ?>
 
 <div class="container-fluid px-0" id="customerProfileContainer">
     <!-- Profile Page Header -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-        <div>
-            <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
-                <i class="bi bi-person-circle text-primary"></i>Customer Profile
-            </h3>
-            <p class="text-muted small mb-0">Manage your account information, default delivery address, and security settings.</p>
-        </div>
-        <div>
-            <span class="badge bg-primary text-uppercase px-3 py-2">
-                <i class="bi bi-person-check me-1"></i>Customer Account
-            </span>
+    <div class="card mb-3 rounded-3 overflow-hidden position-relative app-banner-gradient app-banner-compact text-white" data-aos="fade-down">
+        <div class="card-body position-relative" style="z-index: 2;">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="banner-icon"><i class="bi bi-person-circle"></i></span>
+                <div class="flex-grow-1" style="min-width: 200px;">
+                    <h5 class="fw-bold mb-0">Customer Profile</h5>
+                    <p class="text-white-50 banner-sub mb-0">Manage your account information, default delivery address, and security settings.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    <span class="banner-chip banner-chip-primary">
+                        <i class="bi bi-person-check"></i>Customer Account
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 

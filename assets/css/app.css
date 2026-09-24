@@ -260,22 +260,29 @@ div.rounded-circle.d-inline-flex {
     text-align: center;
 }
 
-/* Mobile Sidebar Drawer */
+/* Mobile Sidebar Drawer — transform-based slide (GPU-accelerated, no layout thrash) */
 @media (max-width: 991.98px) {
     .app-sidebar {
         position: fixed;
         top: var(--app-header-height);
-        left: calc(-1 * var(--app-sidebar-width));
+        left: 0;
         bottom: 0;
         width: var(--app-sidebar-width);
         height: auto;
         box-shadow: none;
-        transition: left 0.3s ease;
+        transform: translateX(-105%);
+        transition: transform 0.25s ease-out;
+        will-change: transform;
     }
 
     body.sidebar-open .app-sidebar {
-        left: 0;
+        transform: translateX(0);
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Lock background scroll while drawer is open (prevents jank) */
+    body.sidebar-open {
+        overflow: hidden;
     }
 
     .sidebar-backdrop {
@@ -285,10 +292,10 @@ div.rounded-circle.d-inline-flex {
         right: 0;
         bottom: 0;
         background-color: rgba(15, 23, 42, 0.5);
-        backdrop-filter: blur(2px);
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.3s ease;
+        transition: opacity 0.2s ease-out;
+        will-change: opacity;
         z-index: 1020;
     }
 
@@ -1023,30 +1030,38 @@ div.rounded-circle.d-inline-flex {
 }
 
 /* =========================================================================
-   12. Customer Shop Page — Independent Column Scrolling
-   Products grid and Order & Delivery details each get their own scrollbar
-   on desktop screens (lg and up). Mobile keeps normal page scrolling.
+   12. Customer Shop Page — sticky Order & Delivery Details (desktop).
+   Products grid scrolls naturally; checkout card sticks in view so the
+   customer never loses the Place Order button while browsing.
    ========================================================================= */
 
 @media (min-width: 992px) {
     .shop-products-scroll {
-        max-height: calc(100vh - 170px);
-        overflow-y: auto;
-        padding-right: 6px;
+        max-height: none;
+        overflow-y: visible;
+        padding-right: 0;
+    }
+
+    .shop-checkout-col {
+        position: sticky;
+        top: calc(var(--app-header-height) + 1rem);
+        align-self: flex-start;
+        z-index: 10;
     }
 
     .shop-checkout-card {
-        position: sticky;
-        top: 88px;
-        max-height: calc(100vh - 104px);
+        max-height: calc(100vh - var(--app-header-height) - 2rem);
         display: flex;
         flex-direction: column;
     }
 
+    .shop-checkout-card > .card-header {
+        flex-shrink: 0;
+    }
+
     .shop-checkout-card > .card-body {
         overflow-y: auto;
-        flex: 1 1 auto;
-        min-height: 0;
+        overscroll-behavior: contain;
     }
 
     /* Thin, subtle scrollbars for both panels */
@@ -1060,17 +1075,17 @@ div.rounded-circle.d-inline-flex {
         background: rgba(0, 0, 0, 0.18);
         border-radius: 3px;
     }
+}
 
-    /* Pulse highlight when a product is selected, guiding the eye to checkout */
-    .shop-checkout-flash {
-        animation: shopCheckoutFlash 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    }
+/* Pulse highlight when a product is selected — works on mobile + desktop */
+.shop-checkout-flash {
+    animation: shopCheckoutFlash 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
 
-    @keyframes shopCheckoutFlash {
-        0%   { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.5); }
-        35%  { box-shadow: 0 0 0 10px rgba(13, 148, 136, 0.25); }
-        100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
-    }
+@keyframes shopCheckoutFlash {
+    0%   { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.5); }
+    35%  { box-shadow: 0 0 0 10px rgba(13, 148, 136, 0.25); }
+    100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
 }
 
 /* =========================================================================
@@ -1436,6 +1451,64 @@ div.rounded-circle.d-inline-flex {
 @keyframes floatBannerOrb {
     0%, 100% { transform: translate(0, 0) scale(1); }
     50%      { transform: translate(-20px, 15px) scale(1.1); }
+}
+
+/* Banner info chips — glass pills that read as labels, NOT buttons */
+.banner-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 50rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    cursor: default;
+    user-select: none;
+    white-space: nowrap;
+}
+.banner-chip i {
+    font-size: 0.9rem;
+    line-height: 1;
+    opacity: 0.95;
+}
+.banner-chip-success i { color: #a7f3d0; }
+.banner-chip-primary i { color: #bae6fd; }
+
+/* Compact page banner — slim single-row header (good size, not oversized) */
+.banner-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: #fff;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+.app-banner-compact .card-body { padding: 0.8rem 1rem !important; }
+.app-banner-compact h5 { font-size: 1.05rem; }
+.app-banner-compact .banner-sub { font-size: 0.78rem; }
+.app-banner-compact.app-banner-gradient::after {
+    width: 220px;
+    height: 220px;
+    top: -70%;
+    right: -5%;
+}
+.app-banner-compact.app-banner-dark::after {
+    width: 220px;
+    height: 220px;
+    top: -70%;
+    right: -5%;
 }
 
 /* =========================================================================
@@ -1928,6 +2001,73 @@ div.rounded-circle.d-inline-flex {
     opacity: 1 !important;
 }
 
+/* Mobile: no AOS scroll-wait — instead run fast CSS-only page-enter
+   animations so Customer (Dashboard / Shop / Orders / Profile) and Admin
+   (Dashboard / Order Management / Inventory / User Management) animate
+   instantly on switch with zero stagger lag. */
+@media (max-width: 991.98px) {
+    [data-aos],
+    [data-aos][data-aos-delay],
+    .aos-animate {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+        transition-delay: 0s !important;
+    }
+
+    .app-main {
+        opacity: 1 !important;
+        transition: none !important;
+    }
+
+    /* Lightweight GPU-only enter animations (opacity + translateY) */
+    @keyframes appPageIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes appCardIn {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Page banner glides in first */
+    .app-main .container-fluid > .card:first-child,
+    .app-main .container-fluid > .alert:first-child {
+        animation: appPageIn 0.28s ease-out backwards;
+    }
+
+    /* Content cards follow with a tiny capped stagger (max ~0.12s wait) */
+    .app-main .card {
+        animation: appCardIn 0.32s ease-out backwards;
+    }
+
+    .app-main .row > *:nth-child(2) .card { animation-delay: 0.04s; }
+    .app-main .row > *:nth-child(3) .card { animation-delay: 0.08s; }
+    .app-main .row > *:nth-child(4) .card { animation-delay: 0.12s; }
+    .app-main .row > *:nth-child(n+5) .card { animation-delay: 0.12s; }
+
+    /* Admin mobile order cards: stagger the first few, render the rest
+       instantly so long lists stay smooth on low-end phones */
+    .admin-orders-mobile-list > *:nth-child(2) { animation-delay: 0.03s; }
+    .admin-orders-mobile-list > *:nth-child(3) { animation-delay: 0.06s; }
+    .admin-orders-mobile-list > *:nth-child(4) { animation-delay: 0.09s; }
+    .admin-orders-mobile-list > *:nth-child(5) { animation-delay: 0.12s; }
+    .admin-orders-mobile-list > *:nth-child(6) { animation-delay: 0.12s; }
+    .admin-orders-mobile-list > *:nth-child(n+7) { animation: none; }
+
+    /* Momentum horizontal swipe for admin tables on touch */
+    .app-main .table-responsive {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+    }
+
+    /* Active sidebar item gets a subtle slide so the tap feels alive */
+    .app-sidebar .nav-link.active {
+        animation: appPageIn 0.25s ease-out backwards;
+    }
+}
+
 /* =========================================================================
    37. Modal Enhancements
    ========================================================================= */
@@ -2028,6 +2168,19 @@ div.rounded-circle.d-inline-flex {
 [data-theme="dark"] .form-check-input:checked { background-color: #14b8a6; border-color: #14b8a6; }
 [data-theme="dark"] .form-label { color: #e2e8f0; }
 [data-theme="dark"] .form-text { color: #64748b; }
+
+/* File inputs: native "Choose file" button stays readable in dark mode */
+[data-theme="dark"] .form-control::file-selector-button,
+[data-theme="dark"] .form-control::-webkit-file-upload-button {
+    background-color: #1e293b;
+    border-inline-end-color: #334155;
+    color: #e2e8f0;
+}
+[data-theme="dark"] .form-control:hover::file-selector-button,
+[data-theme="dark"] .form-control:hover::-webkit-file-upload-button {
+    background-color: #334155;
+    color: #ffffff;
+}
 
 /* Dropdowns */
 [data-theme="dark"] .dropdown-menu { background-color: #1e293b; border-color: #334155; }
@@ -2190,6 +2343,39 @@ div.rounded-circle.d-inline-flex {
 [data-theme="dark"] .btn-outline-primary:hover { background-color: #14b8a6; color: #fff; border-color: #14b8a6; }
 [data-theme="dark"] .app-btn-gradient { box-shadow: 0 4px 16px rgba(20,184,166,0.3); }
 [data-theme="dark"] .app-btn-gradient:hover { box-shadow: 0 6px 24px rgba(20,184,166,0.45); }
+
+/* Dark mode: kill white table-light variant (customer order-detail Total Amount row + thead).
+   Bootstrap's .table-light forces --bs-table-bg: #f8f9fa (white block in dark mode) and
+   pairs it with dark text, which also makes .text-dark cells render white-on-white. */
+[data-theme="dark"] .table-light {
+    --bs-table-color: #e2e8f0;
+    --bs-table-bg: #0f172a;
+    --bs-table-border-color: #334155;
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.02);
+    --bs-table-striped-color: #e2e8f0;
+    --bs-table-active-bg: rgba(20, 184, 166, 0.08);
+    --bs-table-active-color: #e2e8f0;
+    --bs-table-hover-bg: rgba(20, 184, 166, 0.08);
+    --bs-table-hover-color: #e2e8f0;
+    color: #e2e8f0;
+    border-color: #334155;
+}
+[data-theme="dark"] thead.table-light th,
+[data-theme="dark"] thead.table-light td,
+[data-theme="dark"] tbody tr.table-light th,
+[data-theme="dark"] tbody tr.table-light td,
+[data-theme="dark"] tfoot tr.table-light th,
+[data-theme="dark"] tfoot tr.table-light td,
+[data-theme="dark"] tr.table-light > th,
+[data-theme="dark"] tr.table-light > td {
+    background-color: #0f172a !important;
+    box-shadow: inset 0 0 0 9999px #0f172a !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+[data-theme="dark"] thead.table-light th {
+    color: #94a3b8 !important;
+}
 
 /* Dark mode: remove white hover flash (admin + rider tables, buttons, pagination, lists) */
 [data-theme="dark"] .table,
@@ -2483,7 +2669,7 @@ h4, .h4 { font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem); }
     }
     .btn-sm { min-height: 38px; }
 
-    /* Navbar: keep brand visible but compact; logout becomes icon */
+    /* Navbar: keep brand visible but compact; logout becomes icon-only */
     .app-navbar .navbar-brand { font-size: 0.95rem; }
     .app-navbar .navbar-brand span:last-child {
         max-width: 38vw;
@@ -2491,7 +2677,21 @@ h4, .h4 { font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem); }
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    .app-navbar .btn-outline-danger .me-1 { margin-right: 0 !important; }
+    .app-navbar-actions { gap: 0.5rem !important; }
+    .app-navbar .app-logout-btn {
+        width: 36px;
+        height: 36px;
+        min-height: 36px;
+        padding: 0 !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    .app-navbar .app-logout-btn .app-logout-label { display: none !important; }
+    .app-navbar .app-logout-btn i { margin: 0 !important; }
 
     /* Page headers stack: title over actions */
     .d-flex.justify-content-between.align-items-center,
@@ -2584,8 +2784,7 @@ h4, .h4 { font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem); }
     .card-body { padding: 1.25rem; }
 
     /* Sidebar is a drawer in this range — widen touch area slightly */
-    .app-sidebar { width: 280px; left: -280px; }
-    body.sidebar-open .app-sidebar { left: 0; }
+    .app-sidebar { width: 280px; }
 
     /* Two-column stat grids breathe */
     .row.g-3 { --bs-gutter-x: 1rem; --bs-gutter-y: 1rem; }
@@ -2864,4 +3063,270 @@ h4, .h4 { font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem); }
     75% { content: '...'; }
 }
 .logout-overlay-content small { color: rgba(255, 255, 255, 0.75); }
+
+/* =========================================================================
+   41. Compact customer banners — stay slim on ALL devices.
+   Overrides generic banner padding (39.2b) + full-width phone buttons (39.4)
+   which otherwise make compact banners swallow vertical space.
+   ========================================================================= */
+.app-banner-gradient.app-banner-compact .card-body,
+.app-banner-dark.app-banner-compact .card-body { padding: 0.8rem 1rem !important; }
+.app-banner-gradient.app-banner-compact .card-body .btn,
+.app-banner-dark.app-banner-compact .card-body .btn { flex: 0 0 auto; }
+
+/* Phones: hide subtitle, shrink icon/chips, keep button inline */
+@media (max-width: 575.98px) {
+    .app-banner-gradient.app-banner-compact .card-body,
+    .app-banner-dark.app-banner-compact .card-body { padding: 0.65rem 0.8rem !important; }
+    .app-banner-compact .banner-icon { width: 32px; height: 32px; font-size: 1rem; border-radius: 10px; }
+    .app-banner-compact h5 { font-size: 0.95rem; }
+    .app-banner-compact .banner-sub { display: none !important; }
+    .app-banner-compact .banner-chip { padding: 0.28rem 0.6rem; font-size: 0.68rem; }
+    .app-banner-compact .banner-chip i { font-size: 0.75rem; }
+    .app-banner-gradient.app-banner-compact .card-body .btn,
+    .app-banner-dark.app-banner-compact .card-body .btn {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-height: 0 !important;
+        font-size: 0.78rem;
+        padding: 0.35rem 0.7rem;
+    }
+    .app-banner-compact > .card-body > .d-flex { gap: 0.65rem !important; }
+}
+/* Desktop: medium size — not tiny, not oversized */
+@media (min-width: 992px) {
+    .app-banner-gradient.app-banner-compact .card-body,
+    .app-banner-dark.app-banner-compact .card-body { padding: 1rem 1.25rem !important; }
+    .app-banner-compact h5 { font-size: 1.3rem; }
+    .app-banner-compact .banner-sub { font-size: 0.83rem; }
+    .app-banner-compact .banner-icon { width: 44px; height: 44px; font-size: 1.25rem; border-radius: 12px; }
+    .app-banner-compact .banner-chip { padding: 0.4rem 0.85rem; font-size: 0.76rem; }
+    .app-banner-compact.app-banner-gradient::after {
+        width: 280px;
+        height: 280px;
+        top: -60%;
+        right: -5%;
+    }
+    .app-banner-compact.app-banner-dark::after {
+        width: 280px;
+        height: 280px;
+        top: -60%;
+        right: -5%;
+    }
+}
+
+/* =========================================================================
+   42. Customer order filter pills — single-row scroll on phones/tablets
+   so All / Pending / In Transit / Delivered / Cancelled never stack ugly.
+   ========================================================================= */
+.order-filter-bar { scrollbar-width: thin; }
+.order-filter-bar .order-filter-btn { flex-shrink: 0; }
+
+/* Customer welcome greeting — medium fluid size on all devices */
+.welcome-greeting {
+    font-size: clamp(1.45rem, 1.15rem + 1.4vw, 1.9rem);
+    line-height: 1.25;
+    overflow-wrap: break-word;
+}
+@media (max-width: 767.98px) {
+    .order-filter-bar {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 0.5rem !important;
+        padding: 0.55rem 0.65rem !important;
+    }
+    .order-filter-bar::-webkit-scrollbar { display: none; }
+    .order-filter-bar .order-filter-btn {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.75rem !important;
+        min-height: 0 !important;
+        line-height: 1.4;
+    }
+    .order-filter-bar .badge { font-size: 0.65rem; }
+}
+
+/* =========================================================================
+   43. Admin Order Management — responsive filter tabs, banner & cards.
+   All Orders / Pending / Approved / Ready / Picked Up / Out for Delivery /
+   Delivered / Cancelled must stay usable on Android phones without squeezing
+   the wide desktop table. Desktop keeps the table; <md uses stacked cards.
+   ========================================================================= */
+#adminOrdersContainer { min-width: 0; }
+
+/* Filter pill bar: base (desktop wraps neatly) */
+.admin-order-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.65rem 0.75rem;
+    scrollbar-width: thin;
+}
+.admin-order-filter-bar .admin-order-filter-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding-inline: 0.9rem;
+    border-radius: 50rem;
+}
+
+/* User Management role tabs: same pill radius as Order Management filters */
+.admin-user-filter-bar .admin-user-filter-btn {
+    border-radius: 50rem;
+}
+
+/* Banner head: title grows, actions never overflow */
+.admin-orders-banner-head { min-width: 0; }
+.admin-orders-banner-title { min-width: 0; flex: 1 1 220px; }
+.admin-orders-banner-actions {
+    flex-wrap: wrap;
+    margin-left: auto;
+    row-gap: 0.4rem;
+}
+.admin-orders-banner-actions .btn { white-space: nowrap; }
+
+/* Search count line centers on phones */
+.admin-visible-count { min-width: 0; }
+
+/* Mobile order card internals */
+.admin-orders-mobile-list .admin-order-card { border-radius: 0.875rem; }
+.admin-order-card-thumb {
+    width: 44px;
+    height: 44px;
+    background: #f1f5f9;
+}
+.admin-order-card-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.admin-order-card-meta { min-width: 0; }
+.admin-order-card .min-w-0 { min-width: 0; }
+.admin-order-card-actions .btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Phones & small tablets: filter bar becomes one-row swipe strip */
+@media (max-width: 991.98px) {
+    .admin-filter-card { position: sticky; top: calc(var(--app-header-height) + 0.5rem); z-index: 1010; }
+    .admin-order-filter-bar {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 0.5rem !important;
+        padding: 0.55rem 0.65rem !important;
+    }
+    .admin-order-filter-bar::-webkit-scrollbar { display: none; }
+    .admin-order-filter-bar .admin-order-filter-btn {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.8rem !important;
+        min-height: 0 !important;
+        line-height: 1.4;
+    }
+    .admin-order-filter-bar .badge { font-size: 0.65rem; }
+
+    /* User Management role tabs: same one-row swipe strip on touch */
+    .admin-user-filter-bar {
+        flex-wrap: nowrap !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .admin-user-filter-bar::-webkit-scrollbar { display: none; }
+    .admin-user-filter-bar .admin-user-filter-btn {
+        flex-shrink: 0;
+        white-space: nowrap;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.8rem !important;
+        min-height: 0 !important;
+        line-height: 1.4;
+    }
+    .admin-user-filter-bar .badge { font-size: 0.65rem; }
+}
+
+/* Phones: banner stacks, actions fill row as touch-friendly buttons */
+@media (max-width: 575.98px) {
+    .admin-orders-banner-title { flex: 1 1 100%; }
+    .admin-orders-banner-actions { width: 100%; margin-left: 0; }
+    .admin-orders-banner-actions .banner-chip {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+    .admin-orders-banner-actions .btn {
+        flex: 1 1 auto;
+        justify-content: center;
+        min-height: 38px;
+    }
+    .admin-visible-count { text-align: left !important; }
+    .admin-orders-mobile-list { padding: 0.5rem !important; }
+}
+
+/* Dark mode: mobile thumb + card borders */
+[data-theme="dark"] .admin-order-card-thumb { background: #0f172a; }
+
+/* Global dark-mode fix: Bootstrap .alert-light / .alert-secondary stayed white */
+[data-theme="dark"] .alert-light,
+[data-theme="dark"] .alert-secondary {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #cbd5e1 !important;
+}
+[data-theme="dark"] .alert-light .text-muted,
+[data-theme="dark"] .alert-secondary .text-muted { color: #94a3b8 !important; }
+[data-theme="dark"] .alert-light strong,
+[data-theme="dark"] .alert-secondary strong { color: #f1f5f9 !important; }
+
+/* Theme-aware empty-filter state (replaces white alert-light box) — compact height, full width */
+.empty-filter-state {
+    text-align: center;
+    padding: 1.1rem 1rem 1.25rem;
+    margin: 0.75rem 0;
+    border-radius: 0.75rem;
+    border: 1px dashed var(--app-border);
+    background-color: var(--app-surface);
+    color: var(--app-text-main);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.empty-filter-state .fw-bold { font-size: 0.95rem; }
+.empty-filter-state p {
+    color: var(--app-text-muted);
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0.75rem !important;
+    line-height: 1.45;
+}
+.empty-filter-icon {
+    width: 38px;
+    height: 38px;
+    margin: 0 auto 0.5rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    background: rgba(13, 148, 136, 0.1);
+    color: var(--app-primary);
+    border: 1px solid rgba(13, 148, 136, 0.2);
+}
+[data-theme="dark"] .empty-filter-state {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+[data-theme="dark"] .empty-filter-state p { color: #94a3b8; }
+[data-theme="dark"] .empty-filter-icon {
+    background: rgba(20, 184, 166, 0.12);
+    border-color: rgba(20, 184, 166, 0.3);
+    color: #5eead4;
+}
 

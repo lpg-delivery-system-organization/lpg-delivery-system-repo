@@ -236,23 +236,30 @@ sort($brandsList);
 $page_title = 'Inventory Management';
 $current_page = 'inventory';
 $page_js = 'admin.js';
+$needs_maps = false; // no maps on this page — skip Leaflet for faster mobile loads
 
 require_once __DIR__ . '/../../templates/header.php';
 ?>
 
 <div class="container-fluid px-0" id="adminInventoryContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
-        <div>
-            <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
-                <i class="bi bi-tags text-primary"></i>Product Catalog & Inventory
-            </h3>
-            <p class="text-muted small mb-0">Track cylinder stock levels, manage retail pricing, and configure active catalog visibility.</p>
-        </div>
-        <div class="d-flex gap-2">
-            <button type="button" class="btn btn-primary shadow-sm px-4 fw-semibold" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                <i class="bi bi-plus-lg me-1"></i>Add New Product
-            </button>
+    <div class="card mb-3 rounded-3 overflow-hidden position-relative app-banner-dark app-banner-compact text-white" data-aos="fade-down">
+        <div class="card-body position-relative" style="z-index: 2;">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="banner-icon"><i class="bi bi-tags"></i></span>
+                <div class="flex-grow-1" style="min-width: 200px;">
+                    <h5 class="fw-bold mb-0">Product Catalog & Inventory</h5>
+                    <p class="text-white-50 banner-sub mb-0">Track cylinder stock levels, manage retail pricing, and configure active catalog visibility.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    <span class="banner-chip">
+                        <i class="bi bi-boxes"></i><?= $totalProducts ?> product<?= $totalProducts === 1 ? '' : 's' ?> &bull; <?= $activeCount ?> active
+                    </span>
+                    <button type="button" class="btn btn-primary btn-sm fw-bold shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                        <i class="bi bi-plus-lg me-1"></i>Add New Product
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -425,6 +425,9 @@ $flashIcon = $flashIcons[$flashType];
             border-radius: 0.7rem;
             padding: 0.65rem 1rem;
             transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .auth-segment .nav-link:hover:not(.active) { color: #fff; }
         .auth-segment .nav-link.active {
@@ -458,6 +461,9 @@ $flashIcon = $flashIcons[$flashType];
             border: none;
             box-shadow: 0 4px 14px rgba(13, 148, 136, 0.3);
             transition: transform 0.15s ease, box-shadow 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .auth-form-body .btn-primary:hover {
             background: linear-gradient(135deg, #0f766e, #0d9488);

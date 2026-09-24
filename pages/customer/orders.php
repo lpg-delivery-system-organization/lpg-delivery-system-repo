@@ -102,34 +102,42 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0" id="customerOrdersContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
-        <div>
-            <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
-                <i class="bi bi-receipt text-primary"></i>My Order History
-            </h3>
-            <p class="text-muted small mb-0">Track live delivery progress, view receipts, and manage your LPG requests.</p>
+    <div class="card mb-3 rounded-3 overflow-hidden position-relative app-banner-gradient app-banner-compact text-white" data-aos="fade-down">
+        <div class="card-body position-relative" style="z-index: 2;">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="banner-icon"><i class="bi bi-receipt"></i></span>
+                <div class="flex-grow-1" style="min-width: 200px;">
+                    <h5 class="fw-bold mb-0">My Order History</h5>
+                    <p class="text-white-50 banner-sub mb-0">Track live delivery progress, view receipts, and manage your LPG requests.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    <span class="banner-chip">
+                        <i class="bi bi-box-seam"></i><?= $countAll ?> order<?= $countAll === 1 ? '' : 's' ?> placed
+                    </span>
+                    <a href="<?= url('pages/customer/shop.php') ?>" class="btn btn-warning btn-sm fw-bold text-dark shadow-sm px-3">
+                        <i class="bi bi-plus-lg me-1"></i>New Order
+                    </a>
+                </div>
+            </div>
         </div>
-        <a href="<?= url('pages/customer/shop.php') ?>" class="btn btn-primary shadow-sm px-4">
-            <i class="bi bi-plus-lg me-1"></i>New Order
-        </a>
     </div>
 
     <!-- Filter Buttons Bar -->
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-2 d-flex flex-wrap gap-2 align-items-center">
-            <button type="button" class="btn btn-sm btn-primary active order-filter-btn px-3" data-filter="all">
+        <div class="card-body p-2 d-flex flex-wrap gap-2 align-items-center order-filter-bar">
+            <button type="button" class="btn btn-sm btn-primary active order-filter-btn rounded-pill text-nowrap px-3" data-filter="all">
                 All Orders <span class="badge bg-white text-primary ms-1"><?= $countAll ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary order-filter-btn px-3" data-filter="pending">
+            <button type="button" class="btn btn-sm btn-outline-secondary order-filter-btn rounded-pill text-nowrap px-3" data-filter="pending">
                 Pending <span class="badge bg-secondary ms-1"><?= $countPending ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary order-filter-btn px-3" data-filter="in_transit">
+            <button type="button" class="btn btn-sm btn-outline-secondary order-filter-btn rounded-pill text-nowrap px-3" data-filter="in_transit">
                 In Transit <span class="badge bg-secondary ms-1"><?= $countInTransit ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary order-filter-btn px-3" data-filter="delivered">
+            <button type="button" class="btn btn-sm btn-outline-secondary order-filter-btn rounded-pill text-nowrap px-3" data-filter="delivered">
                 Delivered <span class="badge bg-secondary ms-1"><?= $countDelivered ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary order-filter-btn px-3" data-filter="cancelled">
+            <button type="button" class="btn btn-sm btn-outline-secondary order-filter-btn rounded-pill text-nowrap px-3" data-filter="cancelled">
                 Cancelled <span class="badge bg-secondary ms-1"><?= $countCancelled ?></span>
             </button>
         </div>

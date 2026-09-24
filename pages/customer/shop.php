@@ -226,20 +226,23 @@ require_once __DIR__ . '/../../templates/header.php';
 
 <div class="container-fluid px-0" id="customerShopContainer">
     <!-- Page Title & Information Banner -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
-        <div>
-            <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
-                <i class="bi bi-shop text-primary"></i>LPG Cylinder Catalog
-            </h3>
-            <p class="text-muted small mb-0">Select your preferred LPG brand and size, configure quantity, and order for doorstep delivery.</p>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
-                <i class="bi bi-shield-check me-1"></i>100% Safety Certified
-            </span>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
-                <i class="bi bi-truck me-1"></i>Fast Doorstep Delivery
-            </span>
+    <div class="card mb-3 rounded-3 overflow-hidden position-relative app-banner-gradient app-banner-compact text-white" data-aos="fade-down">
+        <div class="card-body position-relative" style="z-index: 2;">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="banner-icon"><i class="bi bi-shop"></i></span>
+                <div class="flex-grow-1" style="min-width: 200px;">
+                    <h5 class="fw-bold mb-0">LPG Cylinder Catalog</h5>
+                    <p class="text-white-50 banner-sub mb-0">Select your preferred LPG brand and size, configure quantity, and order for doorstep delivery.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    <span class="banner-chip banner-chip-success">
+                        <i class="bi bi-shield-check"></i>100% Safety Certified
+                    </span>
+                    <span class="banner-chip banner-chip-primary">
+                        <i class="bi bi-truck"></i>Fast Doorstep Delivery
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -344,7 +347,7 @@ require_once __DIR__ . '/../../templates/header.php';
         </div>
 
         <!-- Order Summary & Checkout Column -->
-        <div class="col-lg-5 col-xl-4">
+        <div class="col-lg-5 col-xl-4 shop-checkout-col">
             <div class="card border-0 shadow-sm rounded-3 shop-checkout-card" id="orderCheckoutSection">
                 <div class="card-header bg-white py-3 border-bottom">
                     <h5 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">

@@ -253,6 +253,7 @@ foreach ($orders as $o) {
 $page_title = 'Order Management';
 $current_page = 'orders';
 $page_js = 'admin.js';
+$needs_maps = false; // no maps on this page — skip Leaflet for faster mobile loads
 
 require_once __DIR__ . '/../../templates/header.php';
 require_once __DIR__ . '/../../templates/components/order-card.php';
@@ -260,51 +261,57 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0" id="adminOrdersContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
-        <div>
-            <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
-                <i class="bi bi-box-seam text-primary"></i>Order Management & Dispatch
-            </h3>
-            <p class="text-muted small mb-0">Approve incoming customer orders, assign active delivery riders, and manage order lifecycles.</p>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-success btn-sm px-3 shadow-sm btn-open-create-order">
-                <i class="bi bi-plus-circle me-1"></i>Create Order
-            </button>
-            <a href="<?= url('pages/admin/dashboard.php') ?>" class="btn btn-outline-secondary btn-sm px-3">
-                <i class="bi bi-arrow-left me-1"></i>Dashboard
-            </a>
-            <a href="<?= url('pages/admin/orders.php') ?>" class="btn btn-light btn-sm px-3 border shadow-sm">
-                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
-            </a>
+    <div class="card mb-3 rounded-3 overflow-hidden position-relative app-banner-dark app-banner-compact text-white admin-orders-banner" data-aos="fade-down">
+        <div class="card-body position-relative" style="z-index: 2;">
+            <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3 admin-orders-banner-head">
+                <span class="banner-icon"><i class="bi bi-box-seam"></i></span>
+                <div class="flex-grow-1 admin-orders-banner-title" style="min-width: 200px;">
+                    <h5 class="fw-bold mb-0">Order Management & Dispatch</h5>
+                    <p class="text-white-50 banner-sub mb-0">Approve incoming customer orders, assign active delivery riders, and manage order lifecycles.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 admin-orders-banner-actions">
+                    <span class="banner-chip">
+                        <i class="bi bi-box-seam"></i><?= $countAll ?> order<?= $countAll === 1 ? '' : 's' ?> total
+                    </span>
+                    <button type="button" class="btn btn-primary btn-sm fw-bold shadow-sm px-3 btn-open-create-order">
+                        <i class="bi bi-plus-circle me-1"></i><span>Create Order</span>
+                    </button>
+                    <a href="<?= url('pages/admin/dashboard.php') ?>" class="btn btn-outline-light btn-sm px-3" title="Back to Dashboard">
+                        <i class="bi bi-arrow-left me-1"></i><span class="d-none d-sm-inline">Dashboard</span><span class="d-sm-none">Back</span>
+                    </a>
+                    <a href="<?= url('pages/admin/orders.php') ?>" class="btn btn-outline-light btn-sm px-3" title="Refresh list">
+                        <i class="bi bi-arrow-clockwise me-1"></i><span class="d-none d-sm-inline">Refresh</span>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Status Filter Tabs Bar -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-2 d-flex flex-wrap gap-2 align-items-center">
-            <button type="button" class="btn btn-sm btn-primary active admin-order-filter-btn px-3" data-filter="all">
+    <!-- Status Filter Tabs Bar: single-row horizontal scroll on phones/tablets -->
+    <div class="card border-0 shadow-sm mb-3 admin-filter-card">
+        <div class="card-body admin-order-filter-bar">
+            <button type="button" class="btn btn-sm btn-primary active admin-order-filter-btn" data-filter="all">
                 All Orders <span class="badge bg-white text-primary ms-1"><?= $countAll ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn px-3" data-filter="pending">
+            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn" data-filter="pending">
                 Pending <span class="badge bg-secondary ms-1"><?= $countPending ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn px-3" data-filter="approved">
+            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn" data-filter="approved">
                 Approved <span class="badge bg-secondary ms-1"><?= $countApproved ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn px-3" data-filter="ready_for_delivery">
+            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn" data-filter="ready_for_delivery">
                 Ready <span class="badge bg-secondary ms-1"><?= $countReady ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn px-3" data-filter="picked_up">
+            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn" data-filter="picked_up">
                 Picked Up <span class="badge bg-secondary ms-1"><?= $countPickedUp ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn px-3" data-filter="out_for_delivery">
+            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn" data-filter="out_for_delivery">
                 Out for Delivery <span class="badge bg-secondary ms-1"><?= $countOutForDelivery ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn px-3" data-filter="delivered">
+            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn" data-filter="delivered">
                 Delivered <span class="badge bg-secondary ms-1"><?= $countDelivered ?></span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn px-3" data-filter="cancelled">
+            <button type="button" class="btn btn-sm btn-outline-secondary admin-order-filter-btn" data-filter="cancelled">
                 Cancelled <span class="badge bg-secondary ms-1"><?= $countCancelled ?></span>
             </button>
         </div>
@@ -313,15 +320,15 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
     <!-- Search and Filter Bar -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
-            <div class="row g-3 align-items-center">
-                <div class="col-md-6 col-lg-5">
+            <div class="row g-2 g-md-3 align-items-center">
+                <div class="col-12 col-md-6 col-lg-5">
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" class="form-control border-start-0" id="orderSearchInput" placeholder="Search by Order ID, customer, address, or phone...">
+                        <input type="text" class="form-control border-start-0" id="orderSearchInput" placeholder="Search by Order ID, customer, address, or phone..." autocomplete="off">
                     </div>
                 </div>
-                <div class="col-md-3 col-lg-3">
-                    <select class="form-select" id="orderRiderFilterSelect">
+                <div class="col-12 col-md-3 col-lg-3">
+                    <select class="form-select" id="orderRiderFilterSelect" aria-label="Filter by rider">
                         <option value="all">All Riders (<?= count($allRiders) ?>)</option>
                         <option value="unassigned">Unassigned Only</option>
                         <?php foreach ($allRiders as $r): ?>
@@ -329,7 +336,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3 col-lg-4 text-md-end text-muted small">
+                <div class="col-12 col-md-3 col-lg-4 text-md-end text-muted small admin-visible-count">
                     Showing <strong id="visibleOrderCount"><?= $countAll ?></strong> of <?= $countAll ?> orders
                 </div>
             </div>
@@ -348,7 +355,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <p class="text-muted small mb-0">Customer orders will appear here once submitted.</p>
                 </div>
             <?php else: ?>
-                <div class="table-responsive">
+                <div class="table-responsive d-none d-md-block">
                     <table class="table table-hover align-middle mb-0" id="adminOrdersTable">
                         <thead class="table-light">
                             <tr>
@@ -378,10 +385,11 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
                                 $allowedTransitions = Order::TRANSITIONS[$status] ?? [];
                                 ?>
-                                <tr class="admin-order-row app-clickable-row"
+                                <tr class="admin-order-row admin-order-row-table app-clickable-row"
                                     data-order-id="<?= $orderId ?>"
                                     data-status="<?= e($status) ?>"
                                     data-rider-id="<?= $riderId ?>"
+                                    data-rider-name="<?= e($riderName) ?>"
                                     data-customer="<?= e($order['customer_name'] ?? '') ?>"
                                     data-phone="<?= e($order['contact_phone'] ?? '') ?>"
                                     data-address="<?= e($order['delivery_address'] ?? '') ?>"
@@ -553,14 +561,153 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Mobile Card Layout: shown on <md (phones/tablets), table stays on desktop -->
+                <div class="d-md-none admin-orders-mobile-list p-2" id="adminOrdersMobileList">
+                    <?php foreach ($orders as $order): ?>
+                        <?php
+                        $mOrderId = (int)$order['id'];
+                        $mStatus = (string)$order['status'];
+                        $mIsPending = ($mStatus === 'pending');
+                        $mIsApproved = ($mStatus === 'approved');
+                        $mIsReady = ($mStatus === 'ready_for_delivery');
+                        $mPayment = strtoupper((string)($order['payment_method'] ?? 'COD'));
+                        $mRiderId = (int)($order['rider_id'] ?? 0);
+                        $mRiderName = (string)($order['rider_name'] ?? '');
+                        $mTransitions = Order::TRANSITIONS[$mStatus] ?? [];
+                        ?>
+                        <article class="card admin-order-row admin-order-card app-clickable-row mb-2 shadow-sm"
+                            data-order-id="<?= $mOrderId ?>"
+                            data-status="<?= e($mStatus) ?>"
+                            data-rider-id="<?= $mRiderId ?>"
+                            data-rider-name="<?= e($mRiderName) ?>"
+                            data-customer="<?= e($order['customer_name'] ?? '') ?>"
+                            data-phone="<?= e($order['contact_phone'] ?? '') ?>"
+                            data-address="<?= e($order['delivery_address'] ?? '') ?>"
+                            data-product="<?= e($order['product_name'] ?? '') ?>"
+                            data-brand="<?= e($order['product_brand'] ?? '') ?>"
+                            data-weight="<?= e($order['product_weight'] ?? '') ?>"
+                            data-qty="<?= (int)$order['quantity'] ?>"
+                            data-unit-price="<?= (float)$order['unit_price'] ?>"
+                            data-total="<?= (float)$order['total_amount'] ?>"
+                            data-payment="<?= e($mPayment) ?>"
+                            data-notes="<?= e($order['notes'] ?? '') ?>"
+                            data-created="<?= e(format_date($order['created_at'])) ?>"
+                            data-delivered="<?= e(format_date($order['delivered_at'] ?? '')) ?>"
+                            data-href="<?= url('pages/admin/order-detail.php?id=' . $mOrderId) ?>">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                                    <a href="<?= url('pages/admin/order-detail.php?id=' . $mOrderId) ?>" class="fw-bold text-primary text-decoration-none fs-6">#<?= $mOrderId ?></a>
+                                    <div class="text-end"><?= get_order_status_badge($mStatus) ?>
+                                        <?php if (strtolower((string)($order['refund_status'] ?? 'none')) === 'requested'): ?>
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-1" title="Pending refund request"><i class="bi bi-arrow-counterclockwise me-1"></i>Refund</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="admin-order-card-customer mb-2">
+                                    <div class="fw-semibold text-dark text-truncate"><i class="bi bi-person me-1 text-muted"></i><?= e($order['customer_name'] ?? 'Customer') ?></div>
+                                    <div class="small text-muted text-truncate"><i class="bi bi-geo-alt me-1 text-danger"></i><?= e($order['delivery_address'] ?? '') ?></div>
+                                    <div class="extra-small text-muted"><i class="bi bi-telephone me-1 text-primary"></i><?= e($order['contact_phone'] ?? '') ?></div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between gap-2 py-2 border-top border-bottom admin-order-card-meta">
+                                    <div class="d-flex align-items-center gap-2 min-w-0">
+                                        <div class="admin-order-card-thumb flex-shrink-0 rounded overflow-hidden">
+                                            <?php $mImg = $order['product_image'] ?? ''; ?>
+                                            <?php if (!empty($mImg) && is_file(dirname(__DIR__, 2) . '/' . ltrim($mImg, '/'))): ?>
+                                                <img src="<?= e(asset($mImg)) ?>" alt="<?= e($order['product_name'] ?? '') ?>">
+                                            <?php else: ?>
+                                                <div class="bg-light d-flex align-items-center justify-content-center w-100 h-100"><i class="bi bi-fire text-warning"></i></div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="fw-medium text-dark text-truncate small"><?= e($order['product_name'] ?? 'LPG Cylinder') ?> &times; <?= (int)$order['quantity'] ?></div>
+                                            <div class="extra-small text-muted"><?= e(format_date($order['created_at'], 'M d, Y h:i A')) ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="text-end flex-shrink-0">
+                                        <div class="fw-bold text-dark small"><?= e(format_currency($order['total_amount'])) ?></div>
+                                        <span class="badge <?= $mPayment === 'GCASH' ? 'bg-primary-subtle text-primary' : 'bg-success-subtle text-success' ?> extra-small"><?= e($mPayment) ?></span>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between gap-2 mt-2 small">
+                                    <span class="text-muted extra-small">
+                                        <?php if (!empty($mRiderName)): ?>
+                                            <i class="bi bi-truck me-1 text-info"></i><strong class="text-dark"><?= e($mRiderName) ?></strong>
+                                        <?php else: ?>
+                                            <span class="badge bg-light text-muted border">Unassigned</span>
+                                        <?php endif; ?>
+                                    </span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm btn-view-order-details flex-shrink-0" title="View Full Details">
+                                        <i class="bi bi-eye me-1"></i>Details
+                                    </button>
+                                </div>
+                                <?php if ($mIsPending || $mIsApproved || $mIsReady || !empty($mTransitions)): ?>
+                                <div class="admin-order-card-actions d-grid gap-2 mt-2">
+                                    <?php if ($mIsPending): ?>
+                                        <form action="<?= url('pages/admin/orders.php') ?>" method="POST" class="m-0">
+                                            <?= csrf_input() ?>
+                                            <input type="hidden" name="action" value="approve_order">
+                                            <input type="hidden" name="order_id" value="<?= $mOrderId ?>">
+                                            <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold"><i class="bi bi-check-lg me-1"></i>Approve Order</button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <?php if ($mIsApproved || $mIsReady): ?>
+                                        <button type="button" class="btn btn-primary btn-sm w-100 fw-semibold btn-open-assign-rider"
+                                            data-order-id="<?= $mOrderId ?>"
+                                            data-customer="<?= e($order['customer_name'] ?? '') ?>"
+                                            data-product="<?= e($order['product_name'] ?? '') ?>"
+                                            data-image="<?= e($order['product_image'] ?? '') ?>">
+                                            <i class="bi bi-truck me-1"></i>Assign Rider
+                                        </button>
+                                    <?php endif; ?>
+                                    <div class="d-flex gap-2">
+                                        <?php if ($mIsPending || in_array('cancelled', $mTransitions, true)): ?>
+                                            <button type="button" class="btn btn-outline-danger btn-sm flex-fill btn-open-cancel-order" data-order-id="<?= $mOrderId ?>">
+                                                <i class="bi bi-x-lg me-1"></i>Cancel
+                                            </button>
+                                        <?php endif; ?>
+                                        <?php if (!empty($mTransitions)): ?>
+                                            <div class="dropdown flex-fill d-grid">
+                                                <button class="btn btn-light btn-sm border dropdown-toggle w-100" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <i class="bi bi-arrow-repeat me-1"></i>Status
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow border-0 w-100">
+                                                    <li class="dropdown-header small">Move to</li>
+                                                    <?php foreach ($mTransitions as $nextSt): ?>
+                                                        <?php if ($nextSt === 'cancelled'): continue; endif; ?>
+                                                        <li>
+                                                            <form action="<?= url('pages/admin/orders.php') ?>" method="POST" class="m-0">
+                                                                <?= csrf_input() ?>
+                                                                <input type="hidden" name="action" value="update_status">
+                                                                <input type="hidden" name="order_id" value="<?= $mOrderId ?>">
+                                                                <input type="hidden" name="status" value="<?= e($nextSt) ?>">
+                                                                <button type="submit" class="dropdown-item small"><i class="bi bi-arrow-right-circle me-1 text-primary"></i><?= ucfirst(str_replace('_', ' ', $nextSt)) ?></button>
+                                                            </form>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </div>
+                                        <?php endif; ?>
+                                        <a href="<?= url('pages/admin/order-detail.php?id=' . $mOrderId) ?>" class="btn btn-outline-primary btn-sm flex-fill"><i class="bi bi-box-arrow-up-right me-1"></i>Open</a>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
             <?php endif; ?>
         </div>
     </div>
 
-    <!-- No Matching Filter Alert -->
-    <div id="noAdminFilteredOrdersAlert" class="alert alert-light border text-center p-4 shadow-sm my-4 d-none">
-        <i class="bi bi-search fs-3 text-muted d-block mb-2"></i>
-        <strong>No orders match your filter and search criteria.</strong>
+    <!-- No Matching Filter Empty State (theme-aware, no white flash in dark mode) -->
+    <div id="noAdminFilteredOrdersAlert" class="empty-filter-state d-none">
+        <div class="empty-filter-icon"><i class="bi bi-search"></i></div>
+        <div class="fw-bold">No orders found</div>
+        <p class="mb-3">No orders match your filter and search criteria.<br>Try a different status, rider, or keyword.</p>
+        <button type="button" class="btn btn-outline-primary btn-sm px-3" id="clearAdminOrderFilters">
+            <i class="bi bi-x-circle me-1"></i>Clear filters
+        </button>
     </div>
 </div>
 

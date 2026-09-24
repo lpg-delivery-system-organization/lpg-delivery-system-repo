@@ -53,8 +53,10 @@ if ($loggedIn) {
     <!-- Bootstrap Icons 1.11.3 CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-    <!-- Leaflet Map CSS CDN -->
+    <!-- Leaflet Map CSS CDN (only on pages with maps — see $needs_maps) -->
+    <?php if (!isset($needs_maps) || $needs_maps !== false): ?>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <?php endif; ?>
 
     <!-- Animate.css CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
@@ -104,16 +106,16 @@ if ($loggedIn) {
                 </a>
             </div>
 
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 app-navbar-actions">
                 <?php if ($loggedIn): ?>
                     <!-- Theme Toggle -->
                     <button type="button" class="theme-toggle-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">
                         <i class="bi bi-moon-fill"></i>
                     </button>
 
-                    <!-- Logout (top right) -->
-                    <a href="<?= url('logout.php') ?>" class="btn btn-outline-danger btn-sm px-3 fw-semibold" title="Logout">
-                        <i class="bi bi-box-arrow-right me-1"></i>Logout
+                    <!-- Logout (top right): icon-only on mobile via CSS -->
+                    <a href="<?= url('logout.php') ?>" class="btn btn-outline-danger btn-sm px-3 fw-semibold app-logout-btn" title="Logout" aria-label="Logout">
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i><span class="app-logout-label ms-1">Logout</span>
                     </a>
                 <?php else: ?>
                     <a href="<?= url('index.php') ?>" class="btn btn-outline-light btn-sm px-3">Login</a>

@@ -209,23 +209,30 @@ foreach ($users as $u) {
 $page_title = 'User Management';
 $current_page = 'users';
 $page_js = 'admin.js';
+$needs_maps = false; // no maps on this page — skip Leaflet for faster mobile loads
 
 require_once __DIR__ . '/../../templates/header.php';
 ?>
 
 <div class="container-fluid px-0" id="adminUsersContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
-        <div>
-            <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
-                <i class="bi bi-people text-primary"></i>User Account Management
-            </h3>
-            <p class="text-muted small mb-0">Inspect customer profiles, verify government ID uploads, and manage rider/admin credentials.</p>
-        </div>
-        <div class="d-flex gap-2">
-            <button type="button" class="btn btn-primary shadow-sm px-4 fw-semibold" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                <i class="bi bi-person-plus-fill me-1"></i>Add New User
-            </button>
+    <div class="card mb-3 rounded-3 overflow-hidden position-relative app-banner-dark app-banner-compact text-white" data-aos="fade-down">
+        <div class="card-body position-relative" style="z-index: 2;">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="banner-icon"><i class="bi bi-people"></i></span>
+                <div class="flex-grow-1" style="min-width: 200px;">
+                    <h5 class="fw-bold mb-0">User Account Management</h5>
+                    <p class="text-white-50 banner-sub mb-0">Inspect customer profiles, verify government ID uploads, and manage rider/admin credentials.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    <span class="banner-chip">
+                        <i class="bi bi-people-fill"></i><?= $totalUsers ?> account<?= $totalUsers === 1 ? '' : 's' ?> total
+                    </span>
+                    <button type="button" class="btn btn-primary btn-sm fw-bold shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                        <i class="bi bi-person-plus-fill me-1"></i>Add New User
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -298,7 +305,7 @@ require_once __DIR__ . '/../../templates/header.php';
 
     <!-- Role Filter Tabs -->
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-2 d-flex flex-wrap gap-2 align-items-center">
+        <div class="card-body p-2 d-flex flex-wrap gap-2 align-items-center admin-user-filter-bar">
             <button type="button" class="btn btn-sm btn-primary active admin-user-filter-btn px-3" data-role="all">
                 All Users <span class="badge bg-white text-primary ms-1"><?= $totalUsers ?></span>
             </button>

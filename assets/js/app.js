@@ -301,7 +301,10 @@
                 once: true,
                 offset: 30,
                 disable: function () {
-                    return window.innerWidth < 768;
+                    // Disable scroll animations on all touch / mobile layouts
+                    // (phones + tablets) so Dashboard / Shop / Orders / Profile
+                    // render instantly with no stagger delay.
+                    return window.innerWidth < 992;
                 }
             });
         }
@@ -313,6 +316,15 @@
     function initAnimatedCounters() {
         const counters = document.querySelectorAll('[data-counter-target]');
         if (!counters.length) return;
+
+        // Mobile: render final values instantly — no 1200ms count-up delay.
+        if (window.matchMedia('(max-width: 991.98px)').matches) {
+            counters.forEach(function (el) {
+                const target = parseInt(el.getAttribute('data-counter-target'), 10) || 0;
+                el.textContent = target.toLocaleString();
+            });
+            return;
+        }
 
         const observerCallback = function (entries, observer) {
             entries.forEach(function (entry) {
@@ -485,6 +497,13 @@
     // 12. Page Transition (optional: fade main content on navigation)
     // =========================================================================
     function initPageTransitions() {
+        // Mobile: skip the fade-in/out entirely so sidebar navigation
+        // (Dashboard / Shop / Orders / Profile) feels instant.
+        if (window.matchMedia('(max-width: 991.98px)').matches) {
+            $('.app-main').css({ opacity: 1, transition: 'none' });
+            return;
+        }
+
         // Add page-load class to main content
         var $main = $('.app-main');
         if ($main.length) {
@@ -522,10 +541,13 @@
         var $body = $('body');
         var $toggle = $('#sidebarToggle');
         var $backdrop = $('#sidebarBackdrop');
+        var mobileQuery = window.matchMedia('(max-width: 991.98px)');
 
         if ($toggle.length) {
             $toggle.on('click', function (e) {
                 e.preventDefault();
+                // Synchronous class toggle — drawer animates via GPU transform,
+                // so open feels instant with no JS delay.
                 $body.toggleClass('sidebar-open');
             });
         }
@@ -536,9 +558,17 @@
             });
         }
 
-        // Close sidebar on nav link click (mobile only)
+        // Close on Escape for fast dismissal
+        $(document).on('keydown', function (e) {
+            if (e.key === 'Escape') {
+                $body.removeClass('sidebar-open');
+            }
+        });
+
+        // Close sidebar on nav link click (mobile only) — no transition wait,
+        // navigation proceeds immediately.
         $('.app-sidebar .nav-link').on('click', function () {
-            if ($(window).width() < 992) {
+            if (mobileQuery.matches) {
                 $body.removeClass('sidebar-open');
             }
         });

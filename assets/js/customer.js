@@ -115,8 +115,21 @@
             // Show checkout section if hidden
             $orderSection.removeClass('d-none');
 
-            // Desktop: pulse-highlight the pinned checkout card to draw attention
-            if ($(window).width() >= 992) {
+            // Desktop: pulse-highlight the pinned checkout card to draw attention.
+            // Mobile (<992px): checkout is below the catalog, so smooth-scroll
+            // to Order & Delivery Details on user tap (not on auto-select).
+            const isUserClick = !e.isTrigger;
+            if (window.matchMedia('(max-width: 991.98px)').matches) {
+                $orderSection.addClass('shop-checkout-flash');
+                setTimeout(function () {
+                    $orderSection.removeClass('shop-checkout-flash');
+                }, 1500);
+                if (isUserClick && $orderSection.length) {
+                    const headerOffset = 70;
+                    const top = $orderSection.get(0).getBoundingClientRect().top + window.pageYOffset - headerOffset;
+                    window.scrollTo({ top: top, behavior: 'smooth' });
+                }
+            } else {
                 $orderSection.addClass('shop-checkout-flash');
                 setTimeout(function () {
                     $orderSection.removeClass('shop-checkout-flash');

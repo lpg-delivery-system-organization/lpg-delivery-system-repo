@@ -117,20 +117,26 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0" id="riderAvailableContainer">
     <!-- Header Section -->
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4" data-aos="fade-down">
-        <div>
-            <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
-                <i class="bi bi-inbox text-primary"></i>Available Delivery Orders
-            </h3>
-            <p class="text-muted small mb-0">Claim ready LPG orders for immediate pickup and delivery to customers.</p>
-        </div>
-        <div class="d-flex gap-2">
-            <a href="<?= url('pages/rider/deliveries.php') ?>" class="btn btn-outline-secondary btn-sm px-3 align-self-center">
-                <i class="bi bi-truck me-1"></i>My Deliveries
-            </a>
-            <a href="<?= url('pages/rider/available.php') ?>" class="btn btn-light btn-sm px-3 border shadow-sm align-self-center">
-                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
-            </a>
+    <div class="card mb-3 rounded-3 overflow-hidden position-relative app-banner-gradient app-banner-compact text-white" data-aos="fade-down">
+        <div class="card-body position-relative" style="z-index: 2;">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="banner-icon"><i class="bi bi-inbox"></i></span>
+                <div class="flex-grow-1" style="min-width: 200px;">
+                    <h5 class="fw-bold mb-0">Available Delivery Orders</h5>
+                    <p class="text-white-50 banner-sub mb-0">Claim ready LPG orders for immediate pickup and delivery to customers.</p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    <span class="banner-chip">
+                        <i class="bi bi-inbox"></i><?= $countAvailable ?> available &bull; <?= $totalItemsCount ?> cylinder<?= $totalItemsCount === 1 ? '' : 's' ?>
+                    </span>
+                    <a href="<?= url('pages/rider/deliveries.php') ?>" class="btn btn-warning btn-sm fw-bold text-dark shadow-sm px-3">
+                        <i class="bi bi-truck me-1"></i>My Deliveries
+                    </a>
+                    <a href="<?= url('pages/rider/available.php') ?>" class="btn btn-outline-light btn-sm px-3">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 

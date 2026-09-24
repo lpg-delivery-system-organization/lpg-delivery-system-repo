@@ -167,17 +167,19 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
 <div class="container-fluid px-0" id="riderDeliveriesContainer">
     <!-- Header Section -->
-    <div class="card mb-4 rounded-3 overflow-hidden position-relative app-banner-gradient text-white" data-aos="fade-down">
-        <div class="card-body p-4 p-lg-5 position-relative" style="z-index: 2;">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                <div>
-                    <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
-                        <i class="bi bi-truck"></i>My Assigned Deliveries
-                    </h3>
-                    <p class="text-white-50 mb-0 small">Manage your active delivery queue, advance delivery stages, and view delivery history.</p>
+    <div class="card mb-3 rounded-3 overflow-hidden position-relative app-banner-gradient app-banner-compact text-white" data-aos="fade-down">
+        <div class="card-body position-relative" style="z-index: 2;">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <span class="banner-icon"><i class="bi bi-truck"></i></span>
+                <div class="flex-grow-1" style="min-width: 200px;">
+                    <h5 class="fw-bold mb-0">My Assigned Deliveries</h5>
+                    <p class="text-white-50 banner-sub mb-0">Manage your active delivery queue, advance delivery stages, and view delivery history.</p>
                 </div>
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="<?= url('pages/rider/available.php') ?>" class="btn btn-warning shadow-sm px-3 fw-semibold text-dark">
+                <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+                    <span class="banner-chip">
+                        <i class="bi bi-truck"></i><?= $countActive ?> active &bull; <?= $countOutForDelivery ?> out for delivery
+                    </span>
+                    <a href="<?= url('pages/rider/available.php') ?>" class="btn btn-warning btn-sm fw-bold text-dark shadow-sm px-3">
                         <i class="bi bi-inbox me-1"></i>Available Orders
                         <?php
                         $availableCount = count($orderModel->getAvailableForRider());
@@ -185,7 +187,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <span class="badge bg-white text-primary ms-1"><?= $availableCount ?></span>
                         <?php endif; ?>
                     </a>
-                    <a href="<?= url('pages/rider/deliveries.php') ?>" class="btn btn-outline-light btn-sm px-3 fw-semibold">
+                    <a href="<?= url('pages/rider/deliveries.php') ?>" class="btn btn-outline-light btn-sm px-3">
                         <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                     </a>
                 </div>

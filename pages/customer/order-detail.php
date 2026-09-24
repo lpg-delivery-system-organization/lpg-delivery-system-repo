@@ -162,7 +162,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <h6 class="fw-bold text-dark mb-0"><i class="bi bi-box-seam text-primary me-2"></i>Ordered Item & Payment</h6>
                 </div>
                 <div class="card-body p-4">
-                    <div class="d-flex align-items-center gap-3 p-3 bg-light rounded-3 mb-4">
+                    <div class="d-flex align-items-center gap-3 p-3 rounded-3 mb-4 border">
                         <div class="app-product-icon rounded-3 bg-primary text-white flex-shrink-0 overflow-hidden" style="width: 64px; height: 64px;">
                             <?php $detailImage = $order['product_image'] ?? ''; ?>
                             <?php if (!empty($detailImage) && is_file(dirname(__DIR__, 2) . '/' . ltrim($detailImage, '/'))): ?>
@@ -181,21 +181,21 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     </div>
 
                     <div class="table-responsive mb-3">
-                        <table class="table align-middle">
-                            <thead class="table-light">
+                        <table class="table align-middle mb-0">
+                            <thead>
                                 <tr>
-                                    <th>Item</th>
-                                    <th class="text-center">Quantity</th>
-                                    <th class="text-end">Unit Price</th>
-                                    <th class="text-end">Subtotal</th>
+                                    <th class="fw-semibold">Item</th>
+                                    <th class="text-center fw-semibold">Quantity</th>
+                                    <th class="text-end fw-semibold">Unit Price</th>
+                                    <th class="text-end fw-semibold">Subtotal</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
                                     <td class="fw-semibold text-dark"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></td>
-                                    <td class="text-center"><?= (int)$order['quantity'] ?></td>
-                                    <td class="text-end"><?= e(format_currency($order['unit_price'] ?? 0)) ?></td>
-                                    <td class="text-end fw-bold"><?= e(format_currency($order['total_amount'] ?? 0)) ?></td>
+                                    <td class="text-center text-dark fw-semibold"><?= (int)$order['quantity'] ?></td>
+                                    <td class="text-end text-dark"><?= e(format_currency($order['unit_price'] ?? 0)) ?></td>
+                                    <td class="text-end fw-bold text-dark"><?= e(format_currency($order['total_amount'] ?? 0)) ?></td>
                                 </tr>
                             </tbody>
                             <tfoot>
@@ -203,7 +203,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                     <td colspan="3" class="text-end text-muted">Delivery Fee:</td>
                                     <td class="text-end fw-semibold text-success">FREE</td>
                                 </tr>
-                                <tr class="table-light">
+                                <tr class="border-top">
                                     <td colspan="3" class="text-end fw-bold fs-6 text-dark">Total Amount:</td>
                                     <td class="text-end fw-bold fs-5 text-primary"><?= e(format_currency($order['total_amount'] ?? 0)) ?></td>
                                 </tr>

@@ -47,18 +47,20 @@
         if ($container.length > 0) {
 
         function applyOrderFilters() {
+            // NOTE: each order renders twice (desktop <tr> + mobile card). Both share
+            // .admin-order-row + data-order-id, so toggle both but count unique IDs.
             const $rows = $('.admin-order-row');
-            let visibleCount = 0;
+            const visibleIds = new Set();
 
             $rows.each(function () {
                 const $row = $(this);
                 const status = ($row.data('status') || '').toLowerCase();
                 const riderId = String($row.data('rider-id') || '0');
                 const orderId = String($row.data('order-id') || '');
-                const customer = ($row.data('customer') || '').toLowerCase();
-                const phone = ($row.data('phone') || '').toLowerCase();
-                const address = ($row.data('address') || '').toLowerCase();
-                const product = ($row.data('product') || '').toLowerCase();
+                const customer = ($row.data('customer') || '').toString().toLowerCase();
+                const phone = ($row.data('phone') || '').toString().toLowerCase();
+                const address = ($row.data('address') || '').toString().toLowerCase();
+                const product = ($row.data('product') || '').toString().toLowerCase();
 
                 // Status match
                 let statusMatch = (currentStatusFilter === 'all') || (status === currentStatusFilter);
@@ -84,12 +86,13 @@
 
                 if (statusMatch && riderMatch && searchMatch) {
                     $row.show();
-                    visibleCount++;
+                    if (orderId) visibleIds.add(orderId);
                 } else {
                     $row.hide();
                 }
             });
 
+            const visibleCount = visibleIds.size;
             $('#visibleOrderCount').text(visibleCount);
             if (visibleCount === 0) {
                 $('#noAdminFilteredOrdersAlert').removeClass('d-none');
@@ -98,7 +101,7 @@
             }
         }
 
-        // Status Filter Buttons
+        // Status Filter Buttons (All / Pending / Approved / Ready / Picked Up / Out for Delivery / Delivered / Cancelled)
         $('.admin-order-filter-btn').on('click', function (e) {
             e.preventDefault();
             const $btn = $(this);
@@ -108,6 +111,14 @@
             $btn.addClass('active btn-primary text-white').removeClass('btn-outline-secondary');
 
             applyOrderFilters();
+
+            // Keep the tapped pill visible inside the horizontal scroll strip on phones
+            try {
+                const el = $btn.get(0);
+                if (el && typeof el.scrollIntoView === 'function') {
+                    el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+                }
+            } catch (err) { /* no-op */ }
         });
 
         // Search Input
@@ -119,6 +130,20 @@
         // Rider Select Filter
         $('#orderRiderFilterSelect').on('change', function () {
             currentRiderFilter = $(this).val() || 'all';
+            applyOrderFilters();
+        });
+
+        // Empty-state "Clear filters" button
+        $(document).on('click', '#clearAdminOrderFilters', function (e) {
+            e.preventDefault();
+            currentSearchQuery = '';
+            currentRiderFilter = 'all';
+            currentStatusFilter = 'all';
+            $('#orderSearchInput').val('');
+            $('#orderRiderFilterSelect').val('all');
+            const $allBtn = $('.admin-order-filter-btn[data-filter="all"]');
+            $('.admin-order-filter-btn').removeClass('active btn-primary text-white').addClass('btn-outline-secondary');
+            $allBtn.addClass('active btn-primary text-white').removeClass('btn-outline-secondary');
             applyOrderFilters();
         });
         }
@@ -427,9 +452,10 @@
             $('#detailCreatedAt').text(created);
             $('#detailDeliveredAt').text(delivered || 'In Progress');
 
-            // Find rider name if assigned
+            // Find rider name if assigned (data attr works for table row + mobile card)
+            const riderNameAttr = ($row.data('rider-name') || '').toString().trim();
             const riderCellText = $row.find('td:nth-child(5)').text().trim();
-            $('#detailRiderName').text(riderCellText || 'Unassigned');
+            $('#detailRiderName').text(riderNameAttr || riderCellText || 'Unassigned');
 
             const modalEl = document.getElementById('orderDetailsModal');
             if (modalEl && window.bootstrap && window.bootstrap.Modal) {

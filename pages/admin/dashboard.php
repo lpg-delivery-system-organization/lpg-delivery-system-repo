@@ -59,6 +59,7 @@ $activeRidersList = array_filter($userModel->getAllByRole('rider'), function ($r
 $page_title = 'Admin Dashboard';
 $current_page = 'dashboard';
 $page_js = 'admin.js';
+$needs_maps = false; // no maps on this page — skip Leaflet for faster mobile loads
 
 require_once __DIR__ . '/../../templates/header.php';
 require_once __DIR__ . '/../../templates/components/order-card.php';
@@ -105,7 +106,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
             <div class="card app-stat-card border-0 shadow-sm h-100 p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
-                        <span class="text-muted small text-uppercase fw-semibold">Total Revenue</span>
+                        <span class="text-muted small text-uppercase fw-semibold">Total Sales</span>
                         <h3 class="fw-bold my-1 text-success"><?= e(format_currency($totalRevenue)) ?></h3>
                         <span class="extra-small text-muted">From <?= (int)$deliveredOrders ?> delivered orders <i class="bi bi-arrow-up-right stat-open-hint text-primary"></i></span>
                     </div>

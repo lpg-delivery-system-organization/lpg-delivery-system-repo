@@ -32,7 +32,7 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
             <div class="logout-overlay-logo"><i class="bi bi-fire"></i></div>
             <div class="logout-spinner" role="status" aria-label="Logging out"></div>
             <div class="logout-overlay-text">Logging out<span class="logout-dots"></span></div>
-            <small>See you soon!</small>
+            <small>Come back again!</small>
         </div>
     </div>
 
@@ -44,20 +44,22 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
     })();
     </script>
 
-    <!-- jQuery 3.7.1 CDN -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- jQuery 3.7.1 CDN (deferred: unblocks first paint on mobile) -->
+    <script defer src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 
     <!-- Bootstrap 5.3.3 JS Bundle CDN (includes Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
-    <!-- Leaflet Map JS CDN -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet Map JS CDN (only on pages with maps — see $needs_maps) -->
+    <?php if (!isset($needs_maps) || $needs_maps !== false): ?>
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <?php endif; ?>
 
     <!-- AOS.js CDN (Animate On Scroll) -->
-    <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+    <script defer src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
 
     <!-- Global Application JS -->
-    <script src="<?= asset_v('assets/js/app.js') ?>"></script>
+    <script defer src="<?= asset_v('assets/js/app.js') ?>"></script>
 
     <!-- Session flash -> popup toast (e.g. "Stock updated for 'Phoenix 50kg'")
          so every save/edit/toggle across the app pops a notification on arrival -->
@@ -114,12 +116,14 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
     })();
     </script>
 
-    <!-- Shared Map & Chat Modules (AppMaps / AppChat) -->
-    <script src="<?= asset_v('assets/js/shared-maps.js') ?>"></script>
+    <!-- Shared Map & Chat Modules (AppMaps / AppChat — maps only where needed) -->
+    <?php if (!isset($needs_maps) || $needs_maps !== false): ?>
+    <script defer src="<?= asset_v('assets/js/shared-maps.js') ?>"></script>
+    <?php endif; ?>
 
     <!-- Page Specific JS (if defined) -->
     <?php if (!empty($page_js)): ?>
-        <script src="<?= asset_v('assets/js/' . $page_js) ?>"></script>
+        <script defer src="<?= asset_v('assets/js/' . $page_js) ?>"></script>
     <?php endif; ?>
 
 </body>
