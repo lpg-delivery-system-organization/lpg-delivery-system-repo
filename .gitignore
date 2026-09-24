@@ -4,3 +4,4 @@
 config/paymongo.local.php
 config/paymongo.php
 /config/database.php
+/config/app.php    
