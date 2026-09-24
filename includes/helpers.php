@@ -33,9 +33,9 @@ function e(?string $value): string {
  * @return string
  */
 function url(string $path = ''): string {
-    if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-        return $path;
-    }
+    // if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+    //     return $path;
+    // }
 
     $baseUrl = defined('BASE_URL') ? BASE_URL : '/lpg-delivery-system-repo';
 
