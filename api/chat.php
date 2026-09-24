@@ -16,15 +16,19 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../classes/Database.php';
 require_once __DIR__ . '/../classes/Order.php';
 require_once __DIR__ . '/../classes/ChatMessage.php';
+require_once __DIR__ . '/../classes/Notification.php';
 
-header('Content-Type: application/json');
+if (!headers_sent()) {
+    header('Content-Type: application/json; charset=UTF-8');
+}
 
-if (session_status() === PHP_SESSION_NONE) {
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     init_session();
 }
 
 if (!is_logged_in()) {
     json_response(['success' => false, 'error' => 'Authentication required.'], 401);
+    return;
 }
 
 $currentUser = current_user();
@@ -44,9 +48,11 @@ switch ($action) {
     case 'send':
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             json_response(['success' => false, 'error' => 'POST required.'], 405);
+            return;
         }
         if (!verify_csrf($input['csrf_token'] ?? null)) {
             json_response(['success' => false, 'error' => 'Invalid security token.'], 403);
+            return;
         }
 
         $orderId = (int)($input['order_id'] ?? 0);
@@ -54,15 +60,18 @@ switch ($action) {
 
         if ($orderId <= 0) {
             json_response(['success' => false, 'error' => 'Invalid order ID.'], 400);
+            return;
         }
         if ($message === '') {
             json_response(['success' => false, 'error' => 'Message cannot be empty.'], 400);
+            return;
         }
 
         // Verify order exists and user is authorized (customer or rider)
         $order = $orderModel->findById($orderId);
         if (!$order) {
             json_response(['success' => false, 'error' => 'Order not found.'], 404);
+            return;
         }
 
         $isCustomer = ($userRole === 'customer' && (int)$order['customer_id'] === $userId);
@@ -70,17 +79,54 @@ switch ($action) {
 
         if (!$isCustomer && !$isRider) {
             json_response(['success' => false, 'error' => 'You are not authorized to chat on this order.'], 403);
+            return;
         }
 
         try {
             $msgId = $chatModel->send($orderId, $userId, $message);
+
+            // Notify the other party in the conversation so they get a popup
+            // even when they are not currently viewing the chat panel.
+            $peerId = null;
+            $peerLink = null;
+            $senderLabel = null;
+
+            if ($isCustomer && !empty($order['rider_id'])) {
+                $peerId = (int)$order['rider_id'];
+                $peerLink = 'pages/rider/order-detail.php?id=' . $orderId;
+                $senderLabel = trim((string)($order['customer_name'] ?? '')) ?: 'Customer';
+            } elseif ($isRider) {
+                $peerId = (int)$order['customer_id'];
+                $peerLink = 'pages/customer/order-detail.php?id=' . $orderId;
+                $senderLabel = trim((string)($order['rider_name'] ?? '')) ?: 'Rider';
+            }
+
+            if ($peerId && $peerId > 0) {
+                try {
+                    $preview = mb_strlen($message) > 80 ? mb_substr($message, 0, 80) . '...' : $message;
+                    $notification = new Notification($db);
+                    $notification->create(
+                        $peerId,
+                        'chat_message',
+                        'New message on Order #' . $orderId,
+                        $senderLabel . ': ' . $preview,
+                        $orderId,
+                        $peerLink
+                    );
+                } catch (Throwable $e) {
+                    // Never fail a chat message because of a notification issue.
+                }
+            }
+
             json_response([
                 'success' => true,
                 'message' => 'Message sent.',
                 'data'    => ['id' => $msgId],
             ]);
+            return;
         } catch (Throwable $e) {
             json_response(['success' => false, 'error' => $e->getMessage()], 500);
+            return;
         }
         break;
 
@@ -91,11 +137,13 @@ switch ($action) {
 
         if ($orderId <= 0) {
             json_response(['success' => false, 'error' => 'Invalid order ID.'], 400);
+            return;
         }
 
         $order = $orderModel->findById($orderId);
         if (!$order) {
             json_response(['success' => false, 'error' => 'Order not found.'], 404);
+            return;
         }
 
         $isCustomer = ($userRole === 'customer' && (int)$order['customer_id'] === $userId);
@@ -103,6 +151,7 @@ switch ($action) {
 
         if (!$isCustomer && !$isRider) {
             json_response(['success' => false, 'error' => 'Unauthorized.'], 403);
+            return;
         }
 
         $messages = $chatModel->getByOrder($orderId, $afterId > 0 ? $afterId : null, 100);
@@ -125,11 +174,13 @@ switch ($action) {
 
         if ($orderId <= 0) {
             json_response(['success' => false, 'error' => 'Invalid order ID.'], 400);
+            return;
         }
 
         $order = $orderModel->findById($orderId);
         if (!$order) {
             json_response(['success' => false, 'error' => 'Order not found.'], 404);
+            return;
         }
 
         $isCustomer = ($userRole === 'customer' && (int)$order['customer_id'] === $userId);
@@ -137,6 +188,7 @@ switch ($action) {
 
         if (!$isCustomer && !$isRider) {
             json_response(['success' => false, 'error' => 'Unauthorized.'], 403);
+            return;
         }
 
         $count = $chatModel->getUnreadCount($orderId, $userId, $lastSeenId);
@@ -148,4 +200,5 @@ switch ($action) {
 
     default:
         json_response(['success' => false, 'error' => 'Unknown action.'], 400);
+        return;
 }

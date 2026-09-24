@@ -108,6 +108,25 @@ if ($loggedIn) {
 
             <div class="d-flex align-items-center gap-2 app-navbar-actions">
                 <?php if ($loggedIn): ?>
+                    <!-- Notifications Bell (populated by assets/js/notifications.js) -->
+                    <div class="dropdown">
+                        <button type="button" class="app-notif-btn" id="notifBellBtn"
+                                data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                                aria-expanded="false" title="Notifications" aria-label="Notifications">
+                            <i class="bi bi-bell fs-5"></i>
+                            <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle app-notif-badge d-none" id="notifBadge">0</span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-0 shadow app-notif-menu" id="notifMenu" aria-labelledby="notifBellBtn">
+                            <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light">
+                                <span class="small fw-bold text-dark">Notifications</span>
+                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="notifMarkAllBtn">Mark all as read</button>
+                            </div>
+                            <div id="notifList" class="app-notif-list">
+                                <div class="app-notif-empty text-center text-muted py-4 small">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Theme Toggle -->
                     <button type="button" class="theme-toggle-btn" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">
                         <i class="bi bi-moon-fill"></i>

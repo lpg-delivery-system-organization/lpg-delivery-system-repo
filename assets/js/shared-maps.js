@@ -613,10 +613,15 @@
                 $chatLoading.show();
                 loadInitialMessages();
                 chatPollInterval = setInterval(pollNewMessages, 3000);
+
+                // Let the global notification poller know the chat is open for
+                // this order so it doesn't duplicate a toast for incoming messages.
+                document.body.setAttribute('data-chat-open-order', String(orderId));
             });
 
             $chatPanel.on('hide.bs.offcanvas', function () {
                 chatIsOpen = false;
+                document.body.removeAttribute('data-chat-open-order');
                 if (chatPollInterval) {
                     clearInterval(chatPollInterval);
                     chatPollInterval = null;

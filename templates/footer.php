@@ -61,6 +61,9 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
     <!-- Global Application JS -->
     <script defer src="<?= asset_v('assets/js/app.js') ?>"></script>
 
+    <!-- Global Notification Poller & Bell (runs on all logged-in pages) -->
+    <script defer src="<?= asset_v('assets/js/notifications.js') ?>"></script>
+
     <!-- Session flash -> popup toast (e.g. "Stock updated for 'Phoenix 50kg'")
          so every save/edit/toggle across the app pops a notification on arrival -->
     <script>

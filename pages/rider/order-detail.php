@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
     if ($action === 'claim_order') {
         try {
-            $claimed = $orderModel->assignRider($targetId, $riderId, 'picked_up');
+            $claimed = $orderModel->assignRider($targetId, $riderId, 'picked_up', $riderId);
             if ($claimed) {
                 json_response([
                     'success' => true,

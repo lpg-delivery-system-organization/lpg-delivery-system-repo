@@ -52,13 +52,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 json_response(['success' => false, 'error' => 'Invalid or inactive rider selected.'], 400);
             }
 
-            $assigned = $orderModel->assignRider($targetId, $riderId, $initialStatus);
+            $assigned = $orderModel->assignRider($targetId, $riderId, $initialStatus, (int)current_user_id());
             if ($assigned) {
                 json_response(['success' => true, 'message' => 'Rider assigned to Order #' . $targetId . ' successfully.']);
             } else {
                 // Fallback direct update
                 $stmt = $db->prepare("UPDATE orders SET rider_id = ?, status = ?, updated_at = NOW() WHERE id = ?");
                 $stmt->execute([$riderId, $initialStatus, $targetId]);
+                try {
+                    $notification = new Notification($db);
+                    $notification->create(
+                        $riderId,
+                        'order_assigned',
+                        'New Order Assignment',
+                        "A new order has been assigned to you. Please check Order #{$targetId} in your deliveries.",
+                        $targetId,
+                        'pages/rider/order-detail.php?id=' . $targetId
+                    );
+                } catch (Throwable $e) {
+                    // Never fail a dispatch because of a notification issue.
+                }
                 json_response(['success' => true, 'message' => 'Rider assigned to Order #' . $targetId . ' successfully.']);
             }
         } elseif ($action === 'update_status') {

@@ -131,6 +131,12 @@ $testSuites = [
         'file'        => 'test_api.php',
         'description' => 'AJAX endpoints for orders, products, user verification & auth'
     ],
+    [
+        'id'          => 'notifications',
+        'name'        => 'Notification System',
+        'file'        => 'test_notifications.php',
+        'description' => 'Notification model, poll/recent/mark-read API & delivery/chat hooks'
+    ],
 ];
 
 // Apply Filter if requested

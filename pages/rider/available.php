@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'claim_order') {
         try {
             // Atomic concurrency-safe assignment (assignRider transitions to 'picked_up' by default)
-            $assigned = $orderModel->assignRider($orderId, $riderId, 'picked_up');
+            $assigned = $orderModel->assignRider($orderId, $riderId, 'picked_up', $riderId);
 
             if ($assigned) {
                 $successMsg = "Order #{$orderId} has been successfully claimed and added to your active deliveries!";

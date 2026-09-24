@@ -7,6 +7,7 @@
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Product.php';
 require_once __DIR__ . '/User.php';
+require_once __DIR__ . '/Notification.php';
 
 class Order {
     /**
@@ -533,7 +534,7 @@ class Order {
      * @throws RuntimeException
      */
     public function updateStatus(int $orderId, string $newStatus): bool {
-        $stmt = $this->db->prepare("SELECT id, status FROM orders WHERE id = ? LIMIT 1");
+        $stmt = $this->db->prepare("SELECT id, customer_id, status FROM orders WHERE id = ? LIMIT 1");
         $stmt->execute([$orderId]);
         $order = $stmt->fetch();
 
@@ -555,7 +556,26 @@ class Order {
                 SET status = ?, delivered_at = NOW(), updated_at = NOW()
                 WHERE id = ?
             ");
-            return $updateStmt->execute([$newStatus, $orderId]);
+            $updated = $updateStmt->execute([$newStatus, $orderId]);
+
+            // Notify the customer their order was delivered.
+            if ($updated && !empty($order['customer_id'])) {
+                try {
+                    $notification = new Notification($this->db);
+                    $notification->create(
+                        (int)$order['customer_id'],
+                        'order_delivered',
+                        'Order Delivered',
+                        "Your Order #{$orderId} has been delivered. Thank you for choosing LPG Delivery System!",
+                        $orderId,
+                        'pages/customer/order-detail.php?id=' . $orderId
+                    );
+                } catch (Throwable $e) {
+                    // Never fail a status transition because of a notification issue.
+                }
+            }
+
+            return $updated;
         }
 
         $updateStmt = $this->db->prepare("
@@ -630,12 +650,18 @@ class Order {
      * Only succeeds if the order is currently unassigned (rider_id IS NULL)
      * and in an assignable status ('approved' or 'ready_for_delivery').
      *
-     * @param int $orderId
-     * @param int $riderId
-     * @param string $newStatus Defaults to 'picked_up'
+     * When invoked by an administrator ($actorId provided and different from
+     * the rider), the assigned rider is sent a notification so they know the
+     * admin dispatched the order to them. Rider self-claims pass their own ID
+     * and do not notify anyone.
+     *
+     * @param int      $orderId
+     * @param int      $riderId
+     * @param string   $newStatus Defaults to 'picked_up'
+     * @param int|null $actorId   Optional ID of the user performing the assignment
      * @return bool True if successfully assigned, false if already claimed or invalid state
      */
-    public function assignRider(int $orderId, int $riderId, string $newStatus = 'picked_up'): bool {
+    public function assignRider(int $orderId, int $riderId, string $newStatus = 'picked_up', ?int $actorId = null): bool {
         $stmt = $this->db->prepare("
             UPDATE orders
             SET rider_id = ?, status = ?, updated_at = NOW()
@@ -644,7 +670,26 @@ class Order {
               AND status IN ('approved', 'ready_for_delivery')
         ");
         $stmt->execute([$riderId, $newStatus, $orderId]);
-        return $stmt->rowCount() > 0;
+        $assigned = $stmt->rowCount() > 0;
+
+        // Admin assigns a different rider -> let that rider know.
+        if ($assigned && $actorId !== null && $actorId !== $riderId) {
+            try {
+                $notification = new Notification($this->db);
+                $notification->create(
+                    $riderId,
+                    'order_assigned',
+                    'New Order Assignment',
+                    "A new order has been assigned to you. Please check Order #{$orderId} in your deliveries.",
+                    $orderId,
+                    'pages/rider/order-detail.php?id=' . $orderId
+                );
+            } catch (Throwable $e) {
+                // Never fail a dispatch because of a notification issue.
+            }
+        }
+
+        return $assigned;
     }
 
     /**

@@ -239,7 +239,7 @@ switch ($action) {
             return;
         }
 
-        $assigned = $orderModel->assignRider($orderId, $riderId, $status);
+        $assigned = $orderModel->assignRider($orderId, $riderId, $status, $currentUserId);
         if (!$assigned) {
             json_response([
                 'success' => false,
@@ -298,7 +298,7 @@ switch ($action) {
             return;
         }
 
-        $claimed = $orderModel->assignRider($orderId, $currentUserId, 'picked_up');
+        $claimed = $orderModel->assignRider($orderId, $currentUserId, 'picked_up', $currentUserId);
         if (!$claimed) {
             json_response([
                 'success' => false,

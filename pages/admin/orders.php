@@ -91,11 +91,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new InvalidArgumentException("Order #{$orderId} not found.");
                 }
 
-                $assigned = $orderModel->assignRider($orderId, $riderId, $targetStatus);
+                $assigned = $orderModel->assignRider($orderId, $riderId, $targetStatus, (int)current_user_id());
                 if (!$assigned) {
                     // Fallback for re-assigning if already assigned
                     $stmt = $db->prepare("UPDATE orders SET rider_id = ?, status = ?, updated_at = NOW() WHERE id = ?");
                     $stmt->execute([$riderId, $targetStatus, $orderId]);
+                    try {
+                        $notification = new Notification($db);
+                        $notification->create(
+                            $riderId,
+                            'order_assigned',
+                            'New Order Assignment',
+                            "A new order has been assigned to you. Please check Order #{$orderId} in your deliveries.",
+                            $orderId,
+                            'pages/rider/order-detail.php?id=' . $orderId
+                        );
+                    } catch (Throwable $e) {
+                        // Never fail a dispatch because of a notification issue.
+                    }
                 }
 
                 if (is_ajax()) {
