@@ -3,4 +3,4 @@
 # Local PayMongo credentials (contains secret key) - never commit
 config/paymongo.local.php
 config/paymongo.php
-config/database.php
+/config/database.php
