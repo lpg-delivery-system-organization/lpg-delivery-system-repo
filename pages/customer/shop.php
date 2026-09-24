@@ -269,7 +269,7 @@ require_once __DIR__ . '/../../templates/header.php';
         <div class="col-lg-7 col-xl-8">
             <div class="shop-products-scroll">
                 <div class="d-flex align-items-center justify-content-between mb-3">
-                    <h5 class="fw-bold mb-0 text-dark">Available Products (<?= count($products) ?>)</h5>
+                    <h5 class="fw-bold mb-0 text-dark">Available Products!!!!!! (<?= count($products) ?>)</h5>
                 </div>
 
             <?php if (empty($products)): ?>
