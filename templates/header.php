@@ -37,6 +37,7 @@ if ($loggedIn) {
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="csrf-token" content="<?= csrf_token() ?>">
     <meta name="base-url" content="<?= url('/') ?>">
+    <meta name="base-url-from-meta" content="<?= BASE_URL ?>">
     <?php if ($loggedIn): ?>
     <meta name="user-id" content="<?= current_user_id() ?>">
     <?php endif; ?>

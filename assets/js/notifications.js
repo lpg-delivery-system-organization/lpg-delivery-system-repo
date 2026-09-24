@@ -21,6 +21,7 @@
         if (userId <= 0) return;
 
         const baseUrl = $('meta[name="base-url"]').attr('content') || '';
+        const baseUrlFromMeta = $('meta[name="base-url-from-meta"]').attr('content') || '';
         const apiUrl = baseUrl + 'api/notifications.php';
         const seenKey = 'lpg_notif_seen_' + userId;
         const POLL_INTERVAL = 5000;
@@ -84,7 +85,7 @@
                 }
 
                 const html = res.data.map(function (n) {
-                    const link = (n.link ? baseUrl + '/' + String(n.link).replace(/^\//, '') : null);
+                    const link = (n.link ? baseUrlFromMeta + '/' + String(n.link).replace(/^\//, '') : null);
                     const href = link || 'javascript:void(0);';
                     const unreadCls = n.is_read ? '' : ' app-notif-unread';
                     return '<a class="dropdown-item app-notif-item' + unreadCls + '" data-notif-id="' + n.id + '"' +
