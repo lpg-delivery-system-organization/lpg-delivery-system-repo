@@ -714,7 +714,8 @@ $flashIcon = $flashIcons[$flashType];
                         </div>
                     </form>
 
-                    <!-- Demo Credentials -->
+                    <!-- Demo Credentials (hidden unless SHOW_DEMO_CREDENTIALS is enabled) -->
+                    <?php if (SHOW_DEMO_CREDENTIALS): ?>
                     <div class="auth-demo-box mt-3">
                         <div class="d-flex align-items-center mb-1 text-dark fw-semibold small">
                             <i class="bi bi-info-circle me-1" style="color:#0d9488;"></i> Demo Credentials
@@ -725,6 +726,7 @@ $flashIcon = $flashIcons[$flashType];
                             <div><span class="badge bg-info text-dark me-1" style="font-size:.6rem;">Customer</span><code>customer@lpg.com</code> / <code>password</code></div>
                         </div>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
