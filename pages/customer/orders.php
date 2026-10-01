@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if ($cancelReason === '') {
             $cancelReason = 'Cancelled by customer via portal';
         }
-        $orderModel->cancel($cancelOrderId, $cancelReason);
+        $orderModel->cancel($cancelOrderId, $cancelReason, (int)current_user_id());
         set_flash('success', "Order #{$cancelOrderId} has been successfully cancelled. Stock has been restored.");
     } catch (Throwable $e) {
         set_flash('error', 'Failed to cancel order: ' . $e->getMessage());
@@ -357,6 +357,13 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <span class="fs-5 fw-bold text-dark"><?= e(format_currency($totalAmount)) ?></span>
                         </div>
                         <div class="d-flex gap-2 flex-wrap">
+                            <a href="<?= url('pages/customer/receipt.php?id=' . $orderId . '&download=1') ?>"
+                               class="btn btn-outline-secondary btn-sm px-3 btn-view-receipt"
+                               data-order-id="<?= $orderId ?>"
+                               title="Download the official 80mm receipt for order #<?= $orderId ?>">
+                                <i class="bi bi-receipt me-1"></i>Receipt
+                            </a>
+
                             <?php if ($isInTransit): ?>
                                 <button type="button" 
                                         class="btn btn-primary btn-sm px-3 btn-track-live-map shadow-sm" 

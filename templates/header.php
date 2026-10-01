@@ -107,7 +107,7 @@ if ($loggedIn) {
                 </a>
             </div>
 
-            <div class="d-flex align-items-center gap-2 app-navbar-actions">
+            <div class="d-flex align-items-center gap-2 ms-auto app-navbar-actions">
                 <?php if ($loggedIn): ?>
                     <!-- Notifications Bell (populated by assets/js/notifications.js) -->
                     <div class="dropdown">
@@ -118,8 +118,8 @@ if ($loggedIn) {
                             <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle app-notif-badge d-none" id="notifBadge">0</span>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end p-0 shadow app-notif-menu" id="notifMenu" aria-labelledby="notifBellBtn">
-                            <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light">
-                                <span class="small fw-bold text-dark">Notifications</span>
+                            <div class="d-flex align-items-center justify-content-between px-3 py-2 app-notif-head">
+                                <span class="small fw-bold app-notif-head-title">Notifications</span>
                                 <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="notifMarkAllBtn">Mark all as read</button>
                             </div>
                             <div id="notifList" class="app-notif-list">

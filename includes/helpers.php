@@ -17,6 +17,20 @@ if (!defined('UPLOAD_PATH')) {
 }
 
 /**
+ * Philippine Standard Time (UTC+8).
+ *
+ * The application is deployed for Philippine users, so every rendered
+ * timestamp (order history, receipts, payment confirmations) must be
+ * expressed in PHT regardless of the web server's host timezone.
+ * Without this, PHP falls back to the php.ini default (commonly UTC), which
+ * silently shifts every displayed time by 8 hours.
+ */
+if (!defined('APP_TIMEZONE')) {
+    define('APP_TIMEZONE', 'Asia/Manila');
+}
+date_default_timezone_set(APP_TIMEZONE);
+
+/**
  * Escape HTML special characters for secure output (XSS mitigation)
  *
  * @param string|null $value
@@ -558,6 +572,98 @@ function delete_old_avatar(?string $relativePath): void {
  */
 function format_currency($amount): string {
     return '₱' . number_format((float)$amount, 2);
+}
+
+/**
+ * Format a currency amount for contexts limited to the cp1252 core font set
+ * (e.g. generated PDF receipts).
+ *
+ * The Philippine peso sign (U+20B1) does not exist in the WinAnsi/cp1252
+ * encoding used by PDF core fonts, so it is emitted as the "PHP" prefix
+ * instead. This matches how BIR-registered point-of-sale receipts print
+ * peso amounts. Web pages should keep using format_currency() and the real
+ * "₱" glyph.
+ *
+ * @param float|int|string $amount
+ * @return string
+ */
+function format_php_amount($amount): string {
+    return 'PHP ' . number_format((float)$amount, 2);
+}
+
+/**
+ * Format a date string using the Philippine convention
+ * (e.g. "September 30, 2026 03:45 PM").
+ *
+ * Complements format_date(), which is kept terse for tight UI rows. Narrow
+ * columns should pass a shorter $format, such as 'M j, Y g:i A'
+ * ("Sep 30, 2026 3:45 PM"), because the long month name can overflow.
+ *
+ * @param string|null $datetime
+ * @param string $format
+ * @return string
+ */
+function format_ph_datetime(?string $datetime, string $format = 'F j, Y g:i A'): string {
+    if (empty($datetime)) {
+        return 'N/A';
+    }
+    $ts = strtotime($datetime);
+    if ($ts === false || $ts <= 0) {
+        return 'N/A';
+    }
+    return date($format, $ts);
+}
+
+/**
+ * Stream a generated PDF document to the browser.
+ *
+ * Honours the test harness by recording the response instead of emitting
+ * headers, so suites can assert on the payload without a live HTTP request.
+ *
+ * @param string $bytes Raw PDF document
+ * @param string $filename Suggested filename (e.g. "ORD-0000001042.pdf")
+ * @param bool $download True to force a save dialog, false to preview inline
+ * @return void
+ */
+function stream_pdf(string $bytes, string $filename, bool $download = false): void {
+    // Never let a crafted filename inject extra response headers.
+    $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $filename) ?: 'receipt.pdf';
+
+    if (!empty($GLOBALS['TEST_MODE'])) {
+        $GLOBALS['LAST_HTTP_CODE'] = 200;
+        $GLOBALS['LAST_PDF'] = [
+            'filename'   => $safeName,
+            'disposition'=> $download ? 'attachment' : 'inline',
+            'size'       => strlen($bytes),
+            'bytes'      => $bytes,
+        ];
+        return;
+    }
+
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    header('Content-Type: application/pdf');
+    header('Content-Length: ' . strlen($bytes));
+    header('Content-Disposition: ' . ($download ? 'attachment' : 'inline') . '; filename="' . $safeName . '"');
+    header('Cache-Control: private, no-store, max-age=0');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+
+    echo $bytes;
+    exit;
+}
+
+/**
+ * Build the official, human-readable receipt reference for an order
+ * (e.g. "ORD-0000001042").
+ *
+ * @param int $orderId
+ * @return string
+ */
+function order_receipt_number(int $orderId): string {
+    return 'ORD-' . str_pad((string)max(0, $orderId), 10, '0', STR_PAD_LEFT);
 }
 
 /**

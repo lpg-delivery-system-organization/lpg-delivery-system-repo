@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new InvalidArgumentException("Order #{$orderId} is already {$order['status']}.");
                 }
 
-                $orderModel->updateStatus($orderId, 'approved');
+                $orderModel->updateStatus($orderId, 'approved', (int)current_user_id());
 
                 if (is_ajax()) {
                     json_response(['success' => true, 'message' => "Order #{$orderId} has been approved successfully.", 'order_id' => $orderId, 'status' => 'approved']);
@@ -91,24 +91,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new InvalidArgumentException("Order #{$orderId} not found.");
                 }
 
-                $assigned = $orderModel->assignRider($orderId, $riderId, $targetStatus, (int)current_user_id());
-                if (!$assigned) {
-                    // Fallback for re-assigning if already assigned
-                    $stmt = $db->prepare("UPDATE orders SET rider_id = ?, status = ?, updated_at = NOW() WHERE id = ?");
-                    $stmt->execute([$riderId, $targetStatus, $orderId]);
-                    try {
-                        $notification = new Notification($db);
-                        $notification->create(
-                            $riderId,
-                            'order_assigned',
-                            'New Order Assignment',
-                            "A new order has been assigned to you. Please check Order #{$orderId} in your deliveries.",
-                            $orderId,
-                            'pages/rider/order-detail.php?id=' . $orderId
-                        );
-                    } catch (Throwable $e) {
-                        // Never fail a dispatch because of a notification issue.
-                    }
+                // assignRider() refuses an order that already has a rider, so
+                // fall through to the guarded reassignment path rather than an
+                // unguarded UPDATE that would bypass the state machine and
+                // double-notify the rider.
+                if (!$orderModel->assignRider($orderId, $riderId, $targetStatus, (int)current_user_id())) {
+                    $orderModel->reassignRider($orderId, $riderId, $targetStatus, (int)current_user_id());
                 }
 
                 if (is_ajax()) {
@@ -136,9 +124,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($newStatus === 'cancelled') {
                     $reason = sanitize_input($_POST['reason'] ?? 'Cancelled by Admin');
-                    $orderModel->cancel($orderId, $reason);
+                    $orderModel->cancel($orderId, $reason, (int)current_user_id());
                 } else {
-                    $orderModel->updateStatus($orderId, $newStatus);
+                    $orderModel->updateStatus($orderId, $newStatus, (int)current_user_id());
                 }
 
                 $statusLabel = ucfirst(str_replace('_', ' ', $newStatus));
@@ -153,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new InvalidArgumentException('Invalid order ID.');
                 }
                 $reason = sanitize_input($_POST['reason'] ?? 'Cancelled by Admin via Management Portal');
-                $orderModel->cancel($orderId, $reason);
+                $orderModel->cancel($orderId, $reason, (int)current_user_id());
 
                 if (is_ajax()) {
                     json_response(['success' => true, 'message' => "Order #{$orderId} has been cancelled and stock restored.", 'order_id' => $orderId, 'status' => 'cancelled']);
@@ -199,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'contact_phone'    => sanitize_input($_POST['contact_phone'] ?? ''),
                     'notes'            => sanitize_input($_POST['notes'] ?? ''),
                     'status'           => 'pending',
-                ]);
+                ], false);  // no admin alert: an admin is creating this order
 
                 if (is_ajax()) {
                     json_response([

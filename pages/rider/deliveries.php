@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Perform status update (Order::updateStatus sets delivered_at on 'delivered')
-            $orderModel->updateStatus($orderId, $targetStatus);
+            $orderModel->updateStatus($orderId, $targetStatus, (int)current_user_id());
 
             $statusLabels = [
                 'picked_up'        => 'Picked Up',

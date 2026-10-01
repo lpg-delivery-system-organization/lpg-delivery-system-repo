@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         if ($cancelReason === '') {
             $cancelReason = 'Cancelled by customer via order details';
         }
-        $success = $orderModel->cancel($targetId, $cancelReason);
+        $success = $orderModel->cancel($targetId, $cancelReason, (int)current_user_id());
         if ($success) {
             json_response(['success' => true, 'message' => 'Order #' . $targetId . ' has been successfully cancelled.']);
         } else {
@@ -76,6 +76,11 @@ $isDelivered = ($status === 'delivered');
 $isPending = ($status === 'pending');
 $isInTransit = in_array($status, ['approved', 'ready_for_delivery', 'picked_up', 'out_for_delivery'], true);
 
+// The orders.payment_method enum stores lowercase values ('cod', 'gcash'),
+// so normalize before comparing — comparing against the literal 'GCASH'
+// silently rendered every GCash order as Cash on Delivery.
+$isGcash = (strtolower((string)($order['payment_method'] ?? 'cod')) === 'gcash');
+
 $steps = [
     'pending'            => ['label' => 'Order Placed', 'icon' => '<i class="bi bi-receipt"></i>'],
     'approved'           => ['label' => 'Approved',     'icon' => '<i class="bi bi-patch-check"></i>'],
@@ -91,11 +96,38 @@ if ($currentIndex === false) $currentIndex = 0;
 $page_title = 'Order #' . $orderId . ' Details';
 $current_page = 'orders';
 $page_js = 'customer.js';
+
+// Set by pages/customer/shop.php after a successful checkout so the customer
+// lands straight on their receipt instead of hunting for it.
+$justPlaced = isset($_GET['placed']) && $_GET['placed'] !== '0';
+
 require_once __DIR__ . '/../../templates/header.php';
 require_once __DIR__ . '/../../templates/components/order-card.php';
 ?>
 
 <div class="container-fluid px-0">
+    <!-- Post-Checkout Success Banner -->
+    <?php if ($justPlaced): ?>
+        <div class="alert alert-success border-0 shadow-sm d-flex flex-wrap align-items-center gap-3 p-4 mb-4" data-aos="fade-down">
+            <i class="bi bi-check-circle-fill fs-2 text-success"></i>
+            <div class="flex-grow-1">
+                <strong class="d-block fs-5 text-dark">Order #<?= $orderId ?> placed successfully!</strong>
+                <span class="small text-muted">
+                    Your order is confirmed. Keep the official receipt below for your records
+                    <?= $isGcash ? '— payment is still pending, please complete GCash checkout.' : '— please have the exact amount ready for cash on delivery.' ?>
+                </span>
+            </div>
+            <div class="d-flex gap-2 flex-shrink-0">
+                <a href="<?= url('pages/customer/receipt.php?id=' . $orderId) ?>" target="_blank" rel="noopener" class="btn btn-light border px-3 fw-semibold">
+                    <i class="bi bi-eye me-1"></i>View Receipt
+                </a>
+                <a href="<?= url('pages/customer/receipt.php?id=' . $orderId . '&download=1') ?>" class="btn btn-success px-3 fw-semibold">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+                </a>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Breadcrumb & Top Bar -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 pb-2 border-bottom" data-aos="fade-down">
         <div class="d-flex align-items-center gap-3">
@@ -211,17 +243,17 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         </table>
                     </div>
 
-                    <div class="p-3 rounded-3 border d-flex justify-content-between align-items-center <?= ($order['payment_method'] ?? '') === 'GCASH' ? 'bg-primary-subtle border-primary-subtle' : 'bg-warning-subtle border-warning-subtle' ?>">
+                    <div class="p-3 rounded-3 border d-flex justify-content-between align-items-center <?= $isGcash ? 'bg-primary-subtle border-primary-subtle' : 'bg-warning-subtle border-warning-subtle' ?>">
                         <div>
                             <span class="text-muted extra-small text-uppercase fw-semibold d-block">Payment Method</span>
-                            <strong class="text-dark fs-6"><?= ($order['payment_method'] ?? '') === 'GCASH' ? 'GCash (Digital Payment)' : 'Cash on Delivery (COD)' ?></strong>
+                            <strong class="text-dark fs-6"><?= $isGcash ? 'GCash (Digital Payment)' : 'Cash on Delivery (COD)' ?></strong>
                         </div>
-                        <span class="badge <?= ($order['payment_method'] ?? '') === 'GCASH' ? 'bg-primary text-white' : 'bg-warning text-dark' ?> px-3 py-2 fs-6">
-                            <?= e($order['payment_method'] ?? 'COD') ?>
+                        <span class="badge <?= $isGcash ? 'bg-primary text-white' : 'bg-warning text-dark' ?> px-3 py-2 fs-6">
+                            <?= $isGcash ? 'GCASH' : 'COD' ?>
                         </span>
                     </div>
 
-                    <?php if (($order['payment_method'] ?? '') === 'GCASH'): ?>
+                    <?php if ($isGcash): ?>
                         <?php
                         $paymentStatus = strtolower((string)($order['payment_status'] ?? 'unpaid'));
                         $refundStatus = strtolower((string)($order['refund_status'] ?? 'none'));
@@ -385,10 +417,30 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <span class="extra-small">Simulated Real-Time Tracking</span>
                         </div>
                     </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Official Receipt (80mm Philippine-format PDF) -->
+                    <div class="p-3 rounded-3 border mt-3 d-flex flex-wrap align-items-center justify-content-between gap-2 bg-light">
+                        <div class="flex-grow-1">
+                            <span class="text-muted extra-small text-uppercase fw-semibold d-block">Official Receipt</span>
+                            <strong class="text-dark fs-6"><?= e(order_receipt_number($orderId)) ?></strong>
+                            <div class="small text-muted">80mm thermal format &middot; amounts in PHP</div>
+                        </div>
+                        <div class="d-flex gap-2 flex-shrink-0">
+                            <a href="<?= url('pages/customer/receipt.php?id=' . $orderId) ?>"
+                               target="_blank" rel="noopener"
+                               class="btn btn-outline-primary btn-sm fw-semibold">
+                                <i class="bi bi-eye me-1"></i>View Receipt
+                            </a>
+                            <a href="<?= url('pages/customer/receipt.php?id=' . $orderId . '&download=1') ?>"
+                               class="btn btn-primary btn-sm fw-semibold">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        <?php endif; ?>
-    </div>
 </div>
 
 <!-- Cancel Order Modal -->

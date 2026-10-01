@@ -3358,8 +3358,22 @@ h4, .h4 { font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem); }
     line-height: 18px;
     padding: 0 4px;
 }
-.app-notif-menu { width: 340px; max-width: calc(100vw - 24px); }
-.app-notif-list { max-height: 340px; overflow-y: auto; }
+/* The panel is anchored to the bell's right edge. A fixed 340px width therefore
+   runs off the left of a narrow screen, because the bell sits well left of the
+   viewport edge once the theme and logout controls are accounted for. Cap the
+   width to the viewport and let the panel shrink on small screens. */
+.app-notif-menu {
+    width: 340px;
+    max-width: calc(100vw - 1.5rem);
+}
+/* Height capped against the viewport so the panel cannot outgrow a short or
+   landscape phone screen and get clipped by the bottom of the window. */
+.app-notif-list {
+    max-height: min(340px, 55vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
 .app-notif-item {
     white-space: normal;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -3368,11 +3382,86 @@ h4, .h4 { font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem); }
 }
 .app-notif-item:last-child { border-bottom: none; }
 .app-notif-item.app-notif-unread { background-color: rgba(13, 148, 136, 0.07); }
+
+/* Flex children default to min-width:auto, so they refuse to shrink below their
+   content's intrinsic width. One long unbroken message - a payment reference, a
+   tracking URL - therefore stretches the text column past the panel's 340px and
+   drags the whole dropdown wider than its own box, which is what reads as a
+   "distorted" dropdown on a phone. min-width:0 lets the column shrink and wrap. */
+.app-notif-item .min-w-0 { min-width: 0; }
+.app-notif-item .d-flex { align-items: flex-start; }
+/* Order references, URLs and provider messages carry no spaces to break at, so
+   overflow-wrap keeps them inside the column instead of forcing a scrollbar. */
+.app-notif-title,
+.app-notif-msg { overflow-wrap: anywhere; }
+.app-notif-title { color: #0f172a; }
 .app-notif-msg { color: #64748b; }
-.app-notif-time { font-size: 0.7rem; }
+.app-notif-time { font-size: 0.7rem; overflow-wrap: anywhere; }
+
+/* Panel header. Theme-aware rather than Bootstrap's bg-light, which stays white
+   in dark mode and left a bright bar above the dark notification list.
+   Wraps so the title and the "mark all as read" control drop onto separate
+   lines rather than colliding when the panel is narrow. */
+.app-notif-head {
+    background-color: rgba(15, 23, 42, 0.03);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
+}
+.app-notif-head-title { color: #0f172a; }
+.app-notif-head .btn-link { color: #0d9488; }
+
 [data-theme="dark"] .app-notif-item { border-bottom-color: rgba(255, 255, 255, 0.06); }
 [data-theme="dark"] .app-notif-item:hover { background-color: rgba(255, 255, 255, 0.05); }
 [data-theme="dark"] .app-notif-item.app-notif-unread { background-color: rgba(20, 184, 166, 0.12); }
+[data-theme="dark"] .app-notif-title { color: #f1f5f9; }
 [data-theme="dark"] .app-notif-msg,
 [data-theme="dark"] .app-notif-time { color: #94a3b8; }
+[data-theme="dark"] .app-notif-head {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .app-notif-head-title { color: #f1f5f9; }
+[data-theme="dark"] .app-notif-head .btn-link { color: #5eead4; }
+
+/* Phones: the bell sits close to the left of the viewport once the brand and
+   sidebar toggle are accounted for, so there is not room to the right of it for
+   a full-width panel either. Dropdown placement is decided in
+   notifications.js, which picks whichever side actually has room and caps the
+   panel to fit. Here we only keep the panel from ever exceeding the viewport. */
+@media (max-width: 575.98px) {
+    /* Keep the preferred 340px and let max-width cap it. Setting width:auto
+       here let the panel collapse to its min-content width (~105px), which is
+       just as distorted as the overflow it replaced. */
+    .app-notif-menu { max-width: calc(100vw - 1.5rem); }
+
+    /* Sheet mode, applied by notifications.js. On a phone there is not enough
+       room beside the bell for a usable panel - it ends up ~190px wide at 320px.
+       Detaching the panel from the bell and spanning the viewport gives the
+       full width instead. The offsets are marked !important because Popper
+       writes its own inline position/transform on every update, and a plain
+       inline style here would lose that race. */
+    .app-notif-menu.app-notif-sheet {
+        position: fixed !important;
+        top: var(--app-notif-sheet-top, 60px) !important;
+        left: 0.75rem !important;
+        right: 0.75rem !important;
+        width: auto !important;
+        max-width: none !important;
+        transform: none !important;
+    }
+    .app-notif-list { max-height: 58vh; }
+    /* Comfortable touch target on a phone. */
+    .app-notif-item { padding: 0.7rem 0.85rem; }
+    .app-notif-head { padding: 0.5rem 0.85rem !important; }
+    .app-notif-head-title { font-size: 0.8rem; }
+    .app-notif-head .btn-link { font-size: 0.75rem; }
+}
+
+/* Very narrow phones (SE-class, ~320px): give the header row room so the title
+   and the "mark all read" control do not collide. */
+@media (max-width: 400px) {
+    .app-notif-head-title { font-size: 0.78rem; }
+    .app-notif-head .btn-link { font-size: 0.72rem; }
+}
 

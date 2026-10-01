@@ -12,6 +12,8 @@
  * 7. test_admin_portal.php    - Admin analytics, order approval/assignment, inventory, user verify
  * 8. test_rider_portal.php    - Delivery workflows, concurrency-safe claiming, status transitions
  * 9. test_api.php             - AJAX REST APIs (/api/orders.php, /api/products.php, /api/users.php)
+ * 10. test_notifications.php  - In-app notification model, polling endpoint & read state
+ * 11. test_receipt.php        - Philippine-format 80mm PDF order receipts & endpoint RBAC
  *
  * Usage:
  *   php tests/run_all_tests.php              # Standard run with aggregated table
@@ -136,6 +138,12 @@ $testSuites = [
         'name'        => 'Notification System',
         'file'        => 'test_notifications.php',
         'description' => 'Notification model, poll/recent/mark-read API & delivery/chat hooks'
+    ],
+    [
+        'id'          => 'receipt',
+        'name'        => 'Order Receipts (80mm PDF)',
+        'file'        => 'test_receipt.php',
+        'description' => 'Philippine-format receipt normalization, PDF generation & endpoint RBAC'
     ],
 ];
 

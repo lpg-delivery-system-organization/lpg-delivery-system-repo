@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
 
         try {
-            $updated = $orderModel->updateStatus($targetId, $targetStatus);
+            $updated = $orderModel->updateStatus($targetId, $targetStatus, (int)current_user_id());
             if ($updated) {
                 json_response([
                     'success' => true, 

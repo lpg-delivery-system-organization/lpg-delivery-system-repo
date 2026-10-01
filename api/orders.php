@@ -142,7 +142,7 @@ switch ($action) {
         }
 
         try {
-            $updated = $orderModel->updateStatus($orderId, $newStatus);
+            $updated = $orderModel->updateStatus($orderId, $newStatus, (int)current_user_id());
             if (!$updated) {
                 json_response([
                     'success' => false,
@@ -386,7 +386,7 @@ switch ($action) {
             $defaultReason = ($currentUserRole === 'admin') ? 'Cancelled by Administrator' : 'Cancelled by Customer';
             $cancelReason = !empty($reason) ? $reason : $defaultReason;
 
-            $cancelled = $orderModel->cancel($orderId, $cancelReason);
+            $cancelled = $orderModel->cancel($orderId, $cancelReason, (int)current_user_id());
             if (!$cancelled) {
                 json_response([
                     'success' => false,

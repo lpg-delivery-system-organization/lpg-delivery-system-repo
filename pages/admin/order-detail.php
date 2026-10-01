@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
     try {
         if ($action === 'approve_order') {
-            $updated = $orderModel->updateStatus($targetId, 'approved');
+            $updated = $orderModel->updateStatus($targetId, 'approved', (int)current_user_id());
             if ($updated) {
                 json_response(['success' => true, 'message' => 'Order #' . $targetId . ' approved successfully.']);
             } else {
@@ -52,31 +52,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 json_response(['success' => false, 'error' => 'Invalid or inactive rider selected.'], 400);
             }
 
-            $assigned = $orderModel->assignRider($targetId, $riderId, $initialStatus, (int)current_user_id());
-            if ($assigned) {
-                json_response(['success' => true, 'message' => 'Rider assigned to Order #' . $targetId . ' successfully.']);
-            } else {
-                // Fallback direct update
-                $stmt = $db->prepare("UPDATE orders SET rider_id = ?, status = ?, updated_at = NOW() WHERE id = ?");
-                $stmt->execute([$riderId, $initialStatus, $targetId]);
-                try {
-                    $notification = new Notification($db);
-                    $notification->create(
-                        $riderId,
-                        'order_assigned',
-                        'New Order Assignment',
-                        "A new order has been assigned to you. Please check Order #{$targetId} in your deliveries.",
-                        $targetId,
-                        'pages/rider/order-detail.php?id=' . $targetId
-                    );
-                } catch (Throwable $e) {
-                    // Never fail a dispatch because of a notification issue.
-                }
-                json_response(['success' => true, 'message' => 'Rider assigned to Order #' . $targetId . ' successfully.']);
+            // assignRider() intentionally refuses an order that already has a
+            // rider, so fall through to the guarded reassignment path instead of
+            // an unguarded UPDATE. That keeps the state machine intact and stops
+            // the old double-notification this fallback used to cause.
+            if (!$orderModel->assignRider($targetId, $riderId, $initialStatus, (int)current_user_id())) {
+                $orderModel->reassignRider($targetId, $riderId, $initialStatus, (int)current_user_id());
             }
+            json_response(['success' => true, 'message' => 'Rider assigned to Order #' . $targetId . ' successfully.']);
         } elseif ($action === 'update_status') {
             $newStatus = trim($_POST['status'] ?? '');
-            $updated = $orderModel->updateStatus($targetId, $newStatus);
+            $updated = $orderModel->updateStatus($targetId, $newStatus, (int)current_user_id());
             if ($updated) {
                 json_response(['success' => true, 'message' => 'Order status updated to ' . str_replace('_', ' ', strtoupper($newStatus)) . '.']);
             } else {
@@ -95,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
         } elseif ($action === 'cancel_order') {
             $reason = trim($_POST['reason'] ?? 'Cancelled by administrator');
-            $cancelled = $orderModel->cancel($targetId, $reason);
+            $cancelled = $orderModel->cancel($targetId, $reason, (int)current_user_id());
             if ($cancelled) {
                 json_response(['success' => true, 'message' => 'Order #' . $targetId . ' cancelled and stock released.']);
             } else {
@@ -137,6 +123,12 @@ $isReady = ($status === 'ready_for_delivery');
 $isCancelled = ($status === 'cancelled');
 $isDelivered = ($status === 'delivered');
 
+// The orders.payment_method enum stores lowercase values ('cod', 'gcash'),
+// so normalize before comparing — comparing against the literal 'GCASH'
+// hid the GCash refund panel and mislabelled GCash orders as COD.
+$isGcash = (strtolower((string)($order['payment_method'] ?? 'cod')) === 'gcash');
+$isGcashPaid = ($isGcash && strtolower((string)($order['payment_status'] ?? '')) === 'paid');
+
 // Fetch active riders for assignment dropdown
 $allRiders = $userModel->getAllByRole('rider');
 $activeRiders = array_values(array_filter($allRiders, function ($r) {
@@ -169,7 +161,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
     </div>
 
-    <?php if (($order['payment_method'] ?? '') === 'GCASH' && ($order['payment_status'] ?? '') === 'paid'): ?>
+    <?php if ($isGcashPaid): ?>
         <?php
         $aRefundStatus = strtolower((string)($order['refund_status'] ?? 'none'));
         $aRefundLabels = [
@@ -321,9 +313,16 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         <span class="fw-bold text-primary fs-5"><?= e(format_currency($order['total_amount'] ?? 0)) ?></span>
                     </div>
 
-                    <div class="p-2 rounded text-center <?= ($order['payment_method'] ?? '') === 'GCASH' ? 'bg-primary-subtle text-primary border border-primary' : 'bg-success-subtle text-success border border-success' ?>">
-                        <small class="fw-bold">Payment: <?= e($order['payment_method'] ?? 'COD') ?></small>
+                    <div class="p-2 rounded text-center <?= $isGcash ? 'bg-primary-subtle text-primary border border-primary' : 'bg-success-subtle text-success border border-success' ?>">
+                        <small class="fw-bold">Payment: <?= $isGcash ? 'GCASH' : 'COD' ?></small>
                     </div>
+
+                    <!-- Official Receipt (80mm Philippine-format PDF) -->
+                    <a href="<?= url('pages/admin/receipt.php?id=' . (int)$order['id'] . '&download=1') ?>"
+                       class="btn btn-outline-secondary btn-sm w-100 mt-3 fw-semibold"
+                       title="Download the official 80mm receipt for order #<?= (int)$order['id'] ?>">
+                        <i class="bi bi-receipt me-1"></i>Download Receipt PDF
+                    </a>
                 </div>
             </div>
         </div>

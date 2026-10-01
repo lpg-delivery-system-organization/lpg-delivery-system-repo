@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $unitAmountCents = (int)round(((float)($selectedProduct['price'] ?? 0)) * 100);
                 $totalCents = $unitAmountCents * (int)$formData['quantity'];
 
-                $successUrl = absolute_url("pages/customer/order-detail.php?id={$newOrderId}");
+                $successUrl = absolute_url("pages/customer/order-detail.php?id={$newOrderId}&placed=1");
                 $cancelUrl  = absolute_url("pages/customer/shop.php");
 
                 $session = $paymongo->createCheckoutSession(
@@ -196,12 +196,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'success' => true,
                     'message' => "Order #{$newOrderId} has been successfully placed!",
                     'order_id' => $newOrderId,
-                    'redirect' => url("pages/customer/order-detail.php?id={$newOrderId}")
+                    'redirect' => url("pages/customer/order-detail.php?id={$newOrderId}&placed=1")
                 ]);
             }
 
             set_flash('success', "Order #{$newOrderId} has been successfully placed! We will process your delivery shortly.");
-            redirect("pages/customer/order-detail.php?id={$newOrderId}");
+            redirect("pages/customer/order-detail.php?id={$newOrderId}&placed=1");
             return;
 
         } catch (Throwable $e) {

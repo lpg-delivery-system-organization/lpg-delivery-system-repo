@@ -143,8 +143,10 @@ lpg-delivery-system-repo/
 │   ├── database.php          # Database connection parameters
 │   └── mail.php              # SMTP mail configuration settings
 │
-├── database/                 # Database Schema & Seed Data
-│   └── lpg_delivery_v2.sql   # Complete DDL and initial dataset
+├── database/                 # Database Schema & Migrations
+│   ├── lpg_delivery_v2.sql   # Complete DDL and initial dataset
+│   ├── migrations/           # Timestamped, hand-executable SQL migrations
+│   └── tools/                # Migration generator
 │
 ├── includes/                 # Core Helpers & Middleware
 │   ├── auth.php              # Session lifecycle, login/logout functions

@@ -68,6 +68,63 @@ class Notification
     }
 
     /**
+     * Check whether a notification already exists for a recipient.
+     *
+     * The notifications table has no uniqueness constraint, so callers that
+     * fan an event out to several recipients (or that may be reached through
+     * more than one code path) use this to stay idempotent. Because every
+     * lifecycle notification type describes exactly one state of one order,
+     * the (user, type, order) triple is a natural key.
+     *
+     * @param int      $userId
+     * @param string   $type
+     * @param int|null $orderId
+     * @return bool
+     */
+    public function existsFor(int $userId, string $type, ?int $orderId = null): bool
+    {
+        if ($userId <= 0 || $type === '') {
+            return false;
+        }
+
+        $sql = "SELECT id FROM notifications WHERE user_id = ? AND type = ?";
+        $params = [$userId, $type];
+
+        if ($orderId !== null && $orderId > 0) {
+            $sql .= " AND order_id = ?";
+            $params[] = $orderId;
+        } else {
+            $sql .= " AND order_id IS NULL";
+        }
+
+        $stmt = $this->db->prepare($sql . " LIMIT 1");
+        $stmt->execute($params);
+
+        return (bool)$stmt->fetchColumn();
+    }
+
+    /**
+     * Create a notification unless the recipient already has that exact
+     * (type, order) pair.
+     *
+     * @param int         $userId  Recipient user ID
+     * @param string      $type    Notification type
+     * @param string      $title   Short headline shown in the toast / bell
+     * @param string      $message Body text shown in the toast / bell
+     * @param int|null    $orderId Optional related order ID
+     * @param string|null $link    Optional relative target URL
+     * @return int Inserted notification ID, or 0 when suppressed as a duplicate
+     */
+    public function createOnce(int $userId, string $type, string $title, string $message, ?int $orderId = null, ?string $link = null): int
+    {
+        if ($this->existsFor($userId, $type, $orderId)) {
+            return 0;
+        }
+
+        return $this->create($userId, $type, $title, $message, $orderId, $link);
+    }
+
+    /**
      * Fetch notifications newer than a reference ID (for client polling).
      * Always scoped to the requesting user.
      *

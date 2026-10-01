@@ -28,6 +28,7 @@ require_once __DIR__ . '/../classes/Product.php';
 require_once __DIR__ . '/../classes/Order.php';
 require_once __DIR__ . '/../classes/ChatMessage.php';
 require_once __DIR__ . '/../classes/Notification.php';
+require_once __DIR__ . '/../classes/OrderNotifier.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/middleware.php';
@@ -171,6 +172,7 @@ $testCustomer = ensure_user($db, $userModel, 'customer@lpg.com', 'customer', 'Ja
 
 $adminId = (int)$testAdmin['id'];
 $riderId = (int)$testRider['id'];
+$rider2Id = (int)$testRider2['id'];
 $customerId = (int)$testCustomer['id'];
 
 $productStmt = $db->query("SELECT id FROM products WHERE status = 'active' AND stock > 0 ORDER BY id ASC LIMIT 1");
@@ -511,6 +513,488 @@ it('api/chat.php send notifies the customer peer when a rider messages', functio
     assert_equals(1, count($found));
     assert_contains('On my way now', $found[0]['message']);
     assert_contains('pages/customer/order-detail.php?id=' . $oid, $found[0]['link']);
+});
+
+// =========================================================================
+// Group 5: Full transaction fan-out
+// =========================================================================
+echo "\nGroup 5: Transaction Notification Fan-out\n";
+
+/**
+ * Count notifications of a given type that a recipient received for an order.
+ */
+function count_for(Notification $n, int $userId, int $orderId, string $type): int {
+    $rows = $n->getRecent($userId, 100);
+    return count(array_filter($rows, function ($row) use ($orderId, $type) {
+        return (int)$row['order_id'] === $orderId && $row['type'] === $type;
+    }));
+}
+
+/**
+ * Collect every (type => title) a recipient received for one order.
+ */
+function types_for(Notification $n, int $userId, int $orderId): array {
+    $rows = $n->getRecent($userId, 100);
+    $out = [];
+    foreach ($rows as $row) {
+        if ((int)$row['order_id'] === $orderId) {
+            $out[$row['type']] = $row['title'];
+        }
+    }
+    return $out;
+}
+
+it('COD checkout notifies the customer and every admin exactly once', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Fanout COD Test St, Manila',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending',
+    ]);
+
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'order_placed'), 'customer placement notice');
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'receipt_ready'), 'customer receipt notice');
+    assert_equals(1, count_for($notificationModel, $adminId, $orderId, 'order_placed'), 'admin new-order alert');
+
+    $customerRows = $notificationModel->getRecent($customerId, 100);
+    $receipt = null;
+    foreach ($customerRows as $row) {
+        if ((int)$row['order_id'] === $orderId && $row['type'] === 'receipt_ready') $receipt = $row;
+    }
+    assert_contains('pages/customer/receipt.php?id=' . $orderId, $receipt['link'], 'receipt notice must link to the PDF');
+});
+
+it('re-running the same placement notification does not duplicate rows', function () use ($db, $orderModel, $customerId, $productId, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Idempotency Test St, Manila',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending',
+    ]);
+
+    $notifier = new OrderNotifier($db);
+    $notifier->notifyOrderPlaced($orderId);
+    $notifier->notifyOrderPlaced($orderId);
+    $notifier->notifyReceiptReady($orderId);
+    $notifier->notifyReceiptReady($orderId);
+
+    assert_equals(1, count_for($notificationModel ?? new Notification($db), $customerId, $orderId, 'order_placed'));
+    assert_equals(1, count_for(new Notification($db), $customerId, $orderId, 'receipt_ready'));
+    assert_equals(1, count_for(new Notification($db), $adminId, $orderId, 'order_placed'),
+        'the admin must be alerted once per order, not once per dispatch attempt');
+});
+
+it('GCash checkout stays silent until payment confirms, then notifies', function () use ($orderModel, $notificationModel, $customerId, $productId, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'gcash',
+        'delivery_address' => 'GCash Fanout Test St, Manila',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending_payment',
+    ]);
+
+    assert_equals(0, count_for($notificationModel, $customerId, $orderId, 'order_placed'),
+        'an unpaid order is not placed yet');
+    assert_equals(0, count_for($notificationModel, $adminId, $orderId, 'order_placed'));
+
+    $orderModel->confirmPayment($orderId, 'pay_fanout_test');
+
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'order_placed'));
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'order_paid'));
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'receipt_ready'));
+    assert_equals(1, count_for($notificationModel, $adminId, $orderId, 'order_placed'));
+    assert_equals(1, count_for($notificationModel, $adminId, $orderId, 'order_paid'));
+});
+
+it('a duplicate payment webhook does not re-notify', function () use ($orderModel, $notificationModel, $customerId, $productId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'gcash',
+        'delivery_address' => 'Duplicate Webhook Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending_payment',
+    ]);
+
+    $orderModel->confirmPayment($orderId, 'pay_dupe_test');
+    $orderModel->confirmPayment($orderId, 'pay_dupe_test');
+
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'order_paid'));
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'receipt_ready'));
+});
+
+it('every status transition notifies the customer, the rider, and admins', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $riderId, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Full Lifecycle Test St, Manila',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending',
+    ], false); // suppress the placement noise so we assert only the fan-out
+
+    // Assign a rider directly so the rider leg of the fan-out is exercised.
+    $db->prepare("UPDATE orders SET rider_id = ? WHERE id = ?")->execute([$riderId, $orderId]);
+
+    $expected = [
+        'approved'           => 'order_approved',
+        'ready_for_delivery' => 'order_ready_for_delivery',
+        'picked_up'          => 'order_picked_up',
+        'out_for_delivery'   => 'order_out_for_delivery',
+        'delivered'          => 'order_delivered',
+    ];
+
+    // No actor is passed, so every party should hear about every step. (The
+    // "actor is skipped" rule is covered by its own test below.)
+    foreach ($expected as $status => $type) {
+        assert_true(
+            $orderModel->updateStatus($orderId, $status),
+            "transition to {$status} should succeed"
+        );
+
+        assert_equals(1, count_for($notificationModel, $customerId, $orderId, $type), "customer notified of {$status}");
+        assert_equals(1, count_for($notificationModel, $riderId, $orderId, $type), "rider notified of {$status}");
+        assert_equals(1, count_for($notificationModel, $adminId, $orderId, $type), "admin notified of {$status}");
+    }
+
+    // The customer should have been told about every single step.
+    $customerTypes = types_for($notificationModel, $customerId, $orderId);
+    foreach ($expected as $type) {
+        assert_true(isset($customerTypes[$type]), "customer is missing the {$type} notification");
+    }
+});
+
+it('replaying a status transition cannot duplicate its notification', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $riderId, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Replay Guard Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending',
+    ], false);
+
+    $db->prepare("UPDATE orders SET rider_id = ? WHERE id = ?")->execute([$riderId, $orderId]);
+
+    assert_true($orderModel->updateStatus($orderId, 'approved'));
+
+    $notifier = new OrderNotifier($db);
+    $notifier->notifyStatusChange($orderId, 'approved');
+    $notifier->notifyStatusChange($orderId, 'approved');
+
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'order_approved'));
+    assert_equals(1, count_for($notificationModel, $riderId, $orderId, 'order_approved'));
+    assert_equals(1, count_for($notificationModel, $adminId, $orderId, 'order_approved'));
+});
+
+it('the actor is never notified of their own action', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $riderId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Self Actor Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'approved',
+    ], false);
+
+    // Rider self-claims, acting as themselves.
+    assert_true($orderModel->assignRider($orderId, $riderId, 'picked_up', $riderId));
+
+    assert_equals(0, count_for($notificationModel, $riderId, $orderId, 'order_assigned'),
+        'a rider already knows they claimed the order');
+    assert_equals(0, count_for($notificationModel, $riderId, $orderId, 'order_picked_up'),
+        'a rider should not be toasted for their own pickup');
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'order_picked_up'),
+        'the customer still needs to know the order is on the way');
+});
+
+it('admin dispatch notifies the rider once even when reassigning', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $riderId, $rider2Id, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Reassign Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'approved',
+    ], false);
+
+    assert_true($orderModel->assignRider($orderId, $riderId, 'ready_for_delivery', $adminId));
+    assert_equals(1, count_for($notificationModel, $riderId, $orderId, 'order_assigned'));
+
+    // Re-assigning the same rider must not re-notify them.
+    $orderModel->reassignRider($orderId, $riderId, 'ready_for_delivery', $adminId);
+    assert_equals(1, count_for($notificationModel, $riderId, $orderId, 'order_assigned'),
+        're-assigning the same rider must stay quiet');
+
+    // Handing it to another rider tells both of them exactly once.
+    assert_true($orderModel->reassignRider($orderId, $rider2Id, 'picked_up', $adminId));
+    assert_equals(1, count_for($notificationModel, $rider2Id, $orderId, 'order_assigned'),
+        'the new rider is told the order is theirs');
+    assert_equals(1, count_for($notificationModel, $riderId, $orderId, 'order_unassigned'),
+        'the previous rider is told it was taken off their list');
+});
+
+it('reassignRider refuses to overwrite a rider on a finished order', function () use ($db, $orderModel, $customerId, $productId, $riderId, $rider2Id, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Reassign Guard Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending',
+    ], false);
+
+    $orderModel->updateStatus($orderId, 'approved', $adminId);
+    $orderModel->assignRider($orderId, $riderId, 'ready_for_delivery', $adminId);
+    $orderModel->updateStatus($orderId, 'picked_up', $adminId);
+    $orderModel->updateStatus($orderId, 'out_for_delivery', $adminId);
+    $orderModel->updateStatus($orderId, 'delivered', $adminId);
+
+    $before = $orderModel->findById($orderId);
+    $threw = false;
+    try {
+        $orderModel->reassignRider($orderId, $rider2Id, 'picked_up', $adminId);
+    } catch (InvalidArgumentException $e) {
+        $threw = true;
+    }
+
+    assert_true($threw, 'a delivered order must not be reassignable');
+    $after = $orderModel->findById($orderId);
+    assert_equals($before['rider_id'], $after['rider_id'], 'the rider must not be swapped after delivery');
+    assert_equals('delivered', $after['status'], 'the status must not be rolled back');
+});
+
+it('cancelling notifies the customer, the rider, and admins with the reason', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $riderId, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Cancel Fanout Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'approved',
+    ], false);
+
+    $orderModel->assignRider($orderId, $riderId, 'ready_for_delivery', $adminId);
+    // No actor: the customer, the rider, and the admin all get the bad news.
+    $orderModel->cancel($orderId, 'Customer unreachable');
+
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'order_cancelled'));
+    assert_equals(1, count_for($notificationModel, $riderId, $orderId, 'order_cancelled'));
+    assert_equals(1, count_for($notificationModel, $adminId, $orderId, 'order_cancelled'));
+
+    foreach ([$customerId, $riderId, $adminId] as $who) {
+        $rows = $notificationModel->getRecent($who, 100);
+        foreach ($rows as $row) {
+            if ((int)$row['order_id'] === $orderId && $row['type'] === 'order_cancelled') {
+                assert_contains('Customer unreachable', $row['message'], 'the reason must reach every party');
+            }
+        }
+    }
+});
+
+it('a customer cancelling their own order does not notify them', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Self Cancel Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending',
+    ], false);
+
+    $orderModel->cancel($orderId, 'Changed my mind', $customerId);
+
+    assert_equals(0, count_for($notificationModel, $customerId, $orderId, 'order_cancelled'));
+    assert_equals(1, count_for($notificationModel, $adminId, $orderId, 'order_cancelled'),
+        'the admin still needs to know the order was cancelled');
+});
+
+it('an admin-created walk-in order does not alert other admins', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Walk-in Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending',
+    ], false); // exactly how pages/admin/orders.php calls it
+
+    assert_equals(0, count_for($notificationModel, $adminId, $orderId, 'order_placed'),
+        'an admin must not be alerted about an order they created');
+    assert_equals(1, count_for($notificationModel, $customerId, $orderId, 'order_placed'),
+        'the customer is still told their order exists');
+});
+
+it('refund requested alerts admins; refund issued and declined alert the customer', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $adminId) {
+    $makeOrder = function (string $tag) use ($orderModel, $customerId, $productId) {
+        $orderId = $orderModel->place([
+            'customer_id'      => $customerId,
+            'product_id'       => $productId,
+            'quantity'         => 1,
+            'payment_method'   => 'gcash',
+            'delivery_address' => 'Refund Notify ' . $tag . ' St',
+            'contact_phone'    => '09171234567',
+            'notes'            => '',
+            'status'           => 'pending_payment',
+        ], false);
+        $orderModel->confirmPayment($orderId, 'pay_refund_notify');
+        return $orderId;
+    };
+
+    $declinedOrder = $makeOrder('Declined');
+    $orderModel->requestRefund($declinedOrder, 'Wrong cylinder size');
+
+    assert_equals(1, count_for($notificationModel, $adminId, $declinedOrder, 'refund_requested'),
+        'a pending refund must reach an admin');
+    $orderModel->rejectRefund($declinedOrder, 'Items cannot be returned');
+
+    assert_equals(1, count_for($notificationModel, $customerId, $declinedOrder, 'refund_rejected'));
+    $customerRows = $notificationModel->getRecent($customerId, 100);
+    foreach ($customerRows as $row) {
+        if ((int)$row['order_id'] === $declinedOrder && $row['type'] === 'refund_rejected') {
+            assert_contains('cannot be returned', $row['message'], 'the decline reason must be shown');
+        }
+    }
+});
+
+it('an issued refund tells the customer and reports the cancellation', function () use ($db, $orderModel, $customerId, $productId, $adminId) {
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'gcash',
+        'delivery_address' => 'Refund Issued Notify St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending_payment',
+    ], false);
+    $orderModel->confirmPayment($orderId, 'pay_refund_issued');
+    $orderModel->requestRefund($orderId, 'Duplicate order');
+
+    // Approve through the notifier directly: approveRefund() calls PayMongo,
+    // which is not reachable from the test environment.
+    $notifier = new OrderNotifier($db);
+    $notifier->notifyRefundCompleted($orderId);
+    $notifier->notifyOrderCancelled($orderId, 'Refund issued', $adminId);
+
+    $n = new Notification($db);
+    assert_equals(1, count_for($n, $customerId, $orderId, 'refund_refunded'));
+    assert_equals(1, count_for($n, $customerId, $orderId, 'order_cancelled'));
+});
+
+it('an inactive admin is not notified', function () use ($db, $userModel, $orderModel, $notificationModel, $customerId, $productId) {
+    $admin = $userModel->findByEmail('suspendedadmin@lpg.com');
+    if (!$admin) {
+        $pass = password_hash('password', PASSWORD_BCRYPT, ['cost' => 12]);
+        $stmt = $db->prepare("
+            INSERT INTO users (full_name, email, password, role, phone, address, status, created_at, updated_at)
+            VALUES ('Suspended Admin', 'suspendedadmin@lpg.com', ?, 'admin', '09000000001', 'HQ', 'suspended', NOW(), NOW())
+        ");
+        $stmt->execute([$pass]);
+        $admin = $userModel->findByEmail('suspendedadmin@lpg.com');
+    }
+    $suspendedAdminId = (int)$admin['id'];
+
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Suspended Admin Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'pending',
+    ]);
+
+    assert_equals(0, count_for($notificationModel, $suspendedAdminId, $orderId, 'order_placed'),
+        'a suspended admin must not be pinged');
+});
+
+it('every lifecycle notification deep-links to the page its role uses', function () use ($db, $orderModel, $notificationModel, $customerId, $productId, $riderId, $adminId) {
+    // Placed as 'approved' because assignRider() only accepts approved or
+    // ready_for_delivery orders.
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $productId,
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Link Check Test St',
+        'contact_phone'    => '09171234567',
+        'notes'            => '',
+        'status'           => 'approved',
+    ], false);
+
+    $orderModel->assignRider($orderId, $riderId, 'ready_for_delivery', $adminId);
+    $orderModel->updateStatus($orderId, 'picked_up');
+
+    $prefixes = [
+        $customerId => 'pages/customer/',
+        $riderId    => 'pages/rider/',
+        $adminId    => 'pages/admin/',
+    ];
+
+    foreach ($prefixes as $userId => $prefix) {
+        $rows = $notificationModel->getRecent($userId, 100);
+        $checked = 0;
+        foreach ($rows as $row) {
+            if ((int)$row['order_id'] !== $orderId) continue;
+            if ($row['type'] === 'receipt_ready') continue; // intentionally points at the PDF
+            assert_contains($prefix, (string)$row['link'], 'user ' . $userId . ' type ' . $row['type']);
+            assert_contains('id=' . $orderId, (string)$row['link'], 'user ' . $userId . ' type ' . $row['type']);
+            $checked++;
+        }
+        assert_true($checked > 0, 'user ' . $userId . ' should have at least one linked notification');
+    }
+});
+
+it('a notification failure never breaks the business transaction', function () use ($db, $customerId, $productId) {
+    // Point the notifier at a database with no notifications table at all, then
+    // confirm the guarded dispatcher swallows the error.
+    $broken = new OrderNotifier($db);
+    $reflection = new ReflectionProperty($broken, 'notifications');
+    $reflection->setAccessible(true);
+    $reflection->setValue($broken, new class($db) extends Notification {
+        public function createOnce(int $userId, string $type, string $title, string $message, ?int $orderId = null, ?string $link = null): int {
+            throw new RuntimeException('simulated notification outage');
+        }
+    });
+
+    $threw = false;
+    try {
+        $broken->notifyOrderPlaced(999999);
+    } catch (Throwable $e) {
+        $threw = true;
+    }
+    assert_false($threw, 'OrderNotifier must never propagate a notification failure');
 });
 
 // =========================================================================

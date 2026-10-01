@@ -8,6 +8,7 @@ require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Product.php';
 require_once __DIR__ . '/User.php';
 require_once __DIR__ . '/Notification.php';
+require_once __DIR__ . '/OrderNotifier.php';
 
 class Order {
     /**
@@ -54,12 +55,15 @@ class Order {
      * Place a new order with transactional concurrency safety and stock decrement
      *
      * @param array $orderData
+     * @param bool  $notifyAdmins False when an admin creates the order on the
+     *                            customer's behalf (walk-in), since alerting
+     *                            admins about their own action is noise.
      * @return int The created order ID
      * @throws InvalidArgumentException
      * @throws RuntimeException
      * @throws Throwable
      */
-    public function place(array $orderData): int {
+    public function place(array $orderData, bool $notifyAdmins = true): int {
         $customerId = (int)($orderData['customer_id'] ?? 0);
         $productId = (int)($orderData['product_id'] ?? 0);
         $quantity = (int)($orderData['quantity'] ?? 0);
@@ -157,6 +161,17 @@ class Order {
             $orderId = (int)$this->db->lastInsertId();
 
             $this->db->commit();
+
+            // Announce the order once the row is committed, so a notification
+            // can never reference an order that was rolled back. A
+            // pending_payment order is not placed yet in the customer's eyes -
+            // it is announced by confirmPayment() instead.
+            if ($status !== 'pending_payment') {
+                $notifier = new OrderNotifier($this->db);
+                $notifier->notifyOrderPlaced($orderId, $notifyAdmins);
+                $notifier->notifyReceiptReady($orderId);
+            }
+
             return $orderId;
 
         } catch (Throwable $e) {
@@ -401,6 +416,14 @@ class Order {
             $upd->execute([$paymentId !== null && $paymentId !== '' ? $paymentId : null, $orderId]);
 
             $this->db->commit();
+
+            // Placed only after commit and only past the idempotency guard
+            // above, so a duplicate webhook cannot notify twice.
+            $notifier = new OrderNotifier($this->db);
+            $notifier->notifyOrderPlaced($orderId);
+            $notifier->notifyPaymentConfirmed($orderId);
+            $notifier->notifyReceiptReady($orderId);
+
             return true;
 
         } catch (Throwable $e) {
@@ -529,12 +552,14 @@ class Order {
      *
      * @param int $orderId
      * @param string $newStatus
+     * @param int|null $actorId ID of the user causing the transition, so they
+     *                          are not notified of their own action
      * @return bool
      * @throws InvalidArgumentException
      * @throws RuntimeException
      */
-    public function updateStatus(int $orderId, string $newStatus): bool {
-        $stmt = $this->db->prepare("SELECT id, customer_id, status FROM orders WHERE id = ? LIMIT 1");
+    public function updateStatus(int $orderId, string $newStatus, ?int $actorId = null): bool {
+        $stmt = $this->db->prepare("SELECT id, customer_id, rider_id, status FROM orders WHERE id = ? LIMIT 1");
         $stmt->execute([$orderId]);
         $order = $stmt->fetch();
 
@@ -556,34 +581,24 @@ class Order {
                 SET status = ?, delivered_at = NOW(), updated_at = NOW()
                 WHERE id = ?
             ");
-            $updated = $updateStmt->execute([$newStatus, $orderId]);
+        } else {
+            $updateStmt = $this->db->prepare("
+                UPDATE orders
+                SET status = ?, updated_at = NOW()
+                WHERE id = ?
+            ");
+        }
+        $updated = $updateStmt->execute([$newStatus, $orderId]);
 
-            // Notify the customer their order was delivered.
-            if ($updated && !empty($order['customer_id'])) {
-                try {
-                    $notification = new Notification($this->db);
-                    $notification->create(
-                        (int)$order['customer_id'],
-                        'order_delivered',
-                        'Order Delivered',
-                        "Your Order #{$orderId} has been delivered. Thank you for choosing LPG Delivery System!",
-                        $orderId,
-                        'pages/customer/order-detail.php?id=' . $orderId
-                    );
-                } catch (Throwable $e) {
-                    // Never fail a status transition because of a notification issue.
-                }
-            }
-
-            return $updated;
+        // Tell the customer, the assigned rider, and the admins. Dispatched
+        // after the UPDATE so a notification can never announce a status the
+        // order never reached, and de-duplicated per (recipient, status, order).
+        if ($updated) {
+            $notifier = new OrderNotifier($this->db);
+            $notifier->notifyStatusChange($orderId, $newStatus, $actorId);
         }
 
-        $updateStmt = $this->db->prepare("
-            UPDATE orders
-            SET status = ?, updated_at = NOW()
-            WHERE id = ?
-        ");
-        return $updateStmt->execute([$newStatus, $orderId]);
+        return $updated;
     }
 
     /**
@@ -672,24 +687,77 @@ class Order {
         $stmt->execute([$riderId, $newStatus, $orderId]);
         $assigned = $stmt->rowCount() > 0;
 
-        // Admin assigns a different rider -> let that rider know.
-        if ($assigned && $actorId !== null && $actorId !== $riderId) {
-            try {
-                $notification = new Notification($this->db);
-                $notification->create(
-                    $riderId,
-                    'order_assigned',
-                    'New Order Assignment',
-                    "A new order has been assigned to you. Please check Order #{$orderId} in your deliveries.",
-                    $orderId,
-                    'pages/rider/order-detail.php?id=' . $orderId
-                );
-            } catch (Throwable $e) {
-                // Never fail a dispatch because of a notification issue.
-            }
+        if ($assigned) {
+            // The rider is told the order is theirs, and the status change it
+            // implies is announced to the customer and the admins. A rider
+            // self-claim passes their own ID as the actor and is told nothing.
+            $notifier = new OrderNotifier($this->db);
+            $notifier->notifyRiderAssigned($orderId, $riderId, $actorId);
+            $notifier->notifyStatusChange($orderId, $newStatus, $actorId);
         }
 
         return $assigned;
+    }
+
+    /**
+     * Move an already-assigned order to a different rider.
+     *
+     * Kept separate from assignRider(), whose `rider_id IS NULL` guard makes it
+     * deliberately fail on an order that already has a rider. Reassignment is
+     * only legitimate while the order is still in a pre-delivery state, so it
+     * refuses to overwrite a rider on a delivered or cancelled order instead of
+     * writing whatever status was posted.
+     *
+     * Both riders are notified: the new one that the order is theirs, and the
+     * previous one that it has been taken off their list.
+     *
+     * @param int      $orderId
+     * @param int      $riderId       Rider receiving the order
+     * @param string   $newStatus
+     * @param int|null $actorId       ID of the user performing the assignment
+     * @return bool True when the assignment changed
+     * @throws InvalidArgumentException When the order can no longer be reassigned
+     */
+    public function reassignRider(int $orderId, int $riderId, string $newStatus = 'picked_up', ?int $actorId = null): bool {
+        $stmt = $this->db->prepare("SELECT id, rider_id, status FROM orders WHERE id = ? LIMIT 1");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+
+        if (!$order) {
+            throw new InvalidArgumentException("Order #{$orderId} not found.");
+        }
+
+        $currentStatus = (string)$order['status'];
+        if (!in_array($currentStatus, ['approved', 'ready_for_delivery', 'picked_up', 'out_for_delivery'], true)) {
+            throw new InvalidArgumentException(
+                "Order #{$orderId} in status '{$currentStatus}' can no longer be reassigned."
+            );
+        }
+
+        $previousRiderId = (int)($order['rider_id'] ?? 0);
+        if ($previousRiderId === $riderId) {
+            // Same rider, nothing to announce.
+            return false;
+        }
+
+        $upd = $this->db->prepare("
+            UPDATE orders
+            SET rider_id = ?, status = ?, updated_at = NOW()
+            WHERE id = ?
+        ");
+        $upd->execute([$riderId, $newStatus, $orderId]);
+
+        $notifier = new OrderNotifier($this->db);
+
+        // Take the order off the previous rider's list.
+        if ($previousRiderId > 0) {
+            $notifier->notifyReassignmentRevoked($orderId, $previousRiderId);
+        }
+
+        $notifier->notifyRiderAssigned($orderId, $riderId, $actorId);
+        $notifier->notifyStatusChange($orderId, $newStatus, $actorId);
+
+        return true;
     }
 
     /**
@@ -697,12 +765,14 @@ class Order {
      *
      * @param int $orderId
      * @param string|null $reason
+     * @param int|null $actorId ID of the user cancelling, so they are not
+     *                          notified of their own action
      * @return bool
      * @throws InvalidArgumentException
      * @throws RuntimeException
      * @throws Throwable
      */
-    public function cancel(int $orderId, ?string $reason = null): bool {
+    public function cancel(int $orderId, ?string $reason = null, ?int $actorId = null): bool {
         $this->db->beginTransaction();
 
         try {
@@ -740,6 +810,11 @@ class Order {
             $stmt->execute([$cleanReason !== '' ? $cleanReason : null, $notesAppend, $orderId]);
 
             $this->db->commit();
+
+            // Announced after commit, routed by OrderNotifier.
+            $notifier = new OrderNotifier($this->db);
+            $notifier->notifyOrderCancelled($orderId, $cleanReason, $actorId);
+
             return true;
 
         } catch (Throwable $e) {
@@ -791,7 +866,14 @@ class Order {
                 updated_at = NOW()
             WHERE id = ?
         ");
-        return $upd->execute([trim($reason), $orderId]);
+        $requested = $upd->execute([trim($reason), $orderId]);
+
+        if ($requested) {
+            // Admins must know a refund is waiting on them.
+            (new OrderNotifier($this->db))->notifyRefundRequested($orderId, $reason);
+        }
+
+        return $requested;
     }
 
     /**
@@ -866,6 +948,13 @@ class Order {
             $upd->execute([$refundId, trim((string)($order['refund_reason'] ?? 'Order cancelled, refunded')), $orderId]);
 
             $this->db->commit();
+
+            // Issued refunds cancel the order, so the customer hears about the
+            // refund and the cancellation.
+            $notifier = new OrderNotifier($this->db);
+            $notifier->notifyRefundCompleted($orderId);
+            $notifier->notifyOrderCancelled($orderId, 'Refund issued');
+
             return ['refunded' => true, 'refund_id' => $refundId];
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) {
@@ -899,7 +988,14 @@ class Order {
                 updated_at = NOW()
             WHERE id = ?
         ");
-        return $upd->execute([trim($reason) !== '' ? trim($reason) : 'Declined by administrator', $orderId]);
+        $cleanReason = trim($reason) !== '' ? trim($reason) : 'Declined by administrator';
+        $rejected = $upd->execute([$cleanReason, $orderId]);
+
+        if ($rejected) {
+            (new OrderNotifier($this->db))->notifyRefundRejected($orderId, $cleanReason);
+        }
+
+        return $rejected;
     }
 
     /**
