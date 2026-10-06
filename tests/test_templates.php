@@ -273,7 +273,7 @@ it('footer.php renders toast container, jQuery 3.7.1, Bootstrap JS Bundle, and a
 // =========================================================================
 echo "\nGroup 5: Flash Alert Component (alert.php)\n";
 
-it('alert.php renders success flash notification with proper icon and dismiss button', function () {
+it('alert.php renders success flash notification as a toast carrier', function () {
     reset_env();
     set_flash('success', 'Your order was successfully placed!');
 
@@ -281,10 +281,10 @@ it('alert.php renders success flash notification with proper icon and dismiss bu
     require __DIR__ . '/../templates/components/alert.php';
     $output = ob_get_clean();
 
-    assert_contains('alert-success', $output);
-    assert_contains('bi-check-circle-fill', $output);
+    assert_contains('app-flash-alert', $output);
+    assert_contains('data-flash-type="success"', $output);
     assert_contains('Your order was successfully placed!', $output);
-    assert_contains('btn-close', $output);
+    assert_contains('role="alert"', $output);
 });
 
 it('alert.php maps error type to alert-danger and escapes HTML payloads', function () {
@@ -295,8 +295,8 @@ it('alert.php maps error type to alert-danger and escapes HTML payloads', functi
     require __DIR__ . '/../templates/components/alert.php';
     $output = ob_get_clean();
 
-    assert_contains('alert-danger', $output);
-    assert_contains('bi-exclamation-triangle-fill', $output);
+    assert_contains('app-flash-alert', $output);
+    assert_contains('data-flash-type="danger"', $output);
     assert_not_contains('<img src=x onerror=alert(1)>', $output);
     assert_contains('&lt;img src=x onerror=alert(1)&gt;', $output);
 });

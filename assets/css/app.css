@@ -3465,3 +3465,216 @@ h4, .h4 { font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem); }
     .app-notif-head .btn-link { font-size: 0.72rem; }
 }
 
+
+
+/* ==========================================================================
+   Sales Report Generator (admin dashboard)
+   ========================================================================== */
+
+/* Scrollable report tables so long ranges stay inside their cards. */
+.sales-report-table-scroll { max-height: 340px; overflow-y: auto; }
+.sales-report-tx-scroll { max-height: 460px; }
+
+/* Chrome restarts CSS animations when rendering for print, and paper width
+   (~816px) matches the app's mobile media query (<992px), so entry
+   animations (fadeInMain / appCardIn, both starting at opacity: 0) replay
+   from t=0 in the print snapshot and render the page blank. Kill all
+   animations and transitions for print on every page (Ctrl+P included). */
+@media print {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* Print: initSalesReport() toggles body.printing-sales-report right before
+   window.print(), so only the report reaches the sheet (Save as PDF).
+   The visibility trick works regardless of how deeply #salesReport is
+   nested inside the dashboard layout. */
+@media print {
+    body.printing-sales-report { background: #fff !important; }
+    body.printing-sales-report * { visibility: hidden; }
+    body.printing-sales-report #salesReport,
+    body.printing-sales-report #salesReport * { visibility: visible; }
+    body.printing-sales-report #salesReport {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    /* Readable light print in both themes: dark mode paints near-white text
+       (#f1f5f9 / #e2e8f0) while Chrome drops background colors by default,
+       which produces invisible white-on-white output. Force dark text,
+       light surfaces, and exact color printing inside the report. */
+    body.printing-sales-report #salesReport,
+    body.printing-sales-report #salesReport * {
+        color: #111 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+    body.printing-sales-report #salesReport,
+    body.printing-sales-report #salesReport .card,
+    body.printing-sales-report #salesReport .card-header,
+    body.printing-sales-report #salesReport .app-stat-card,
+    body.printing-sales-report #salesReport .table,
+    body.printing-sales-report #salesReport .table th,
+    body.printing-sales-report #salesReport .table td {
+        background-color: #fff !important;
+    }
+    body.printing-sales-report #salesReport .card,
+    body.printing-sales-report #salesReport .card-header,
+    body.printing-sales-report #salesReport .table th,
+    body.printing-sales-report #salesReport .table td {
+        border-color: #dee2e6 !important;
+    }
+    body.printing-sales-report #salesReport .text-muted,
+    body.printing-sales-report #salesReport .table th {
+        color: #555 !important;
+    }
+
+    body.printing-sales-report #salesReport .card {
+        box-shadow: none !important;
+        border: 1px solid #dee2e6 !important;
+        break-inside: avoid;
+    }
+    body.printing-sales-report #salesReport .no-print,
+    body.printing-sales-report #salesReport .sales-report-no-print {
+        display: none !important;
+    }
+    /* The rest of the dashboard is only visibility:hidden, so it still
+       occupies flow space and paginates into blank trailing pages.
+       Hide everything that is neither #salesReport nor inside/holding it
+       (ancestors stay alive via :has). Falls back to the visibility
+       behavior on browsers without :has(). */
+    body.printing-sales-report *:not(#salesReport):not(#salesReport *):not(:has(#salesReport)) {
+        display: none !important;
+    }
+    body.printing-sales-report #salesReport .sales-report-table-scroll,
+    body.printing-sales-report #salesReport .sales-report-tx-scroll {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+}
+
+/* Portrait paper for the report print (print/PDF only). */
+@media print {
+    @page {
+        size: portrait;
+        margin: 10mm;
+    }
+}
+
+/* Elements that only exist in the printed report: hidden on screen,
+   re-shown by body.printing-sales-report during the print snapshot. */
+.sales-print-only { display: none !important; }
+
+.sales-print-title {
+    font-size: 14pt;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    line-height: 1.15;
+}
+.sales-print-subtitle { font-size: 11.5pt; font-weight: 700; margin-top: 2px; }
+.sales-print-meta { font-size: 9pt; margin-top: 4px; line-height: 1.4; }
+.sales-print-doc { text-align: center; margin-bottom: 8px; }
+.sales-print-summary {
+    max-width: 640px;
+    margin: 0 auto 8px !important;
+    font-size: 9pt;
+}
+.sales-print-sign {
+    gap: 48px;
+    margin-top: 8px;
+    padding: 0 24px;
+    font-size: 10pt;
+    text-align: center;
+}
+.sales-print-sign-col { min-width: 240px; }
+.sales-print-sign-col span {
+    display: block;
+    border-top: 1px solid #333;
+    margin-top: 22px;
+    padding-top: 4px;
+}
+
+@media print {
+    /* Reveal the print-only blocks inside the isolated report. */
+    body.printing-sales-report .sales-print-only {
+        display: block !important;
+    }
+    body.printing-sales-report .sales-print-sign {
+        display: flex !important;
+        justify-content: space-around;
+    }
+
+    /* Excel-style grid for every report table. */
+    body.printing-sales-report #salesReport .table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 9pt;
+        margin-bottom: 0;
+    }
+    body.printing-sales-report #salesReport .table th,
+    body.printing-sales-report #salesReport .table td {
+        border: 1px solid #333 !important;
+        padding: 3px 5px !important;
+        vertical-align: middle;
+    }
+    body.printing-sales-report #salesReport .table thead th {
+        background-color: #ededed !important;
+        border-color: #333 !important;
+        font-weight: 700;
+    }
+    body.printing-sales-report #salesReport .card-header {
+        background-color: #ededed !important;
+        border-bottom: 1px solid #333 !important;
+        font-weight: 700;
+        padding-top: .4rem !important;
+        padding-bottom: .4rem !important;
+    }
+    body.printing-sales-report #salesReport .table thead {
+        display: table-header-group;
+    }
+    body.printing-sales-report #salesReport .table tfoot {
+        display: table-footer-group;
+    }
+    body.printing-sales-report #salesReport .table tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    body.printing-sales-report #salesReport .table tfoot td {
+        background-color: #f5f5f5 !important;
+        border-top: 2px solid #000 !important;
+        font-weight: 700;
+    }
+
+    /* Truncated product names must print in full. */
+    body.printing-sales-report #salesReport .text-truncate {
+        max-width: none !important;
+        overflow: visible !important;
+        white-space: normal !important;
+    }
+
+    /* Flatten decorative elements. */
+    body.printing-sales-report #salesReport .progress {
+        display: none !important;
+    }
+    body.printing-sales-report #salesReport .badge {
+        background: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        font-weight: 600 !important;
+        color: #111 !important;
+    }
+}

@@ -58,6 +58,11 @@ $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
     <!-- AOS.js CDN (Animate On Scroll) -->
     <script defer src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
 
+    <!-- Chart.js CDN (only on pages with charts — see $needs_charts) -->
+    <?php if (!empty($needs_charts)): ?>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <?php endif; ?>
+
     <!-- Global Application JS -->
     <script defer src="<?= asset_v('assets/js/app.js') ?>"></script>
 

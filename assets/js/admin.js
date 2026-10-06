@@ -827,11 +827,199 @@
     }
 
     // =========================================================================
+    // 5. Sales Report Generator (dashboard.php)
+    //    Renders the Chart.js trend chart from the JSON payload embedded by
+    //    the page, keeps the CSV export link in sync with the filter form,
+    //    and drives the report type / date preset controls.
+    // =========================================================================
+    function initSalesReport() {
+        const dataEl = document.getElementById('salesChartData');
+        if (!dataEl) return; // sales report section not on this page
+
+        let data = {};
+        try {
+            data = JSON.parse(dataEl.textContent || '{}');
+        } catch (err) {
+            console.error('Sales report chart data is not valid JSON:', err);
+        }
+
+        const $typeInput = $('#salesReportTypeInput');
+
+        // ── Report type toggle (Daily / Monthly / Yearly) ────────────────
+        $('.sales-report-type-btn').on('click', function () {
+            const $btn = $(this);
+            $typeInput.val($btn.data('type') || 'daily');
+            $('.sales-report-type-btn')
+                .removeClass('active btn-primary')
+                .addClass('btn-outline-secondary');
+            $btn.addClass('active btn-primary').removeClass('btn-outline-secondary');
+        });
+
+        // ── Keep the From/To range coherent ──────────────────────────────
+        $('#salesDateFrom').on('change', function () {
+            $('#salesDateTo').attr('min', this.value || null);
+        });
+        $('#salesDateTo').on('change', function () {
+            $('#salesDateFrom').attr('max', this.value || null);
+        });
+
+        // ── Quick date presets ───────────────────────────────────────────
+        function pad(n) { return String(n).padStart(2, '0'); }
+        function fmtDate(d) {
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+        }
+
+        $('.sales-report-preset').on('click', function () {
+            const preset = $(this).data('preset');
+            const today = new Date();
+            let from = new Date(today);
+
+            if (preset === 'last7') {
+                from.setDate(today.getDate() - 6);
+            } else if (preset === 'thisMonth') {
+                from = new Date(today.getFullYear(), today.getMonth(), 1);
+            } else if (preset === 'thisYear') {
+                from = new Date(today.getFullYear(), 0, 1);
+            }
+
+            $('#salesDateFrom').val(fmtDate(from));
+            $('#salesDateTo').val(fmtDate(today));
+            $('#salesReportForm').trigger('submit');
+        });
+
+        // ── Keep the Export CSV link pointing at the current filters ─────
+        function syncCsvLink() {
+            const $link = $('#salesCsvLink');
+            const href = $link.attr('href');
+            if (!href) return;
+            try {
+                const target = new URL(href, window.location.href);
+                target.searchParams.set('report_type', $typeInput.val() || 'daily');
+                target.searchParams.set('date_from', $('#salesDateFrom').val() || '');
+                target.searchParams.set('date_to', $('#salesDateTo').val() || '');
+                target.searchParams.set('export', 'csv');
+                $link.attr('href', target.pathname + target.search);
+            } catch (err) {
+                // Keep the server-built href when URL() is unavailable.
+            }
+        }
+
+        $('#salesReportForm').on('change input', syncCsvLink);
+        syncCsvLink();
+
+        // ── Print / Save as PDF ──────────────────────────────────────────
+        $('#salesPrintBtn').on('click', function () {
+            document.body.classList.add('printing-sales-report');
+            window.print();
+        });
+        window.addEventListener('afterprint', function () {
+            document.body.classList.remove('printing-sales-report');
+        });
+
+        // ── Trend chart ──────────────────────────────────────────────────
+        const canvas = document.getElementById('salesTrendChart');
+        if (!canvas || typeof window.Chart === 'undefined') {
+            if (canvas) console.warn('Chart.js failed to load; sales trend chart disabled.');
+            return;
+        }
+
+        let chartType = 'line';
+        let chart = null;
+
+        function isDarkMode() {
+            return document.documentElement.getAttribute('data-theme') === 'dark';
+        }
+
+        function renderChart() {
+            const dark = isDarkMode();
+            const gridColor = dark ? 'rgba(148, 163, 184, 0.18)' : 'rgba(15, 23, 42, 0.08)';
+            const tickColor = dark ? '#94a3b8' : '#64748b';
+            const labels = Array.isArray(data.labels) ? data.labels : [];
+            const revenue = Array.isArray(data.revenue) ? data.revenue : [];
+
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+
+            chart = new Chart(canvas.getContext('2d'), {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Revenue (PHP)',
+                        data: revenue,
+                        borderColor: '#0d9488',
+                        backgroundColor: chartType === 'bar'
+                            ? 'rgba(13, 148, 136, 0.65)'
+                            : 'rgba(13, 148, 136, 0.15)',
+                        fill: chartType === 'line',
+                        tension: 0.35,
+                        borderWidth: 2,
+                        borderRadius: 4,
+                        pointRadius: labels.length > 60 ? 0 : 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    return ' Revenue: ₱' + Number(ctx.parsed.y || 0).toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: tickColor,
+                                callback: function (value) {
+                                    return '₱' + Number(value).toLocaleString();
+                                }
+                            },
+                            grid: { color: gridColor }
+                        },
+                        x: {
+                            ticks: { color: tickColor, maxRotation: 45, autoSkip: true },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        renderChart();
+
+        $('#salesChartToggle').on('click', function () {
+            chartType = chartType === 'line' ? 'bar' : 'line';
+            $('#salesChartToggleLabel').text(chartType === 'line' ? 'Bar view' : 'Line view');
+            $(this).find('i')
+                .removeClass('bi-bar-chart-line bi-graph-up')
+                .addClass(chartType === 'line' ? 'bi-bar-chart-line' : 'bi-graph-up');
+            renderChart();
+        });
+
+        // Re-tint the chart when the admin flips dark mode.
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', function () {
+                setTimeout(renderChart, 60);
+            });
+        }
+    }
+
+    // =========================================================================
     // DOM Ready Initialization
     // =========================================================================
     $(function () {
         [initOrdersManagement, initInventoryManagement, initUserManagement,
-         initAdminLiveTrackingMap
+         initAdminLiveTrackingMap, initSalesReport
         ].forEach(function (init) {
             try { init(); } catch (err) { console.error('Init failed:', err); }
         });

@@ -220,7 +220,7 @@ it('rider.js exists and contains core rider portal interaction handlers', functi
     assert_contains('btn-copy-address', $content);
     assert_contains('form-claim-delivery', $content);
     assert_contains('rider-filter-btn', $content);
-    assert_contains('confirmDeliverModal', $content);
+    assert_contains('confirmAction', $content);
 });
 
 // =========================================================================

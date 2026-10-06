@@ -275,8 +275,8 @@ it('index.php renders HTML login form with required fields and CSRF token', func
     assert_contains('name="email"', $html);
     assert_contains('name="password"', $html);
     assert_contains('forgot-password.php', $html);
-    assert_contains('register.php', $html);
-    assert_contains('toggle-password-btn', $html);
+    assert_contains('tab-register', $html);
+    assert_contains('toggle-pw', $html);
 });
 
 // =========================================================================
@@ -402,11 +402,11 @@ it('register.php supports optional valid ID upload with MIME verification', func
     $db->prepare("DELETE FROM users WHERE id = ?")->execute([$userId]);
 });
 
-it('register.php renders HTML form with live password checklist rules', function () {
+it('register form (index.php combined page) renders HTML form with live password checklist rules', function () {
     reset_request_env();
-    $html = render_page_buffer(__DIR__ . '/../register.php');
+    $html = render_page_buffer(__DIR__ . '/../index.php');
 
-    assert_contains('Create Customer Account', $html);
+    assert_contains('Create Account', $html);
     assert_contains('name="csrf_token"', $html);
     assert_contains('name="full_name"', $html);
     assert_contains('name="email"', $html);

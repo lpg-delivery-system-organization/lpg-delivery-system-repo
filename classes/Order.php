@@ -1061,4 +1061,238 @@ class Order {
             'recent_orders'     => $recentOrders,
         ];
     }
+
+    /**
+     * Whitelisted DATE_FORMAT patterns for sales report bucketing.
+     *
+     * The bucket key never reaches SQL as user input — it is mapped to one of
+     * these fixed patterns here, so the GROUP BY expression is always static.
+     */
+    private const SALES_BUCKET_FORMATS = [
+        'daily'   => '%Y-%m-%d',
+        'monthly' => '%Y-%m',
+        'yearly'  => '%Y',
+    ];
+
+    /**
+     * Aggregate delivered-order totals for the admin sales report.
+     *
+     * Sales are counted at fulfilment: status = 'delivered', dated by
+     * delivered_at (written by updateStatus()). Cancelled, pending and
+     * in-transit orders are intentionally excluded so the figure matches
+     * the dashboard's Total Sales card.
+     *
+     * @param string $from Start date inclusive, Y-m-d
+     * @param string $to   End date inclusive, Y-m-d
+     * @return array{revenue: float, orders: int, units: int, avg_order: float,
+     *               cod_revenue: float, gcash_revenue: float,
+     *               top_product: ?string, top_product_units: int}
+     */
+    public function getSalesReportSummary(string $from, string $to): array {
+        $stmt = $this->db->prepare("
+            SELECT
+                COALESCE(SUM(o.total_amount), 0) AS revenue,
+                COUNT(*)                          AS orders,
+                COALESCE(SUM(o.quantity), 0)      AS units,
+                COALESCE(AVG(o.total_amount), 0)  AS avg_order,
+                COALESCE(SUM(CASE WHEN o.payment_method = 'cod'  THEN o.total_amount ELSE 0 END), 0) AS cod_revenue,
+                COALESCE(SUM(CASE WHEN o.payment_method = 'gcash' THEN o.total_amount ELSE 0 END), 0) AS gcash_revenue
+            FROM orders o
+            WHERE o.status = 'delivered'
+              AND DATE(o.delivered_at) BETWEEN ? AND ?
+        ");
+        $stmt->execute([$from, $to]);
+        $row = $stmt->fetch() ?: [];
+
+        // Best-selling product inside the window (units sold, then revenue).
+        $topStmt = $this->db->prepare("
+            SELECT p.name AS product_name,
+                   COALESCE(SUM(o.quantity), 0) AS units_sold,
+                   COALESCE(SUM(o.total_amount), 0) AS revenue
+            FROM orders o
+            JOIN products p ON o.product_id = p.id
+            WHERE o.status = 'delivered'
+              AND DATE(o.delivered_at) BETWEEN ? AND ?
+            GROUP BY p.id, p.name
+            ORDER BY units_sold DESC, revenue DESC, p.name ASC
+            LIMIT 1
+        ");
+        $topStmt->execute([$from, $to]);
+        $top = $topStmt->fetch() ?: null;
+
+        $revenue = (float)($row['revenue'] ?? 0.0);
+        $orders  = (int)($row['orders'] ?? 0);
+
+        return [
+            'revenue'           => $revenue,
+            'orders'            => $orders,
+            'units'             => (int)($row['units'] ?? 0),
+            'avg_order'         => $orders > 0 ? $revenue / $orders : 0.0,
+            'cod_revenue'       => (float)($row['cod_revenue'] ?? 0.0),
+            'gcash_revenue'     => (float)($row['gcash_revenue'] ?? 0.0),
+            'top_product'       => $top ? (string)$top['product_name'] : null,
+            'top_product_units' => $top ? (int)$top['units_sold'] : 0,
+        ];
+    }
+
+    /**
+     * Build the time-bucketed revenue series for the sales report chart,
+     * filling empty buckets so the chart axis stays continuous.
+     *
+     * @param string $from   Start date inclusive, Y-m-d
+     * @param string $to     End date inclusive, Y-m-d
+     * @param string $bucket One of 'daily', 'monthly', 'yearly'
+     * @return array<int, array{key: string, label: string, orders: int, units: int, revenue: float}>
+     */
+    public function getSalesReportSeries(string $from, string $to, string $bucket = 'daily'): array {
+        if (!array_key_exists($bucket, self::SALES_BUCKET_FORMATS)) {
+            $bucket = 'daily';
+        }
+        $format = self::SALES_BUCKET_FORMATS[$bucket];
+
+        $sql = "
+            SELECT DATE_FORMAT(o.delivered_at, '{$format}') AS bucket_key,
+                   COUNT(*)                                  AS orders,
+                   COALESCE(SUM(o.quantity), 0)              AS units,
+                   COALESCE(SUM(o.total_amount), 0)          AS revenue
+            FROM orders o
+            WHERE o.status = 'delivered'
+              AND DATE(o.delivered_at) BETWEEN ? AND ?
+            GROUP BY bucket_key
+            ORDER BY bucket_key ASC
+        ";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$from, $to]);
+
+        $series = [];
+        while ($row = $stmt->fetch()) {
+            $key = (string)$row['bucket_key'];
+            if ($key === '') {
+                continue;
+            }
+            $series[$key] = [
+                'key'     => $key,
+                'label'   => self::salesBucketLabel($key, $bucket),
+                'orders'  => (int)$row['orders'],
+                'units'   => (int)$row['units'],
+                'revenue' => (float)$row['revenue'],
+            ];
+        }
+
+        return self::fillSalesBuckets($series, $from, $to, $bucket);
+    }
+
+    /**
+     * List delivered transactions inside the window for the report table/CSV.
+     *
+     * @param string $from  Start date inclusive, Y-m-d
+     * @param string $to    End date inclusive, Y-m-d
+     * @param int    $limit Hard cap so a multi-year range cannot stream unbounded rows
+     * @return array<int, array<string, mixed>>
+     */
+    public function getSalesReportRows(string $from, string $to, int $limit = 1000): array {
+        $limit = max(1, min(10000, $limit));
+        $stmt = $this->db->prepare("
+            SELECT o.id, o.quantity, o.unit_price, o.total_amount,
+                   o.payment_method, o.payment_status, o.delivered_at,
+                   c.full_name AS customer_name,
+                   p.name      AS product_name
+            FROM orders o
+            JOIN users c    ON o.customer_id = c.id
+            JOIN products p ON o.product_id = p.id
+            WHERE o.status = 'delivered'
+              AND DATE(o.delivered_at) BETWEEN ? AND ?
+            ORDER BY o.delivered_at DESC, o.id DESC
+            LIMIT {$limit}
+        ");
+        $stmt->execute([$from, $to]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Human-readable label for a sales report bucket key.
+     *
+     * @param string $key    Bucket key produced by DATE_FORMAT
+     * @param string $bucket One of 'daily', 'monthly', 'yearly'
+     * @return string
+     */
+    private static function salesBucketLabel(string $key, string $bucket): string {
+        if ($bucket === 'daily') {
+            $ts = strtotime($key);
+            return $ts ? date('M j, Y', $ts) : $key;
+        }
+        if ($bucket === 'monthly') {
+            $ts = strtotime($key . '-01');
+            return $ts ? date('M Y', $ts) : $key;
+        }
+        return $key;
+    }
+
+    /**
+     * Insert zero-filled buckets for every period between $from and $to that
+     * has no delivered orders, so charts and tables show continuous ranges.
+     *
+     * Capped at 800 buckets; beyond that the sparse series is returned as-is
+     * (a multi-decade daily range would otherwise allocate needlessly).
+     *
+     * @param array<string, array> $series Sparse series keyed by bucket key
+     * @param string $from   Start date, Y-m-d
+     * @param string $to     End date, Y-m-d
+     * @param string $bucket One of 'daily', 'monthly', 'yearly'
+     * @return array<int, array>
+     */
+    private static function fillSalesBuckets(array $series, string $from, string $to, string $bucket): array {
+        $start = DateTime::createFromFormat('!Y-m-d', $from);
+        $end   = DateTime::createFromFormat('!Y-m-d', $to);
+        if (!$start || !$end || $start > $end) {
+            return array_values($series);
+        }
+
+        if ($bucket === 'daily') {
+            $format = 'Y-m-d';
+            $cursor = clone $start;
+        } elseif ($bucket === 'monthly') {
+            $format = 'Y-m';
+            $cursor = (clone $start)->setDate((int)$start->format('Y'), (int)$start->format('m'), 1);
+        } else {
+            $format = 'Y';
+            $cursor = (clone $start)->setDate((int)$start->format('Y'), 1, 1);
+        }
+
+        $filled = [];
+        $guard = 0;
+
+        while ($cursor <= $end && $guard < 800) {
+            $guard++;
+            $key = $cursor->format($format);
+            $filled[$key] = $series[$key] ?? [
+                'key'     => $key,
+                'label'   => self::salesBucketLabel($key, $bucket),
+                'orders'  => 0,
+                'units'   => 0,
+                'revenue' => 0.0,
+            ];
+
+            if ($bucket === 'daily') {
+                $cursor = (clone $cursor)->modify('+1 day');
+            } elseif ($bucket === 'monthly') {
+                $cursor = (clone $cursor)->modify('+1 month');
+            } else {
+                $cursor = (clone $cursor)->modify('+1 year');
+            }
+        }
+
+        // Sparse overflow: the guard stopped early, so merge in real buckets
+        // that fall past the loop and re-sort by key.
+        if (count($series) > count($filled)) {
+            foreach ($series as $key => $row) {
+                if (!isset($filled[$key])) {
+                    $filled[$key] = $row;
+                }
+            }
+            ksort($filled);
+        }
+
+        return array_values($filled);
+    }
 }

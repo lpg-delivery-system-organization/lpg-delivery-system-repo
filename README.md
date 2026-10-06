@@ -4,7 +4,7 @@
 [![MySQL](https://img.shields.io/badge/MySQL-8.0%2B-4479A1?style=flat&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Bootstrap 5.3](https://img.shields.io/badge/Bootstrap-5.3.3-7952B3?style=flat&logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
 [![jQuery 3.7](https://img.shields.io/badge/jQuery-3.7.1-0769AD?style=flat&logo=jquery&logoColor=white)](https://jquery.com/)
-[![Automated Tests](https://img.shields.io/badge/Tests-233%2F233%20Passed%20(100%25)-2ea44f?style=flat&logo=githubactions&logoColor=white)](#automated-test-suite)
+[![Automated Tests](https://img.shields.io/badge/Tests-352%2F352%20Passed%20(100%25)-2ea44f?style=flat&logo=githubactions&logoColor=white)](#automated-test-suite)
 [![Security Hardened](https://img.shields.io/badge/Security-OWASP%20Hardened-green?style=flat&logo=shield)]( #security-architecture)
 
 > **LPG Delivery System v2** is a modular, high-concurrency e-commerce and logistics management platform engineered for LPG cylinder distribution businesses. Built with native PHP 8+, MySQL (InnoDB), Bootstrap 5.3, and jQuery 3.7, it features role-based access control, pessimistic row-level locking, automated stock restoration, CSRF defense, rate-limiting, and comprehensive REST APIs.
@@ -45,7 +45,7 @@ The legacy Version 1 codebase was a client-heavy, non-transactional prototype la
 | **File Upload Validation** | Extension-only check | MIME type sniffing (`finfo_file`), magic-byte inspection, strict whitelisting & isolated storage |
 | **User Portals** | Monolithic interface | Dedicated responsive portals for Customer, Rider, and Admin |
 | **REST APIs** | Unstructured responses | Standardized JSON envelopes (`{success, data, message, error}`) with HTTP status codes |
-| **Automated Testing** | No test suite | Master test runner executing 9 automated test suites with 233 passing test cases |
+| **Automated Testing** | No test suite | Master test runner executing 12 automated test suites with 352 passing test cases |
 
 ---
 
@@ -402,20 +402,23 @@ php tests/run_all_tests.php --no-color
 +-----+--------------------------------+--------------------------+-------+------+------+--------+--------+
 | #   | Suite Name                     | File                     | Tests | Pass | Fail | Time   | Status |
 +-----+--------------------------------+--------------------------+-------+------+------+--------+--------+
-| 1   | Database & Config              | test_db.php              | 17    | 17   | 0    | 0.81s  | PASS   |
-| 2   | Core Models & Concurrency      | test_models.php          | 33    | 33   | 0    | 1.31s  | PASS   |
-| 3   | Security, Auth & Middleware    | test_security.php        | 31    | 31   | 0    | 0.08s  | PASS   |
-| 4   | Templates & Layout Components  | test_templates.php       | 16    | 16   | 0    | 0.07s  | PASS   |
-| 5   | Authentication Pages & Flows   | test_auth_pages.php      | 21    | 21   | 0    | 2.74s  | PASS   |
-| 6   | Customer Portal Workflows      | test_customer_portal.php | 23    | 23   | 0    | 2.31s  | PASS   |
-| 7   | Admin Management Portal        | test_admin_portal.php    | 28    | 28   | 0    | 1.21s  | PASS   |
-| 8   | Rider Delivery Portal          | test_rider_portal.php    | 20    | 20   | 0    | 1.88s  | PASS   |
-| 9   | REST API Endpoints             | test_api.php             | 44    | 44   | 0    | 0.31s  | PASS   |
+| 1   | Database & Config              | test_db.php              | 17    | 17   | 0    | 1.50 s | PASS   |
+| 2   | Core Models & Concurrency      | test_models.php          | 33    | 33   | 0    | 2.00 s | PASS   |
+| 3   | Security, Auth & Middleware    | test_security.php        | 31    | 31   | 0    | 0.17 s | PASS   |
+| 4   | Templates & Layout Components  | test_templates.php       | 16    | 16   | 0    | 0.12 s | PASS   |
+| 5   | Authentication Pages & Flows   | test_auth_pages.php      | 21    | 21   | 0    | 3.47 s | PASS   |
+| 6   | Customer Portal Workflows      | test_customer_portal.php | 24    | 24   | 0    | 3.98 s | PASS   |
+| 7   | Refund & PayMongo Flow         | test_refunds.php         | 7     | 7    | 0    | 0.41 s | PASS   |
+| 8   | Admin Management Portal        | test_admin_portal.php    | 35    | 35   | 0    | 3.37 s | PASS   |
+| 9   | Rider Delivery Portal          | test_rider_portal.php    | 20    | 20   | 0    | 3.27 s | PASS   |
+| 10  | REST API Endpoints             | test_api.php             | 44    | 44   | 0    | 5.38 s | PASS   |
+| 11  | Notification System            | test_notifications.php   | 44    | 44   | 0    | 27.68s | PASS   |
+| 12  | Order Receipts (80mm PDF)      | test_receipt.php         | 60    | 60   | 0    | 0.72 s | PASS   |
 +-----+--------------------------------+--------------------------+-------+------+------+--------+--------+
-| TOTAL (All 9 Suites)                                         | 233   | 233  | 0    | 10.73s | PASS   |
+| TOTAL (All 12 Suites)                                       | 352   | 352  | 0    | 52.07s | PASS   |
 +-----+--------------------------------+--------------------------+-------+------+------+--------+--------+
 
-  ✓ 100% TEST VERIFICATION PASSED: 233/233 tests passed across 9 suites (0 Failures)
+  ✓ 100% TEST VERIFICATION PASSED: 352/352 tests passed across 12 suites in 52.07s
 ```
 
 ---

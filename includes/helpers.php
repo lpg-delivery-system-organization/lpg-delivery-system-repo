@@ -656,6 +656,72 @@ function stream_pdf(string $bytes, string $filename, bool $download = false): vo
 }
 
 /**
+ * Build a CSV document from an array of rows.
+ *
+ * Rows are arrays; a null row emits a blank line so report sections can be
+ * visually separated in spreadsheet apps. Values are cast to string before
+ * writing, and a UTF-8 BOM is prepended so Excel detects the encoding.
+ *
+ * @param array<int, array<int|null>|null> $rows
+ * @return string Raw CSV document bytes
+ */
+function build_csv(array $rows): string {
+    $out = fopen('php://temp', 'r+');
+    fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+    foreach ($rows as $row) {
+        if ($row === null) {
+            fwrite($out, "\r\n");
+            continue;
+        }
+        fputcsv($out, array_map('strval', $row));
+    }
+    rewind($out);
+    $csv = stream_get_contents($out) ?: '';
+    fclose($out);
+    return $csv;
+}
+
+/**
+ * Stream a generated CSV document to the browser as a download.
+ *
+ * Follows the stream_pdf() contract: in the test harness the response is
+ * recorded on $GLOBALS instead of emitting headers, so suites can assert on
+ * the payload without a live HTTP request.
+ *
+ * @param string $csv      Raw CSV bytes from build_csv()
+ * @param string $filename Suggested filename (e.g. "sales-report_daily_2026-10-06.csv")
+ * @return void
+ */
+function stream_csv(string $csv, string $filename): void {
+    // Never let a crafted filename inject extra response headers.
+    $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $filename) ?: 'report.csv';
+
+    if (!empty($GLOBALS['TEST_MODE'])) {
+        $GLOBALS['LAST_HTTP_CODE'] = 200;
+        $GLOBALS['LAST_CSV'] = [
+            'filename' => $safeName,
+            'size'     => strlen($csv),
+            'csv'      => $csv,
+        ];
+        return;
+    }
+
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Length: ' . strlen($csv));
+    header('Content-Disposition: attachment; filename="' . $safeName . '"');
+    header('Cache-Control: private, no-store, max-age=0');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+
+    echo $csv;
+    exit;
+}
+
+/**
  * Build the official, human-readable receipt reference for an order
  * (e.g. "ORD-0000001042").
  *
@@ -664,6 +730,23 @@ function stream_pdf(string $bytes, string $filename, bool $download = false): vo
  */
 function order_receipt_number(int $orderId): string {
     return 'ORD-' . str_pad((string)max(0, $orderId), 10, '0', STR_PAD_LEFT);
+}
+
+/**
+ * Split a VAT-inclusive Philippine peso amount into its 12% output VAT and
+ * net components — BIR Form 2550Q basis: VAT = Gross x 12/112 = Net x 12%
+ * (12% of the VAT-exclusive sales base).
+ *
+ * Example: 1120.00 → ['gross' => 1120.00, 'vat' => 120.00, 'net' => 1000.00]
+ *
+ * @param float $gross Gross amount that already includes 12% VAT
+ * @return array{gross: float, vat: float, net: float}
+ */
+function sales_vat_split(float $gross): array {
+    $gross = round($gross, 2);
+    $vat   = round($gross * 12 / 112, 2);
+    $net   = round($gross - $vat, 2);
+    return ['gross' => $gross, 'vat' => $vat, 'net' => $net];
 }
 
 /**

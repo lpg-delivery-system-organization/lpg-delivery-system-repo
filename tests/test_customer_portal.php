@@ -259,7 +259,7 @@ it('dashboard.php renders welcome greeting, metric cards, and quick shop CTA', f
     $html = render_page(__DIR__ . '/../pages/customer/dashboard.php');
 
     assert_contains('Customer Dashboard', $html);
-    assert_contains('Welcome back', $html);
+    assert_contains('welcome-greeting', $html);
     assert_contains($cust['full_name'], $html);
     assert_contains('Active Orders', $html);
     assert_contains('Delivered', $html);

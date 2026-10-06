@@ -317,6 +317,264 @@ it('dashboard.php renders stat cards, recent orders table, low stock alerts, and
     assert_contains('Dispatch Orders', $html);
 });
 
+it('dashboard.php renders the sales report generator, filters, chart data, and export controls', function () use ($testAdmin) {
+    reset_admin_env();
+    login_user($testAdmin);
+
+    $html = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+
+    assert_contains('id="salesReport"', $html);
+    assert_contains('Sales Report Generator', $html);
+    assert_contains('id="salesReportForm"', $html);
+    assert_contains('name="report_type"', $html);
+    assert_contains('name="date_from"', $html);
+    assert_contains('name="date_to"', $html);
+    assert_contains('sales-report-type-btn', $html);
+    assert_contains('sales-report-preset', $html);
+    assert_contains('id="salesTrendChart"', $html);
+    assert_contains('id="salesChartData"', $html);
+    assert_contains('id="salesCsvLink"', $html);
+    assert_contains('export=csv', $html);
+    assert_contains('id="salesPrintBtn"', $html);
+    assert_contains('Breakdown by Period', $html);
+    assert_contains('Transaction Detail', $html);
+    assert_contains('Total Revenue', $html);
+    assert_contains('Avg Order Value', $html);
+});
+
+it('dashboard.php rejects invalid report type and date filters, falling back to defaults', function () use ($testAdmin) {
+    reset_admin_env();
+    login_user($testAdmin);
+
+    $_GET = [
+        'report_type' => 'nonsense',
+        'date_from'   => '2026-99-99',
+        'date_to'     => 'not-a-date',
+    ];
+
+    $html = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+
+    // Unknown type falls back to Daily; unparseable dates fall back to the
+    // daily default window (last 30 days, ending today).
+    assert_contains('Daily report', $html);
+    assert_contains('value="' . date('Y-m-d') . '"', $html);
+    assert_not_contains('not-a-date', $html);
+});
+
+it('Order sales report aggregates delivered orders only, inside the selected range', function () use ($testAdmin, $orderModel, $productModel, $db, $customerId) {
+    reset_admin_env();
+    login_user($testAdmin);
+
+    $from = '2026-06-01';
+    $to   = '2026-06-30';
+
+    $before = $orderModel->getSalesReportSummary($from, $to);
+
+    $products = $productModel->getActive();
+    $prod = $products[0];
+    $qty = 2;
+
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $prod['id'],
+        'quantity'         => $qty,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Sales Report Test Address',
+        'contact_phone'    => '09171234567',
+        'status'           => 'pending'
+    ]);
+
+    // Fulfil directly: the report reads status + delivered_at.
+    $db->prepare("UPDATE orders SET status = 'delivered', delivered_at = '2026-06-15 10:00:00' WHERE id = ?")
+       ->execute([$orderId]);
+    $order = $orderModel->findById($orderId);
+    $amount = round((float)$order['total_amount'], 2);
+
+    $after = $orderModel->getSalesReportSummary($from, $to);
+    assert_equals($before['orders'] + 1, $after['orders'], 'Delivered order must be counted in range');
+    assert_equals($before['units'] + $qty, $after['units'], 'Units must include the new delivery');
+    assert_equals(round($before['revenue'] + $amount, 2), round($after['revenue'], 2), 'Revenue must include the new delivery');
+    assert_equals(round($after['avg_order'], 2), round($after['revenue'] / max(1, $after['orders']), 2), 'Average order value must equal revenue / orders');
+
+    // Rows: present inside the window, absent outside it.
+    $foundInRange = false;
+    foreach ($orderModel->getSalesReportRows($from, $to) as $row) {
+        if ((int)$row['id'] === $orderId) {
+            $foundInRange = true;
+            assert_equals($prod['name'], $row['product_name']);
+            assert_equals($qty, (int)$row['quantity']);
+        }
+    }
+    assert_true($foundInRange, 'Delivered order must appear in report rows for its range');
+    foreach ($orderModel->getSalesReportRows('2026-07-01', '2026-07-31') as $row) {
+        assert_true((int)$row['id'] !== $orderId, 'Order delivered in June must not appear in a July range');
+    }
+
+    // Series: monthly bucket for June carries the sale.
+    $series = $orderModel->getSalesReportSeries($from, $to, 'monthly');
+    assert_equals(1, count($series), 'June 2026 range must produce exactly one monthly bucket');
+    assert_equals('2026-06', $series[0]['key']);
+    assert_equals('Jun 2026', $series[0]['label']);
+    assert_true($series[0]['orders'] >= 1, 'June bucket must contain at least the new delivery');
+    assert_true($series[0]['units'] >= $qty, 'June bucket must contain at least the new units');
+    assert_true($series[0]['revenue'] >= $amount);
+
+    // Daily series zero-fills gaps so the chart axis stays continuous.
+    $daily = $orderModel->getSalesReportSeries('2026-06-14', '2026-06-16', 'daily');
+    assert_equals(3, count($daily), 'A three-day window must yield three daily buckets');
+    assert_equals('2026-06-15', $daily[1]['key']);
+    assert_equals('Jun 15, 2026', $daily[1]['label']);
+
+    // Non-delivered orders never count as sales.
+    $pendingId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $prod['id'],
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Sales Report Pending Address',
+        'contact_phone'    => '09171234567',
+        'status'           => 'pending'
+    ]);
+    $summaryWithPending = $orderModel->getSalesReportSummary($from, $to);
+    assert_equals($after['orders'], $summaryWithPending['orders'], 'Pending orders must not be counted as sales');
+    assert_equals(round($after['revenue'], 2), round($summaryWithPending['revenue'], 2), 'Pending orders must not add revenue');
+
+    // Clean up
+    $db->prepare("DELETE FROM orders WHERE id IN (?, ?)")->execute([$orderId, $pendingId]);
+});
+
+it('dashboard.php streams the sales report as a CSV download when export=csv', function () use ($testAdmin) {
+    reset_admin_env();
+    unset($GLOBALS['LAST_CSV']);
+    login_user($testAdmin);
+
+    $_GET = [
+        'report_type' => 'monthly',
+        'date_from'   => '2026-06-01',
+        'date_to'     => '2026-06-30',
+        'export'      => 'csv',
+    ];
+
+    $html = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+
+    assert_equals('', $html, 'CSV export must not render the dashboard HTML');
+    assert_true(isset($GLOBALS['LAST_CSV']), 'CSV payload must be recorded in test mode');
+    assert_equals('sales-report_monthly_2026-06-01_2026-06-30.csv', $GLOBALS['LAST_CSV']['filename']);
+    assert_true($GLOBALS['LAST_CSV']['size'] > 0);
+
+    $csv = $GLOBALS['LAST_CSV']['csv'];
+    assert_contains('Sales Report', $csv);
+    assert_contains('Monthly Report', $csv);
+    assert_contains('2026-06-01 to 2026-06-30', $csv);
+    assert_contains('Delivered orders only', $csv);
+    assert_contains('Summary', $csv);
+    assert_contains('Total Revenue (PHP)', $csv);
+    assert_contains('Breakdown by Period', $csv);
+    assert_contains('Transactions', $csv);
+    assert_contains('Order #', $csv);
+
+    // 12% VAT breakdown columns (BIR Form 2550Q: 12% of the VAT-exclusive base).
+    assert_contains('VAT: 12% output VAT extracted from VAT-inclusive sales (BIR Form 2550Q)', $csv);
+    assert_contains('Add: 12% Output VAT (PHP)', $csv);
+    assert_contains('Sales, VAT-exclusive (PHP)', $csv);
+    assert_contains('Gross Sales (PHP)', $csv);
+    assert_contains('VAT 12% (PHP)', $csv);
+    assert_contains('Unit Price (PHP)', $csv);
+});
+
+it('sales report CSV export is restricted to administrators', function () use ($testCustomer) {
+    reset_admin_env();
+    unset($GLOBALS['LAST_CSV']);
+    login_user($testCustomer);
+
+    $_GET = ['export' => 'csv'];
+
+    render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+
+    assert_true(!isset($GLOBALS['LAST_CSV']), 'Customers must never receive the sales CSV');
+});
+
+it('dashboard.php print view includes document header, VAT columns, totals rows, and signatures', function () use ($testAdmin, $orderModel, $productModel, $db, $customerId) {
+    reset_admin_env();
+    login_user($testAdmin);
+
+    // Seed one delivered June order so the row-level assertions are deterministic.
+    $products = $productModel->getActive();
+    $prod = $products[0];
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $prod['id'],
+        'quantity'         => 2,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Print View Test Address',
+        'contact_phone'    => '09171234567',
+        'status'           => 'pending'
+    ]);
+    $db->prepare("UPDATE orders SET status = 'delivered', delivered_at = '2026-06-15 10:00:00' WHERE id = ?")
+       ->execute([$orderId]);
+    $order = $orderModel->findById($orderId);
+    $txSplit = sales_vat_split((float)$order['total_amount']);
+
+    $_GET = [
+        'report_type' => 'monthly',
+        'date_from'   => '2026-06-01',
+        'date_to'     => '2026-06-30',
+    ];
+    $html = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+
+    // Print-only document furniture.
+    assert_contains('sales-print-only', $html);
+    assert_contains('sales-print-doc', $html);
+    assert_contains('SALES REPORT', $html);
+    assert_contains('Summary of Sales', $html);
+    assert_contains('Sales (VAT-exclusive)', $html);
+    assert_contains('Add: 12% Output VAT', $html);
+    assert_contains('Gross Sales (VAT-inclusive)', $html);
+    assert_contains('sales-print-sign', $html);
+    assert_contains('Prepared by:', $html);
+    assert_contains('Checked by:', $html);
+
+    // Report tables carry the VAT breakdown columns.
+    assert_contains('Gross Sales', $html);
+    assert_contains('VAT (12%)', $html);
+    assert_contains('Net Sales', $html);
+    assert_contains('Unit Price', $html);
+    assert_contains('<th class="ps-4">Order #</th>', $html);
+
+    // Totals footers on both tables.
+    assert_contains('sales-report-totals', $html);
+    assert_contains('>TOTAL<', $html);
+
+    // The seeded order renders with its ORD- receipt number and its VAT amount.
+    assert_contains(order_receipt_number($orderId), $html);
+    assert_contains(format_currency($txSplit['vat']), $html);
+    assert_contains(format_currency($txSplit['net']), $html);
+
+    // Portrait / Excel-grid print stylesheet.
+    $css = file_get_contents(__DIR__ . '/../assets/css/app.css');
+    assert_contains('size: portrait', $css);
+    assert_contains('.sales-print-only { display: none !important; }', $css);
+    assert_contains('border-collapse: collapse !important;', $css);
+
+    $db->prepare("DELETE FROM orders WHERE id = ?")->execute([$orderId]);
+});
+
+it('sales_vat_split() extracts 12% VAT from VAT-inclusive gross amounts', function () {
+    $split = sales_vat_split(1120.0);
+    assert_equals(1120.0, $split['gross']);
+    assert_equals(120.0, $split['vat']);
+    assert_equals(1000.0, $split['net']);
+
+    $split = sales_vat_split(6412.5);
+    assert_equals(6412.5, $split['gross']);
+    assert_equals(687.05, $split['vat']);
+    assert_equals(5725.45, $split['net']);
+
+    // VAT + net must always recombine to the original gross after rounding.
+    $split = sales_vat_split(999.99);
+    assert_equals(999.99, round($split['vat'] + $split['net'], 2));
+});
+
 // =========================================================================
 // Group 4: Order Management & Dispatch (orders.php)
 // =========================================================================
