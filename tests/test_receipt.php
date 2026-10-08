@@ -512,7 +512,7 @@ it('buildPdfBytes() embeds the receipt number, order number, and peso total', fu
     $bytes = Receipt::buildPdfBytes(receipt_fixture());
 
     // The document title is written uncompressed in the Info dictionary.
-    assert_contains('Official Receipt ORD-0000001042', $bytes, 'PDF /Title metadata');
+    assert_contains("Sale's Invoice ORD-0000001042", $bytes, 'PDF /Title metadata');
     assert_contains('Subject (Order #1042)', $bytes, 'PDF /Subject metadata');
 
     // Page content is deflate-compressed, so inflate before searching.

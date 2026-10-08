@@ -688,7 +688,7 @@
          initAvatarUploadInteractivity,
          initCopyAddressHandler,
          function () { if (window.AppMaps) AppMaps.initPinLocationMaps(); },
-         function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with the customer' }); }
+         function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with the customer', peerRole: 'customer' }); }
         ].forEach(function (init) {
             try { init(); } catch (err) { console.error('Init failed:', err); }
         });

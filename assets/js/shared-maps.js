@@ -431,11 +431,14 @@
      *
      * @param {object} options
      *   emptyStateHint {string} hint shown when a conversation has no messages
+     *   peerRole      {string} role of the other party ('customer' | 'rider')
      */
     window.AppChat = {
         initPanel: function (options) {
             options = options || {};
             const emptyStateHint = options.emptyStateHint || 'Start the conversation';
+            const peerRole = options.peerRole === 'customer' ? 'customer' : 'rider';
+            const peerLabel = peerRole === 'rider' ? 'Rider' : 'Customer';
 
             const $chatPanel = $('#chatPanel');
             const $chatForm = $('#chatForm');
@@ -471,7 +474,7 @@
             function renderChatMessage(msg) {
                 const isSent = (currentUserId > 0 && parseInt(msg.sender_id, 10) === currentUserId);
                 const bubbleClass = isSent ? 'chat-bubble-sent' : 'chat-bubble-received';
-                const senderLabel = isSent ? 'You' : escapeHtml(msg.sender_name || (msg.sender_role === 'rider' ? 'Rider' : 'Customer'));
+                const senderLabel = isSent ? 'You' : escapeHtml(msg.sender_name || peerLabel);
                 const html = '<div class="chat-bubble ' + bubbleClass + '">'
                     + '<span class="chat-sender-label">' + senderLabel + '</span>'
                     + '<div class="chat-bubble-text">' + escapeHtml(msg.message) + '</div>'

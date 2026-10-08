@@ -870,7 +870,7 @@
         [initShopInteractivity, initOrdersInteractivity, initProfileInteractivity,
          initAvatarUploadInteractivity,
          function () { if (window.AppMaps) AppMaps.initPinLocationMaps(); },
-         function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with your rider' }); },
+         function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with your rider', peerRole: 'rider' }); },
          initCheckoutAddressPinPicker
         ].forEach(function (init) {
             try { init(); } catch (err) { console.error('Init failed:', err); }

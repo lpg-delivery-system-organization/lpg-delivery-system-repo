@@ -158,11 +158,13 @@ switch ($action) {
         json_response([
             'success' => true,
             'data'    => array_map(fn($msg) => [
-                'id'         => (int)$msg['id'],
-                'order_id'   => (int)$msg['order_id'],
-                'sender_id'  => (int)$msg['sender_id'],
-                'message'    => $msg['message'],
-                'created_at' => date('F d, Y h:i:s a', strtotime($msg['created_at'])),
+                'id'          => (int)$msg['id'],
+                'order_id'    => (int)$msg['order_id'],
+                'sender_id'   => (int)$msg['sender_id'],
+                'sender_name' => (string)($msg['sender_name'] ?? ''),
+                'sender_role' => (string)($msg['sender_role'] ?? ''),
+                'message'     => $msg['message'],
+                'created_at'  => date('F d, Y h:i:s a', strtotime($msg['created_at'])),
             ], $messages),
         ]);
         break;

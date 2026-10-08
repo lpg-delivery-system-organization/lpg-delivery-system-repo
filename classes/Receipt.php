@@ -38,6 +38,9 @@ class Receipt {
     /** Blank millimetres reserved below the footer before the roll is cut. */
     private const BOTTOM_PADDING_MM = 6.0;
 
+    /** Value-added tax rate applied on top of the order subtotal (12%). */
+    public const VAT_RATE = 0.12;
+
     /**
      * Fulfillment progress steps, in order. Mirrors the timeline rendered in
      * pages/customer/order-detail.php and templates/components/order-card.php.
@@ -103,6 +106,7 @@ class Receipt {
         'tagline'  => 'LPG Retail & Home Delivery',
         'address'  => 'Manila, Philippines',
         'contact'  => 'Support via the LPG Delivery System website',
+        'tin'      => 'TIN: 000-000-000-000',
     ];
 
     /**
@@ -125,6 +129,9 @@ class Receipt {
         $quantity = max(1, (int)($order['quantity'] ?? 1));
         $unitPrice = (float)($order['unit_price'] ?? 0);
         $totalAmount = (float)($order['total_amount'] ?? 0);
+        $deliveryFee = 0.0;
+        $vatAmount = round($totalAmount * self::VAT_RATE, 2);
+        $grandTotal = round($totalAmount + $vatAmount + $deliveryFee, 2);
 
         $productName = self::clean((string)($order['product_name'] ?? 'LPG Cylinder'));
         $productBrand = self::clean((string)($order['product_brand'] ?? ''));
@@ -134,7 +141,7 @@ class Receipt {
             'order_id'            => $orderId,
             'receipt_no'          => order_receipt_number($orderId),
 
-            'customer_name'       => self::clean((string)($order['customer_name'] ?? 'Walk-in Customer')),
+            'customer_name'       => self::titleCaseName(self::clean((string)($order['customer_name'] ?? 'Walk-in Customer'))),
             'customer_email'      => self::clean((string)($order['customer_email'] ?? '')),
             'customer_phone'      => self::clean((string)($order['contact_phone'] ?? '')),
 
@@ -146,12 +153,18 @@ class Receipt {
             'quantity'            => $quantity,
             'unit_price'          => $unitPrice,
             'total_amount'        => $totalAmount,
-            'delivery_fee'        => 0.0,
+            'delivery_fee'        => $deliveryFee,
             'delivery_fee_label'  => 'FREE',
+
+            'vat_rate'            => self::VAT_RATE,
+            'vat_amount'          => $vatAmount,
+            'grand_total'         => $grandTotal,
 
             'unit_price_text'     => format_php_amount($unitPrice),
             'total_amount_text'   => format_php_amount($totalAmount),
             'subtotal_text'       => format_php_amount($totalAmount),
+            'vat_amount_text'     => number_format($vatAmount, 2),
+            'grand_total_text'    => 'PHP ' . number_format($grandTotal, 2),
 
             'status'              => $status,
             'status_label'        => self::STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status)),
@@ -255,7 +268,7 @@ class Receipt {
         $pdf = new FPDF('P', 'mm', [self::PAGE_WIDTH_MM, $pageHeightMm]);
         $pdf->SetCreator('LPG Delivery System');
         $pdf->SetAuthor(self::$merchant['name']);
-        $pdf->SetTitle('Official Receipt ' . $data['receipt_no']);
+        $pdf->SetTitle("Sale's Invoice " . $data['receipt_no']);
         $pdf->SetSubject('Order #' . $data['order_id']);
 
         $pdf->SetMargins(self::MARGIN_MM, self::MARGIN_MM, self::MARGIN_MM);
@@ -306,8 +319,10 @@ class Receipt {
         $pdf->Cell($w, 3.6, self::$merchant['contact'], 0, 1, 'C');
 
         $pdf->Ln(0.5);
+        $pdf->SetFont('Helvetica', '', 7.5);
+        $pdf->Cell($w, 3.6, self::$merchant['tin'], 0, 1, 'C');
         $pdf->SetFont('Helvetica', 'B', 10.5);
-        $pdf->Cell($w, 5.5, 'OFFICIAL RECEIPT', 0, 1, 'C');
+        $pdf->Cell($w, 5.5, "SALE'S INVOICE", 0, 1, 'C');
         self::rule($pdf);
     }
 
@@ -323,13 +338,6 @@ class Receipt {
         self::metaRow($pdf, 'Order No.', '#' . $data['order_id']);
         self::metaRow($pdf, 'Date', $data['placed_at']);
         self::metaRow($pdf, 'Customer', $data['customer_name']);
-
-        if ($data['customer_phone'] !== '') {
-            self::metaRow($pdf, 'Contact No.', $data['customer_phone']);
-        }
-        if ($data['customer_email'] !== '') {
-            self::metaRow($pdf, 'Email', $data['customer_email'], 22);
-        }
 
         self::rule($pdf);
     }
@@ -378,14 +386,17 @@ class Receipt {
         $pdf->Cell($w, 4.4, 'Subtotal', 0, 0, 'L');
         $pdf->Cell($w, 4.4, number_format((float)$data['total_amount'], 2), 0, 1, 'R');
 
-        $pdf->Cell($w, 4.4, 'Delivery Fee', 0, 0, 'L');
-        $pdf->Cell($w, 4.4, $data['delivery_fee_label'], 0, 1, 'R');
+        $pdf->Cell($w, 4.4, 'VAT 12%', 0, 0, 'L');
+        $pdf->Cell($w, 4.4, $data['vat_amount_text'], 0, 1, 'R');
+
+        $pdf->Cell($w, 4.4, 'DELIVERY', 0, 0, 'L');
+        $pdf->Cell($w, 4.4, number_format((float)$data['delivery_fee'], 2), 0, 1, 'R');
 
         // Highlighted grand total band.
         $pdf->SetFillColor(240, 246, 245);
         $pdf->SetFont('Helvetica', 'B', 10);
         $pdf->Cell($w, 6.5, 'TOTAL AMOUNT', 0, 0, 'L', true);
-        $pdf->Cell($w, 6.5, $data['total_amount_text'], 0, 1, 'R', true);
+        $pdf->Cell($w, 6.5, $data['grand_total_text'], 0, 1, 'R', true);
 
         $pdf->Ln(0.5);
         self::rule($pdf);
@@ -417,7 +428,7 @@ class Receipt {
                 self::metaRow($pdf, 'Paid On', $data['paid_at'], $labelWidth);
             }
         } else {
-            self::metaRow($pdf, 'Balance Due', $data['total_amount_text'], $labelWidth);
+            self::metaRow($pdf, 'Balance Due', $data['grand_total_text'], $labelWidth);
             self::metaRow($pdf, 'Payable On', 'Delivery / Cash on Delivery', $labelWidth);
         }
 
@@ -477,37 +488,20 @@ class Receipt {
     }
 
     /**
-     * Draw the order status and the six-step fulfillment checklist.
+     * Draw the delivery timestamp for fulfilled orders.
      *
      * @param FPDF $pdf
      * @param array $data
      * @return void
      */
     private static function drawProgress(FPDF $pdf, array $data): void {
+        if ($data['delivered_at'] === 'N/A') {
+            return;
+        }
+
         $w = self::CONTENT_WIDTH_MM;
-
-        $pdf->SetFont('Helvetica', 'B', 9);
-        $pdf->Cell($w, 4.4, 'Order Status: ' . $data['status_label'], 0, 1, 'L');
-
-        if ($data['is_cancelled']) {
-            $pdf->SetFont('Helvetica', 'I', 8);
-            $pdf->Cell($w, 3.8, 'Progress tracking is void for cancelled orders.', 0, 1, 'L');
-        } else {
-            $pdf->SetFont('Helvetica', '', 8);
-            foreach ($data['progress'] as $step) {
-                $mark = match ($step['state']) {
-                    'done'    => '[x]',
-                    'current' => '[>]',
-                    default   => '[ ]',
-                };
-                $pdf->Cell($w, 3.9, $mark . ' ' . $step['label'], 0, 1, 'L');
-            }
-        }
-
-        if ($data['delivered_at'] !== 'N/A') {
-            $pdf->SetFont('Helvetica', '', 8);
-            $pdf->Cell($w, 3.9, 'Delivered On: ' . $data['delivered_at'], 0, 1, 'L');
-        }
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->Cell($w, 3.9, 'Delivered On: ' . $data['delivered_at'], 0, 1, 'L');
 
         $pdf->Ln(0.5);
         self::rule($pdf);
@@ -591,6 +585,24 @@ class Receipt {
         if ($pdf->GetY() < $startY + $lineHeight) {
             $pdf->SetY($startY + $lineHeight);
         }
+    }
+
+    /**
+     * Capitalize the first letter of every word in a person's name.
+     *
+     * Names are stored exactly as typed ("JUAN dela cruz", "juan DELA CRUZ"),
+     * so the string is folded first and then title-cased for a consistent
+     * presentation on the invoice.
+     *
+     * @param string $value
+     * @return string
+     */
+    public static function titleCaseName(string $value): string {
+        if ($value === '') {
+            return '';
+        }
+
+        return ucwords(mb_strtolower($value, 'UTF-8'));
     }
 
     /**
