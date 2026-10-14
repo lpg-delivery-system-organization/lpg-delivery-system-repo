@@ -133,7 +133,7 @@ it('header.php renders CSRF meta tag, Bootstrap CSS CDN, and custom app.css', fu
     assert_contains('bootstrap@5.3.3', $output);
     assert_contains('bootstrap-icons@1.11.3', $output);
     assert_contains('assets/css/app.css', $output);
-    assert_contains('Test Dashboard - LPG Delivery System', $output);
+    assert_contains('Test Dashboard - Elevate LPG', $output);
     assert_contains('<nav class="navbar', $output);
     assert_contains('Login', $output);
     assert_contains('Register', $output);

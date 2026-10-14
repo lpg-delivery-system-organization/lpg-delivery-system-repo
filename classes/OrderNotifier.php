@@ -83,7 +83,7 @@ class OrderNotifier {
         ],
         'delivered' => [
             'title'    => 'Order Delivered',
-            'customer' => "Your Order #%d has been delivered. Thank you for choosing LPG Delivery System!",
+            'customer' => "Your Order #%d has been delivered. Thank you for choosing Elevate LPG!",
             'rider'    => "Delivery of Order #%d is complete. Thank you!",
         ],
         'cancelled' => [

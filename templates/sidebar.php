@@ -91,6 +91,20 @@ $menus = [
 ];
 
 $roleMenu = $menus[$role] ?? [];
+
+// Customers awaiting government ID verification get a dedicated entry so the
+// pending/rejected state is always reachable from the navigation.
+if ($role === 'customer') {
+    $verificationStatus = (string)($_SESSION['user']['id_verification_status'] ?? 'approved');
+    if ($verificationStatus !== 'approved') {
+        array_unshift($roleMenu, [
+            'key'   => 'verification',
+            'label' => 'Verify ID',
+            'url'   => url('pages/customer/verification.php'),
+            'icon'  => 'bi-patch-check'
+        ]);
+    }
+}
 ?>
 
 <!-- Mobile Sidebar Backdrop -->

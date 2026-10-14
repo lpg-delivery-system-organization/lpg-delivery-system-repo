@@ -14,6 +14,9 @@
  * 9. test_api.php             - AJAX REST APIs (/api/orders.php, /api/products.php, /api/users.php)
  * 10. test_notifications.php  - In-app notification model, polling endpoint & read state
  * 11. test_receipt.php        - Philippine-format 80mm PDF order receipts & endpoint RBAC
+ * 12. test_purge.php          - Rejected ID grace period, reminders & auto-purge lifecycle
+ * 13. test_delivery_coverage.php - 3 km Haversine geofence, boundary rules & Order::place() enforcement
+ * 14. test_cart.php          - Persistent DB cart model, per-line guards & api/cart.php endpoint
  *
  * Usage:
  *   php tests/run_all_tests.php              # Standard run with aggregated table
@@ -144,6 +147,24 @@ $testSuites = [
         'name'        => 'Order Receipts (80mm PDF)',
         'file'        => 'test_receipt.php',
         'description' => 'Philippine-format receipt normalization, PDF generation & endpoint RBAC'
+    ],
+    [
+        'id'          => 'purge',
+        'name'        => 'Rejected ID Account Cleanup',
+        'file'        => 'test_purge.php',
+        'description' => 'Rejection grace period, pending-purge reminders, auto-purge & CLI dry-run'
+    ],
+    [
+        'id'          => 'coverage',
+        'name'        => 'Delivery Coverage (3 km Geofence)',
+        'file'        => 'test_delivery_coverage.php',
+        'description' => 'Haversine distance, boundary rules, enforcement gate & Order::place() geofencing'
+    ],
+    [
+        'id'          => 'cart',
+        'name'        => 'Shopping Cart & Checkout',
+        'file'        => 'test_cart.php',
+        'description' => 'Persistent DB cart model, per-line guards & api/cart.php endpoint'
     ],
 ];
 

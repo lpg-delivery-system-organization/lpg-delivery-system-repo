@@ -5,3 +5,9 @@ config/paymongo.local.php
 config/paymongo.php
 /config/database.php
 /config/app.php    
+
+# Local SMTP credentials (contains Gmail App Password) - never commit
+config/mail.local.php
+
+# Scheduled-cleanup runtime log
+database/tools/purge-cleanup.log

@@ -28,6 +28,7 @@ require_once __DIR__ . '/../classes/Database.php';
 require_once __DIR__ . '/../classes/User.php';
 require_once __DIR__ . '/../classes/Product.php';
 require_once __DIR__ . '/../classes/Order.php';
+require_once __DIR__ . '/../classes/Cart.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/middleware.php';
@@ -156,6 +157,10 @@ if (!$testCustomer) {
 
 $customerId = (int)$testCustomer['id'];
 
+// Guarantee a clean cart: the DB cart takes precedence over a POSTed
+// product_id, so leftover rows from another run would corrupt the shop tests.
+(new Cart($db))->clear($customerId);
+
 // =========================================================================
 // Group 1: Syntax & File Integrity
 // =========================================================================
@@ -185,9 +190,10 @@ it('customer.js exists and contains core client interaction handlers', function 
     $jsPath = __DIR__ . '/../assets/js/customer.js';
     assert_true(file_exists($jsPath), 'customer.js file must exist');
     $content = file_get_contents($jsPath);
-    assert_contains('btn-select-product', $content);
-    assert_contains('btnQtyPlus', $content);
-    assert_contains('btnQtyMinus', $content);
+    assert_contains('btn-add-to-cart', $content);
+    assert_contains('data-cart-action', $content);
+    assert_contains('initShopCart', $content);
+    assert_contains('cartDrawer', $content);
     assert_contains('order-filter-btn', $content);
     assert_contains('cancelOrderModal', $content);
 });
@@ -291,6 +297,55 @@ it('shop.php renders active product catalog with prices, stock badges, and check
     assert_contains('btnPlaceOrder', $html);
 });
 
+it('shop.php renders the delivery-coverage notice and client-side geofence config', function () use ($testCustomer) {
+    reset_customer_env();
+    login_user($testCustomer);
+
+    $html = render_page(__DIR__ . '/../pages/customer/shop.php');
+
+    assert_contains('id="deliveryCoverageNotice"', $html);
+    assert_contains('window.DeliveryCoverage', $html);
+    assert_contains('name="delivery_latitude"', $html);
+    assert_contains('name="delivery_longitude"', $html);
+    assert_contains('addressPreviewMap', $html);
+    assert_contains('radiusMeters', $html, 'Radius must be exposed to the map script');
+    assert_contains((string)(int)round(\DeliveryCoverage::radiusMeters()), $html, 'Configured radius must be emitted');
+});
+
+it('shop.php rejects an out-of-coverage address when the geofence is enforced', function () use ($db, $testCustomer, $productModel, $customerId) {
+    reset_customer_env();
+    login_user($testCustomer);
+    $token = csrf_token();
+
+    $products = $productModel->getActive();
+    assert_not_empty($products);
+    $prod = $products[0];
+
+    $GLOBALS['ENFORCE_DELIVERY_COVERAGE'] = true;
+    try {
+        $before = (int)$db->query("SELECT COUNT(*) FROM orders WHERE customer_id = {$customerId}")->fetchColumn();
+
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST['csrf_token'] = $token;
+        $_POST['product_id'] = $prod['id'];
+        $_POST['quantity'] = 1;
+        $_POST['payment_method'] = 'cod';
+        $_POST['delivery_address'] = 'Far away test address';
+        $_POST['contact_phone'] = '09171234567';
+        $_POST['delivery_latitude'] = '14.5600';
+        $_POST['delivery_longitude'] = '121.0800';
+
+        $html = render_page(__DIR__ . '/../pages/customer/shop.php');
+
+        assert_contains('outside our 3 km delivery coverage', $html);
+
+        $after = (int)$db->query("SELECT COUNT(*) FROM orders WHERE customer_id = {$customerId}")->fetchColumn();
+        assert_equals($before, $after, 'No order may be created when the location is out of coverage');
+    } finally {
+        unset($GLOBALS['ENFORCE_DELIVERY_COVERAGE']);
+    }
+});
+
 it('shop.php blocks order placement when CSRF token is invalid', function () use ($testCustomer, $productModel) {
     reset_customer_env();
     login_user($testCustomer);
@@ -325,7 +380,7 @@ it('shop.php validates required fields, phone number format, and payment method'
     $_POST['contact_phone'] = '12345'; // Bad format
 
     $html = render_page(__DIR__ . '/../pages/customer/shop.php');
-    assert_contains('Please select a valid LPG cylinder', $html);
+    assert_contains('Your cart is empty', $html);
     assert_contains('Quantity must be at least 1 unit', $html);
     assert_contains('Please enter your complete delivery address', $html);
     assert_contains('11-digit Philippine mobile number', $html);
@@ -453,6 +508,102 @@ it('shop.php rejects order when requested quantity exceeds available stock', fun
 
     $html = render_page(__DIR__ . '/../pages/customer/shop.php');
     assert_contains('exceeds available stock', $html);
+});
+
+it('shop.php renders every DB cart line into the drawer and checkout summary', function () use ($db, $testCustomer, $productModel, $customerId) {
+    reset_customer_env();
+    login_user($testCustomer);
+
+    $cartModel = new Cart($db);
+    $cartModel->clear($customerId);
+
+    $products = $productModel->getActive();
+    assert_true(count($products) >= 2, 'need at least two active products');
+    $a = $products[0];
+    $b = $products[1];
+
+    $cartModel->addItem($customerId, (int)$a['id'], 2);
+    $cartModel->addItem($customerId, (int)$b['id'], 1);
+
+    $html = render_page(__DIR__ . '/../pages/customer/shop.php');
+
+    assert_contains('window.LPG_CART', $html);
+    assert_contains('id="cartDrawer"', $html);
+    assert_contains('id="checkoutCartList"', $html);
+    assert_contains(htmlspecialchars($a['name'], ENT_QUOTES), $html);
+    assert_contains(htmlspecialchars($b['name'], ENT_QUOTES), $html);
+
+    // The rendered cart JSON must carry both lines and 3 units.
+    assert_contains('"units":3', preg_replace('/\s+/', '', $html));
+
+    $cartModel->clear($customerId);
+});
+
+it('shop.php places a single multi-item order from the DB cart, then empties the cart', function () use ($db, $testCustomer, $productModel, $orderModel, $customerId) {
+    reset_customer_env();
+    login_user($testCustomer);
+    $token = csrf_token();
+
+    $cartModel = new Cart($db);
+    $cartModel->clear($customerId);
+
+    $products = $productModel->getActive();
+    assert_true(count($products) >= 2, 'need at least two active products');
+    $a = $products[0];
+    $b = $products[1];
+
+    foreach ([$a, $b] as $p) {
+        if ((int)$p['stock'] < 6) {
+            $productModel->updateStock((int)$p['id'], 20);
+        }
+    }
+    $stockA = (int)$productModel->findById((int)$a['id'])['stock'];
+    $stockB = (int)$productModel->findById((int)$b['id'])['stock'];
+
+    $cartModel->addItem($customerId, (int)$a['id'], 2);
+    $cartModel->addItem($customerId, (int)$b['id'], 3);
+
+    // The form posts no product_id: the server must read the DB cart.
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_POST['csrf_token'] = $token;
+    $_POST['product_id'] = 0;
+    $_POST['quantity'] = 1;
+    $_POST['payment_method'] = 'cod';
+    $_POST['delivery_address'] = '77 Cart Ave, Pasig City';
+    $_POST['contact_phone'] = '09171234567';
+    $_POST['notes'] = 'Multi-item cart order';
+
+    render_page(__DIR__ . '/../pages/customer/shop.php');
+
+    assert_true(isset($GLOBALS['LAST_REDIRECT']), 'expected a redirect');
+    assert_contains('/pages/customer/order-detail.php?id=', $GLOBALS['LAST_REDIRECT']);
+
+    // Cart is emptied after a successful order.
+    assert_equals(0, $cartModel->countUnits($customerId), 'cart must be empty after checkout');
+
+    // Find the newest order and verify the summary + line items.
+    $orders = $orderModel->getByCustomer($customerId);
+    assert_not_empty($orders);
+    $latest = $orders[0];
+    $orderId = (int)$latest['id'];
+
+    // Summary reflects the sum of units and total of both lines.
+    assert_equals(5, (int)$latest['quantity'], 'summary quantity is total units');
+    $expectedTotal = round($a['price'] * 2 + $b['price'] * 3, 2);
+    assert_equals($expectedTotal, (float)$latest['total_amount']);
+
+    $items = $orderModel->getItems($orderId);
+    assert_equals(2, count($items), 'two order_items rows expected');
+    $qtyByProduct = [];
+    foreach ($items as $it) {
+        $qtyByProduct[(int)$it['product_id']] = (int)$it['quantity'];
+    }
+    assert_equals(2, $qtyByProduct[(int)$a['id']] ?? 0);
+    assert_equals(3, $qtyByProduct[(int)$b['id']] ?? 0);
+
+    // Stock was reserved for both products.
+    assert_equals($stockA - 2, (int)$productModel->findById((int)$a['id'])['stock']);
+    assert_equals($stockB - 3, (int)$productModel->findById((int)$b['id'])['stock']);
 });
 
 // =========================================================================
@@ -762,6 +913,47 @@ it('Customer pages escape malicious script tags in customer names and product de
 
     // Clean up
     $db->prepare("DELETE FROM users WHERE id = ?")->execute([$xssUserId]);
+});
+
+// =========================================================================
+// Group 8: Rejected ID Deletion-Warning Banner (verification.php)
+// =========================================================================
+echo "\nGroup 8: Rejected ID Deletion-Warning Banner\n";
+
+it('verification.php shows the 24h deletion deadline to a rejected applicant', function () use ($db, $userModel, $customerId) {
+    // Capture original verification state so this test is repeatable.
+    $original = $userModel->findById($customerId);
+    $origStatus      = (string)($original['id_verification_status'] ?? 'approved');
+    $origReviewed    = $original['id_reviewed_at'] ?? null;
+    $origReason      = $original['id_rejection_reason'] ?? null;
+    $origPurgeWarned = $original['purge_warned_at'] ?? null;
+
+    try {
+        // Rejected 2 hours ago: most of the 24h window still remains.
+        $db->prepare("UPDATE users SET id_verification_status = 'rejected', id_reviewed_at = DATE_SUB(NOW(), INTERVAL 2 HOUR), id_rejection_reason = 'Blurred photo', purge_warned_at = NULL WHERE id = ?")
+           ->execute([$customerId]);
+
+        reset_customer_env();
+        login_user($userModel->findById($customerId));
+        $html = render_page(__DIR__ . '/../pages/customer/verification.php');
+        assert_contains('scheduled for deletion', $html);
+        assert_contains('permanently deleted', $html);
+        assert_contains('hour', $html);
+
+        // Past the deadline: stronger, urgent wording.
+        $db->prepare("UPDATE users SET id_reviewed_at = DATE_SUB(NOW(), INTERVAL 30 HOUR) WHERE id = ?")
+           ->execute([$customerId]);
+
+        reset_customer_env();
+        login_user($userModel->findById($customerId));
+        $htmlPast = render_page(__DIR__ . '/../pages/customer/verification.php');
+        assert_contains('past its deletion deadline', $htmlPast);
+    } finally {
+        $db->prepare("UPDATE users SET id_verification_status = ?, id_reviewed_at = ?, id_rejection_reason = ?, purge_warned_at = ? WHERE id = ?")
+           ->execute([$origStatus, $origReviewed, $origReason, $origPurgeWarned, $customerId]);
+    }
+
+    return true;
 });
 
 // =========================================================================

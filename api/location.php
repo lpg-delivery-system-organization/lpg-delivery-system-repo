@@ -73,6 +73,9 @@ $locationModel = new RiderLocation($db);
 $currentUserId = (int)current_user_id();
 $currentUserRole = (string)current_user_role();
 
+// Customers with an unverified government ID may not access delivery tracking.
+require_verified_id();
+
 switch ($action) {
 
     case 'update':

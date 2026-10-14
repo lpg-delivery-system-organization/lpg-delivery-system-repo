@@ -5,6 +5,7 @@
  *
  * Supported Actions (Admin Only):
  * - update_status: Updates user account status (active, inactive, suspended) with self-lockout protection
+ * - verify_id:     Approves or rejects a customer's uploaded government ID
  * - get_user:      Retrieves sanitized user profile details (password hash excluded)
  */
 
@@ -20,6 +21,7 @@ require_once __DIR__ . '/../classes/User.php';
 require_once __DIR__ . '/../includes/helpers.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/middleware.php';
+require_once __DIR__ . '/../includes/verification.php';
 
 // Initialize session if not active
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
@@ -147,6 +149,86 @@ switch ($action) {
             json_response([
                 'success' => true,
                 'message' => "Account for '{$user['full_name']}' status updated to '{$newStatus}'.",
+                'data'    => $freshUser
+            ], 200);
+            return;
+        } catch (Throwable $e) {
+            json_response([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error'   => 'Server Error'
+            ], 500);
+            return;
+        }
+
+    case 'verify_id':
+        $userId = (int)($input['user_id'] ?? 0);
+        $decision = strtolower(trim((string)($input['decision'] ?? '')));
+        $reason = trim((string)($input['reason'] ?? ''));
+
+        if ($userId <= 0) {
+            json_response([
+                'success' => false,
+                'message' => 'User ID is required.',
+                'error'   => 'Bad Request'
+            ], 400);
+            return;
+        }
+
+        if (!in_array($decision, ['approve', 'reject'], true)) {
+            json_response([
+                'success' => false,
+                'message' => "Invalid decision '{$decision}'. Allowed: approve, reject.",
+                'error'   => 'Bad Request'
+            ], 400);
+            return;
+        }
+
+        $user = $userModel->findById($userId);
+        if (!$user) {
+            json_response([
+                'success' => false,
+                'message' => "User #{$userId} not found.",
+                'error'   => 'Not Found'
+            ], 404);
+            return;
+        }
+
+        if (empty($user['valid_id_path'])) {
+            json_response([
+                'success' => false,
+                'message' => "{$user['full_name']} has no uploaded ID to verify.",
+                'error'   => 'Bad Request'
+            ], 400);
+            return;
+        }
+
+        if ($decision === 'reject' && $reason === '') {
+            json_response([
+                'success' => false,
+                'message' => 'A reason is required when rejecting an ID.',
+                'error'   => 'Bad Request'
+            ], 400);
+            return;
+        }
+
+        try {
+            if ($decision === 'approve') {
+                $userModel->approveId($userId, $currentAdminId);
+                notify_user_id_decision($userId, 'approved');
+                $message = "Government ID for '{$user['full_name']}' approved.";
+            } else {
+                $userModel->rejectId($userId, $reason, $currentAdminId);
+                notify_user_id_decision($userId, 'rejected', $reason);
+                $message = "Government ID for '{$user['full_name']}' rejected.";
+            }
+
+            $freshUser = $userModel->findById($userId);
+            unset($freshUser['password']);
+
+            json_response([
+                'success' => true,
+                'message' => $message,
                 'data'    => $freshUser
             ], 200);
             return;

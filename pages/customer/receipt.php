@@ -23,6 +23,7 @@ require_once __DIR__ . '/../../classes/Order.php';
 require_once __DIR__ . '/../../classes/Receipt.php';
 
 require_role('customer');
+require_verified_id();
 
 $customerId = (int)current_user_id();
 $orderId = (int)($_GET['id'] ?? 0);

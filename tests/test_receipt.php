@@ -508,7 +508,7 @@ it('buildPdfBytes() sizes the roll to 80mm paper', function () {
     assert_true($heightMm < 600, "roll should not be absurdly tall, got {$heightMm}mm");
 });
 
-it('buildPdfBytes() embeds the receipt number, order number, and peso total', function () {
+it('buildPdfBytes() embeds the receipt number, order number, and VAT breakdown', function () {
     $bytes = Receipt::buildPdfBytes(receipt_fixture());
 
     // The document title is written uncompressed in the Info dictionary.
@@ -519,12 +519,30 @@ it('buildPdfBytes() embeds the receipt number, order number, and peso total', fu
     $text = pdf_visible_text($bytes);
     assert_not_empty($text, 'page content stream should inflate');
     assert_contains('ORD-0000001042', $text, 'receipt reference on the page');
-    assert_contains('3,300.00', $text, 'grand total');
-    assert_contains('1,650.00', $text, 'unit price');
+    assert_contains('Subtotal', $text, 'subtotal label');
+    assert_contains('VAT 12%', $text, 'VAT 12% label');
     assert_contains('TOTAL AMOUNT', $text, 'total label');
+    assert_contains('2,946.43', $text, 'net subtotal');
+    assert_contains('353.57', $text, 'output VAT');
+    assert_contains('3,300.00', $text, 'gross total');
+    // Parentheses are escaped in the PDF content stream, so match the label
+    // text without them.
+    assert_contains('VAT Sales', $text, 'VAT sales label');
+    assert_contains('VAT Amount', $text, 'VAT amount label');
+    assert_contains('VAT-Exempt', $text, 'VAT-exempt label');
+    assert_contains('Zero-Rated', $text, 'zero-rated label');
     assert_contains('Juan Dela Cruz', $text, 'customer name');
-    assert_contains('123 Mabini St', $text, 'delivery address');
-    assert_contains('Salamat po', $text, 'closing message');
+    assert_contains('Elevate LPG', $text, 'merchant name');
+    assert_contains('JIMAC INCORPORATED', $text, 'company footer');
+    assert_contains('FOR DELIVERY CALL/TXT', $text, 'delivery hotline');
+});
+
+it('buildPdfBytes() no longer prints a Balance Due row', function () {
+    // The reworked BIR-style invoice drops the balance/payable block entirely.
+    $text = pdf_visible_text(Receipt::buildPdfBytes(receipt_fixture()));
+    assert_false(strpos($text, 'Balance Due') !== false, 'Balance Due must be removed');
+    assert_false(strpos($text, 'Payable On') !== false, 'the payable block must be removed');
+    assert_false(strpos($text, 'Salamat po') !== false, 'the old closing must be removed');
 });
 
 it('buildPdfBytes() does not leak the peso glyph into the document', function () {
@@ -554,48 +572,23 @@ it('Receipt::filename() derives a safe .pdf download name', function () {
     assert_equals('ORD-0000001042.pdf', Receipt::filename(1042));
 });
 
-it('no fixed-width label/value row wraps onto a second line on an 80mm roll', function () {
+it('no fixed-width receipt line overflows the 80mm roll', function () {
     require_once __DIR__ . '/../includes/lib/fpdf.php';
 
     $measure = new FPDF('P', 'mm', [72, 500]);
     $measure->AddPage();
     $measure->SetFont('Helvetica', '', 8.5);
 
-    // 23mm is the narrowest label column that fits "Payment Method" (22.67mm),
-    // leaving 39mm for the value. Every field below has a bounded width.
-    $valueWidth = Receipt::CONTENT_WIDTH_MM - 23;
-
-    // Guard the column split itself, so a future label change cannot silently
-    // push the value column below the widths asserted here.
-    assert_true(
-        $measure->GetStringWidth('Payment Method') <= 23,
-        'the widest label must still fit the 23mm label column'
-    );
+    $contentWidth = Receipt::CONTENT_WIDTH_MM;
 
     $cases = [
-        'COD fixture'      => receipt_fixture(),
-        'GCash paid'       => receipt_fixture([
-            'payment_method'    => 'gcash',
-            'payment_status'    => 'paid',
-            'paid_at'           => '2026-09-30 15:47:52',
-            'payment_reference' => 'cs_9aBcDeFgHiJkLmNoP',
-            'payment_id'        => 'pay_XyZ123456789',
-        ]),
-        'GCash unpaid'     => receipt_fixture([
-            'payment_method'    => 'GCASH',
-            'payment_status'    => 'pending',
-        ]),
-        'refund requested' => receipt_fixture([
+        'COD fixture'  => receipt_fixture(),
+        'GCash paid'   => receipt_fixture([
             'payment_method' => 'gcash',
             'payment_status' => 'paid',
-            'refund_status'  => 'requested',
+            'paid_at'        => '2026-09-30 15:47:52',
         ]),
-        'refund failed'    => receipt_fixture([
-            'payment_method' => 'gcash',
-            'payment_status' => 'paid',
-            'refund_status'  => 'failed',
-        ]),
-        'delivered'        => receipt_fixture([
+        'delivered'    => receipt_fixture([
             'status'       => 'delivered',
             'delivered_at' => '2026-09-30 18:05:00',
         ]),
@@ -604,36 +597,87 @@ it('no fixed-width label/value row wraps onto a second line on an 80mm roll', fu
     foreach ($cases as $name => $fixture) {
         $d = Receipt::normalize($fixture);
 
-        // Free-text fields (customer name, refund reason, cancel reason) are
-        // intentionally excluded: they wrap by design, and the adaptive page
-        // height absorbs the extra lines.
+        // Fixed-width meta lines only: customer and rider names are free text
+        // that wrap by design, and the adaptive page height absorbs the lines.
         $rows = [
-            'Receipt No.'    => $d['receipt_no'],
-            'Order No.'      => '#' . $d['order_id'],
-            'Date'           => $d['placed_at'],
-            'Payment Method' => $d['payment_method_label'],
-            'Payment Status' => $d['payment_status_label'],
-            'GCash Ref'      => $d['payment_reference'],
-            'PayMongo ID'    => $d['payment_id'],
-            'Paid On'        => $d['paid_at'],
-            'Balance Due'    => $d['total_amount_text'],
-            'Payable On'     => 'Delivery / Cash on Delivery',
-            'Refund'         => $d['refund_status_label'],
-            'Refunded On'    => $d['refunded_at'],
+            'Invoice'    => 'Invoice: ' . $d['invoice_no'],
+            'Order No.'  => 'Order No.: ' . $d['order_id'],
+            'Branch'     => 'Branch: ' . $d['branch'],
+            'Terminal'   => 'Terminal: ' . $d['terminal'],
+            'Trans Date' => 'Trans Date: ' . $d['trans_date'],
         ];
 
-        foreach ($rows as $label => $value) {
-            if ($value === '' || $value === 'N/A') {
+        foreach ($rows as $label => $line) {
+            if ($line === '') {
                 continue;
             }
-            $width = $measure->GetStringWidth($value);
+            $width = $measure->GetStringWidth($line);
             assert_true(
-                $width <= $valueWidth,
-                "receipt ('{$name}') row '{$label}' needs " . round($width, 2) .
-                "mm but only {$valueWidth}mm is available: '{$value}'"
+                $width <= $contentWidth,
+                "receipt ('{$name}') line '{$label}' needs " . round($width, 2) .
+                "mm but only {$contentWidth}mm is available: '{$line}'"
             );
         }
     }
+
+    // The summary/VAT amount rows share the width between a left label and a
+    // right value, so their combined width must fit the roll.
+    $d = Receipt::normalize(receipt_fixture());
+    $amountRows = [
+        'Subtotal'      => $d['subtotal_plain_text'],
+        'VAT 12%'       => $d['vat_12_text'],
+        'TOTAL AMOUNT'  => $d['total_amount_plain_text'],
+        '(V)VAT Sales'  => $d['vat_sales_text'],
+        'VAT Amount'    => $d['vat_amount_text'],
+        '(E)VAT-Exempt' => $d['vat_exempt_text'],
+        '(Z)Zero-Rated' => $d['zero_rated_text'],
+    ];
+    foreach ($amountRows as $label => $value) {
+        $isTotal = ($label === 'TOTAL AMOUNT');
+        $measure->SetFont('Helvetica', $isTotal ? 'B' : '', $isTotal ? 10 : 9);
+        $combined = $measure->GetStringWidth($label) + $measure->GetStringWidth($value);
+        assert_true(
+            $combined <= $contentWidth,
+            "amount row '{$label}' needs " . round($combined, 2) .
+            "mm but only {$contentWidth}mm is available"
+        );
+    }
+
+    // The BIR footer lines are fixed-width and must also fit the roll.
+    $measure->SetFont('Helvetica', '', 7.5);
+    foreach ([
+        'vat_reg_tin', 'brn_accred', 'company_date_issued',
+        'permit_no', 'permit_date_issued', 'effectivity_date',
+    ] as $key) {
+        $width = $measure->GetStringWidth(Receipt::$merchant[$key]);
+        assert_true(
+            $width <= $contentWidth,
+            "footer '{$key}' needs " . round($width, 2) .
+            "mm but only {$contentWidth}mm is available"
+        );
+    }
+});
+
+it('places every text run within the 80mm roll width', function () {
+    $text = pdf_visible_text(Receipt::buildPdfBytes(receipt_fixture()));
+
+    // FPDF writes page coordinates in points; the roll content stops at the
+    // right margin. A label/amount row that reused the full width for both
+    // cells would place the amount past this edge (and so off the paper).
+    $contentRightPt = (Receipt::PAGE_WIDTH_MM - Receipt::MARGIN_MM) / 25.4 * 72;
+
+    $runs = 0;
+    if (preg_match_all('/BT\s+([0-9.]+)\s+([0-9.]+)\s+Td/', $text, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
+            $x = (float)$m[1];
+            assert_true(
+                $x <= $contentRightPt + 0.5,
+                "text run starts at {$x}pt, beyond the {$contentRightPt}pt content edge"
+            );
+            $runs++;
+        }
+    }
+    assert_true($runs > 0, 'expected at least one text run in the content stream');
 });
 
 echo "\n--- 6. stream_pdf() response handling ---\n";
@@ -864,11 +908,15 @@ it('admin endpoint refuses a rider session', function () use ($ownedOrderId, $te
 
 echo "\n--- 8. Real order rows render end to end ---\n";
 
-it('a real COD order produces a receipt containing its delivery address', function () use ($orderModel, $ownedOrderId) {
+it('a real COD order produces a receipt with its invoice reference and BIR footer', function () use ($orderModel, $ownedOrderId) {
     $order = $orderModel->findById($ownedOrderId);
     assert_not_empty($order, 'order should be found');
     $bytes = Receipt::buildPdfBytes($order);
     assert_equals('%PDF-1.3', substr($bytes, 0, 8));
+
+    $text = pdf_visible_text($bytes);
+    assert_contains('Invoice: ORD-', $text, 'invoice reference');
+    assert_contains('JIMAC INCORPORATED', $text, 'company footer');
     assert_contains('Receipt Test St', Receipt::normalize($order)['delivery_address']);
 });
 

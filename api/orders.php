@@ -84,6 +84,9 @@ $currentUser = current_user();
 $currentUserId = (int)current_user_id();
 $currentUserRole = (string)current_user_role();
 
+// Customers with an unverified government ID may not transact on orders.
+require_verified_id();
+
 // 5. Handle Actions
 switch ($action) {
     case 'update_status':

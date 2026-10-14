@@ -10,6 +10,10 @@
  * 4. Mailer class (mock mode, sendResetEmail, HTML/plaintext template output, sent logging)
  */
 
+// Keep the Mailer in mock mode regardless of local SMTP credentials so this
+// suite never contacts a real mail server.
+$GLOBALS['TEST_MODE'] = true;
+
 $testCount = 0;
 $passCount = 0;
 $failCount = 0;
@@ -232,6 +236,114 @@ it("User::getAllByRole and User::countByRole work accurately", function() use ($
     assert_equals(count($admins), $adminCount);
     assert_true($adminCount >= 1, "At least 1 admin must exist");
 
+    return true;
+});
+
+// ----------------------------------------------------------
+// 1b. Government ID Verification Tests
+// ----------------------------------------------------------
+$pendingUserId = 0;
+
+it("User::create defaults ID verification status to 'approved'", function() use ($userModel, $createdUserId) {
+    $user = $userModel->findById($createdUserId);
+    assert_equals('approved', $user['id_verification_status'], "Admin/seed-created accounts default to approved");
+    return true;
+});
+
+it("User::create accepts and stores a 'pending' ID verification status", function() use ($userModel, &$pendingUserId) {
+    $pendingUserId = $userModel->create([
+        'full_name' => 'Pending Applicant',
+        'email' => 'verify_pending_' . uniqid() . '@example.com',
+        'password' => 'SecretPass@2026',
+        'role' => 'customer',
+        'phone' => '09170000001',
+        'address' => '1 Verification Lane, Manila',
+        'status' => 'active',
+        'id_verification_status' => 'pending',
+        'valid_id_path' => 'uploads/ids/test_pending.jpg'
+    ]);
+    assert_true($pendingUserId > 0, "Pending applicant must be created");
+
+    $user = $userModel->findById($pendingUserId);
+    assert_equals('pending', $user['id_verification_status']);
+    return true;
+});
+
+it("User::create rejects an invalid ID verification status", function() use ($userModel) {
+    $threw = false;
+    try {
+        $userModel->create([
+            'full_name' => 'Bad Verify',
+            'email' => 'bad_verify_' . uniqid() . '@example.com',
+            'password' => 'SecretPass@2026',
+            'role' => 'customer',
+            'phone' => '09170000002',
+            'address' => 'Test',
+            'id_verification_status' => 'bogus'
+        ]);
+    } catch (InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, "Invalid verification status must throw InvalidArgumentException");
+    return true;
+});
+
+it("User::rejectId records the reason, User::submitId resets to pending", function() use ($userModel, &$pendingUserId) {
+    $userModel->rejectId($pendingUserId, 'Photo is blurred', 1);
+    $user = $userModel->findById($pendingUserId);
+    assert_equals('rejected', $user['id_verification_status']);
+    assert_equals('Photo is blurred', $user['id_rejection_reason']);
+    assert_equals(1, (int)$user['id_reviewed_by']);
+
+    $userModel->submitId($pendingUserId, 'uploads/ids/test_resubmit.jpg');
+    $user = $userModel->findById($pendingUserId);
+    assert_equals('pending', $user['id_verification_status']);
+    assert_equals(null, $user['id_rejection_reason'], "Resubmission must clear the rejection reason");
+    assert_equals('uploads/ids/test_resubmit.jpg', $user['valid_id_path']);
+    return true;
+});
+
+it("User::rejectId rejects an empty reason", function() use ($userModel, &$pendingUserId) {
+    $threw = false;
+    try {
+        $userModel->rejectId($pendingUserId, '   ', 1);
+    } catch (InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, "Empty rejection reason must throw InvalidArgumentException");
+    return true;
+});
+
+it("User::approveId sets approved and clears the rejection reason", function() use ($userModel, &$pendingUserId) {
+    $userModel->rejectId($pendingUserId, 'Blurry', 1);
+    $userModel->approveId($pendingUserId, 1);
+    $user = $userModel->findById($pendingUserId);
+    assert_equals('approved', $user['id_verification_status']);
+    assert_equals(null, $user['id_rejection_reason']);
+    return true;
+});
+
+it("User::countPendingVerifications and User::getByVerificationStatus track pending customers", function() use ($userModel, &$pendingUserId) {
+    $userModel->submitId($pendingUserId, 'uploads/ids/test_pending2.jpg');
+
+    $pending = $userModel->getByVerificationStatus('pending', 'customer');
+    $ids = array();
+    foreach ($pending as $row) {
+        $ids[] = (int)$row['id'];
+    }
+    assert_true(in_array($pendingUserId, $ids, true), "Pending applicant must appear in the pending list");
+    assert_true($userModel->countPendingVerifications() >= 1, "Pending count must include the applicant");
+
+    $threw = false;
+    try {
+        $userModel->getByVerificationStatus('nonsense');
+    } catch (InvalidArgumentException $e) {
+        $threw = true;
+    }
+    assert_true($threw, "Invalid verification status must throw");
+
+    // Clean up so later suites don't see a lingering pending customer.
+    $userModel->approveId($pendingUserId, 1);
     return true;
 });
 

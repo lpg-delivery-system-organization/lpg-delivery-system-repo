@@ -23,145 +23,265 @@
         });
     }
 
+    // Single source of truth for the "Place Order" button state.
+    //
+    // The button is disabled when EITHER the cart rules block it (empty cart or
+    // a line exceeding available stock) OR the selected delivery location is
+    // outside the configured coverage zone. Both the shop-side cart logic and
+    // the map-side coverage logic funnel through here so neither can
+    // accidentally re-enable the other.
+    function applyPlaceOrderState() {
+        const $btn = $('#btnPlaceOrder');
+        if ($btn.length === 0) return;
+
+        // Cart first (empty cart / an item exceeds available stock).
+        if ($btn.data('cart-blocked')) {
+            $btn.prop('disabled', true).html($btn.data('cart-label') || 'Cart is Empty');
+            return;
+        }
+
+        // Then delivery coverage. When enforcement is off (no geometry/config
+        // available) the location never blocks checkout.
+        const $form = $('#orderPlacementForm');
+        const enforced = $form.data('coverage-enforced') !== false;
+        const coverageOk = $form.data('coverage-ok');
+
+        if (enforced && coverageOk !== true) {
+            $btn.prop('disabled', true).html('<i class="bi bi-geo-alt-fill me-1"></i>Outside Delivery Area');
+            return;
+        }
+
+        const totalText = $.trim($('#orderTotalDisplay').text()) || formatCurrency(0);
+        $btn.prop('disabled', false).html('<i class="bi bi-bag-check me-2"></i>Place Order (' + totalText + ')');
+    }
+
     // =========================================================================
-    // 1. Shop Page: Product Selection & Live Total Calculation
+    // 1. Shop Page: Cart (add / update / remove / drawer & checkout sync)
     // =========================================================================
-    function initShopInteractivity() {
+    function initShopCart() {
         const $shopContainer = $('#customerShopContainer');
         if ($shopContainer.length === 0) return;
 
+        const endpoint = window.LPG_CART_ENDPOINT || 'api/cart.php';
         const $orderSection = $('#orderCheckoutSection');
-        const $productIdInput = $('#order_product_id');
-        const $qtyInput = $('#order_quantity');
-        const $unitPriceDisplay = $('#orderUnitPriceDisplay');
-        const $subtotalDisplay = $('#orderSubtotalDisplay');
-        const $totalDisplay = $('#orderTotalDisplay');
-        const $productNameDisplay = $('#orderProductNameDisplay');
-        const $productMetaDisplay = $('#orderProductMetaDisplay');
-        const $stockStatusDisplay = $('#orderStockStatusDisplay');
         const $submitBtn = $('#btnPlaceOrder');
 
-        let currentPrice = 0;
-        let maxStock = 0;
+        function getCart() {
+            return window.LPG_CART || { items: [], count: 0, units: 0, subtotal: 0 };
+        }
 
-        function updateTotals() {
-            let qty = parseInt($qtyInput.val(), 10) || 1;
-            if (qty < 1) qty = 1;
-            if (maxStock > 0 && qty > maxStock) qty = maxStock;
-            $qtyInput.val(qty);
+        function esc(t) {
+            return $('<div>').text(t == null ? '' : t).html();
+        }
 
-            const total = qty * currentPrice;
-            $unitPriceDisplay.text(formatCurrency(currentPrice));
-            $subtotalDisplay.text(formatCurrency(total));
-            $totalDisplay.text(formatCurrency(total));
+        // --- Rendering ---
+        function renderBadge() {
+            const units = getCart().units || 0;
+            const $b = $('#cartBadge');
+            $b.text(units);
+            $b.toggleClass('d-none', units <= 0);
+            $('#cartDrawerCount').text(units);
+        }
 
-            // Stock validation
-            if (maxStock <= 0) {
-                $submitBtn.prop('disabled', true).html('<i class="bi bi-x-circle me-1"></i>Out of Stock');
-                $stockStatusDisplay.html('<span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>Currently Out of Stock</span>');
-            } else if (qty > maxStock) {
-                $submitBtn.prop('disabled', true).html('<i class="bi bi-exclamation-triangle me-1"></i>Exceeds Available Stock');
+        function drawerRow(item) {
+            const max = Math.max(1, Math.min(10, item.stock));
+            const over = !item.within_stock;
+            return '' +
+                '<div class="cart-drawer-item' + (over ? ' cart-item-invalid' : '') + '">' +
+                  '<div class="flex-grow-1">' +
+                    '<div class="fw-semibold small text-dark">' + esc(item.name) + '</div>' +
+                    '<div class="extra-small text-muted">' + esc(item.brand) + ' &middot; ' + esc(item.weight) + '</div>' +
+                    '<div class="extra-small text-primary fw-semibold mt-1">' + formatCurrency(item.price) + ' each</div>' +
+                    (over ? '<div class="extra-small text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Only ' + item.stock + ' in stock</div>' : '') +
+                  '</div>' +
+                  '<div class="d-flex flex-column align-items-end gap-1">' +
+                    '<div class="input-group input-group-sm cart-qty-group">' +
+                      '<button class="btn btn-outline-secondary" type="button" data-cart-action="dec" data-id="' + item.product_id + '" aria-label="Decrease"><i class="bi bi-dash"></i></button>' +
+                      '<input type="text" class="form-control text-center cart-qty-input" value="' + item.quantity + '" readonly aria-label="Quantity">' +
+                      '<button class="btn btn-outline-secondary" type="button" data-cart-action="inc" data-id="' + item.product_id + '"' + (item.quantity >= max ? ' disabled' : '') + ' aria-label="Increase"><i class="bi bi-plus"></i></button>' +
+                    '</div>' +
+                    '<button class="btn btn-link text-danger btn-sm p-0 text-decoration-none extra-small" data-cart-action="remove" data-id="' + item.product_id + '"><i class="bi bi-trash"></i> Remove</button>' +
+                  '</div>' +
+                '</div>';
+        }
+
+        function renderDrawer() {
+            const cart = getCart();
+            const items = cart.items || [];
+            const $items = $('#cartDrawerItems');
+            if (items.length === 0) {
+                $('#cartDrawerEmpty').removeClass('d-none');
+                $items.addClass('d-none').empty();
+                $('#cartDrawerFooter').addClass('d-none');
+                return;
+            }
+            $('#cartDrawerEmpty').addClass('d-none');
+            $items.removeClass('d-none').html(items.map(drawerRow).join(''));
+            $('#cartDrawerSubtotal').text(formatCurrency(cart.subtotal));
+            $('#cartDrawerFooter').removeClass('d-none');
+        }
+
+        function checkoutRow(item) {
+            return '' +
+                '<div class="d-flex justify-content-between align-items-start checkout-cart-row">' +
+                  '<div class="pe-2">' +
+                    '<div class="small fw-semibold text-dark">' + esc(item.name) + '</div>' +
+                    '<div class="extra-small text-muted">' + formatCurrency(item.price) + ' &times; ' + item.quantity + '</div>' +
+                  '</div>' +
+                  '<div class="small fw-semibold text-dark text-nowrap">' + formatCurrency(item.subtotal) + '</div>' +
+                '</div>';
+        }
+
+        function renderCheckoutSummary() {
+            const cart = getCart();
+            const items = cart.items || [];
+            const $list = $('#checkoutCartList');
+            if (items.length === 0) {
+                $list.addClass('d-none').empty();
+                $('#checkoutCartEmpty').removeClass('d-none');
             } else {
-                $submitBtn.prop('disabled', false).html('<i class="bi bi-bag-check me-2"></i>Place Order (' + formatCurrency(total) + ')');
-                $stockStatusDisplay.html('<span class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>In Stock (' + maxStock + ' available)</span>');
+                $list.removeClass('d-none').html(items.map(checkoutRow).join(''));
+                $('#checkoutCartEmpty').addClass('d-none');
+            }
+            $('#orderSubtotalDisplay').text(formatCurrency(cart.subtotal));
+            $('#orderTotalDisplay').text(formatCurrency(cart.subtotal));
+
+            // Keep the legacy hidden fallback in sync with the first line.
+            if (items.length > 0) {
+                $('#order_product_id').val(items[0].product_id);
             }
         }
 
-        // Select product handler
-        $(document).on('click', '.btn-select-product', function (e) {
+        function updatePlaceOrderState() {
+            const cart = getCart();
+            const items = cart.items || [];
+            let blocked = false;
+            let label = '';
+            if (items.length === 0) {
+                blocked = true;
+                label = '<i class="bi bi-cart-x me-1"></i>Cart is Empty';
+            } else if (items.some(function (i) { return !i.within_stock; })) {
+                blocked = true;
+                label = '<i class="bi bi-exclamation-triangle me-1"></i>Fix Cart to Continue';
+            }
+            $submitBtn.data('cart-blocked', blocked).data('cart-label', label);
+            applyPlaceOrderState();
+        }
+
+        function renderAll() {
+            renderBadge();
+            renderDrawer();
+            renderCheckoutSummary();
+            updatePlaceOrderState();
+        }
+
+        // --- API ---
+        function handleSuccess(res, opts) {
+            if (res && res.cart) {
+                window.LPG_CART = res.cart;
+                renderAll();
+            }
+            if ((!opts || opts.toast !== false) && window.showToast && res && res.message) {
+                window.showToast(res.message, 'success');
+            }
+        }
+
+        function handleError(xhr) {
+            let msg = 'Could not update your cart.';
+            try {
+                const parsed = JSON.parse(xhr.responseText);
+                msg = parsed.message || parsed.error || msg;
+            } catch (e) {}
+            if (window.showToast) window.showToast(msg, 'error');
+        }
+
+        function mutate(payload, opts) {
+            const jq = $.ajax({
+                url: endpoint,
+                type: 'POST',
+                data: payload,
+                dataType: 'json'
+            });
+            jq.done(function (res) {
+                if (res && res.success) {
+                    handleSuccess(res, opts);
+                } else if (window.showToast) {
+                    window.showToast((res && (res.message || res.error)) || 'Action failed.', 'error');
+                }
+            }).fail(handleError);
+            return jq;
+        }
+
+        // --- Events ---
+        // Add to cart
+        $(document).on('click', '.btn-add-to-cart', function (e) {
             e.preventDefault();
             const $btn = $(this);
             if ($btn.prop('disabled')) return;
-            const $card = $btn.closest('.app-product-card');
-
-            const id = $btn.data('id');
-            const name = $btn.data('name');
-            const brand = $btn.data('brand');
-            const weight = $btn.data('weight');
-            const price = parseFloat($btn.data('price')) || 0;
-            const stock = parseInt($btn.data('stock'), 10) || 0;
-
-            // Reset every other product button back to default "Select" state
-            $('.btn-select-product').not($btn).each(function () {
-                const $b = $(this);
-                if ($b.prop('disabled')) return; // keep "Sold Out" buttons untouched
-                $b.removeClass('btn-primary').addClass('btn-outline-primary')
-                  .html('<i class="bi bi-hand-index me-1"></i>Select');
+            const id = parseInt($btn.data('id'), 10);
+            if (!id) return;
+            $btn.prop('disabled', true);
+            mutate({ action: 'add', product_id: id, quantity: 1 }).always(function () {
+                $btn.prop('disabled', false);
             });
+        });
 
-            // Mark the clicked product as the selected one
-            $btn.removeClass('btn-outline-primary').addClass('btn-primary')
-                .html('<i class="bi bi-check2 me-1"></i>Selected');
+        // Open drawer
+        $(document).on('click', '#btnOpenCart, #btnOpenCartInline', function (e) {
+            e.preventDefault();
+            const el = document.getElementById('cartDrawer');
+            if (el && window.bootstrap && window.bootstrap.Offcanvas) {
+                window.bootstrap.Offcanvas.getOrCreateInstance(el).show();
+            }
+        });
 
-            // Highlight selected product card
-            $('.app-product-card').removeClass('app-product-selected');
-            $card.addClass('app-product-selected');
+        // Drawer quantity / remove controls
+        $(document).on('click', '[data-cart-action]', function (e) {
+            e.preventDefault();
+            const $b = $(this);
+            const action = $b.data('cart-action');
+            const id = parseInt($b.data('id'), 10);
+            if (!id) return;
 
-            // Update state
-            $productIdInput.val(id);
-            currentPrice = price;
-            maxStock = stock;
-            $qtyInput.attr('max', maxStock > 0 ? maxStock : 1);
+            const item = (getCart().items || []).filter(function (i) { return i.product_id === id; })[0];
+            if (!item) return;
 
-            // Update UI info
-            $productNameDisplay.text(name);
-            $productMetaDisplay.html(
-                (brand ? '<span class="badge bg-secondary me-1">' + brand + '</span>' : '') +
-                (weight ? '<span class="badge bg-info text-dark">' + weight + '</span>' : '')
-            );
-
-            updateTotals();
-
-            // Show checkout section if hidden
-            $orderSection.removeClass('d-none');
-
-            // Desktop: pulse-highlight the pinned checkout card to draw attention.
-            // Mobile (<992px): checkout is below the catalog, so smooth-scroll
-            // to Order & Delivery Details on user tap (not on auto-select).
-            const isUserClick = !e.isTrigger;
-            if (window.matchMedia('(max-width: 991.98px)').matches) {
-                $orderSection.addClass('shop-checkout-flash');
-                setTimeout(function () {
-                    $orderSection.removeClass('shop-checkout-flash');
-                }, 1500);
-                if (isUserClick && $orderSection.length) {
-                    const headerOffset = 70;
-                    const top = $orderSection.get(0).getBoundingClientRect().top + window.pageYOffset - headerOffset;
-                    window.scrollTo({ top: top, behavior: 'smooth' });
+            if (action === 'inc') {
+                mutate({ action: 'update', product_id: id, quantity: item.quantity + 1 });
+            } else if (action === 'dec') {
+                if (item.quantity <= 1) {
+                    mutate({ action: 'remove', product_id: id });
+                } else {
+                    mutate({ action: 'update', product_id: id, quantity: item.quantity - 1 });
                 }
-            } else {
+            } else if (action === 'remove') {
+                mutate({ action: 'remove', product_id: id });
+            }
+        });
+
+        // Clear cart
+        $(document).on('click', '#btnCartClear', function (e) {
+            e.preventDefault();
+            if (getCart().units === 0) return;
+            mutate({ action: 'clear' });
+        });
+
+        // Proceed to checkout: close drawer and reveal the checkout form
+        $(document).on('click', '#btnCartCheckout', function (e) {
+            e.preventDefault();
+            const el = document.getElementById('cartDrawer');
+            if (el && window.bootstrap && window.bootstrap.Offcanvas) {
+                window.bootstrap.Offcanvas.getOrCreateInstance(el).hide();
+            }
+            if ($orderSection.length) {
+                const headerOffset = 70;
+                const top = $orderSection.get(0).getBoundingClientRect().top + window.pageYOffset - headerOffset;
+                window.scrollTo({ top: top, behavior: 'smooth' });
                 $orderSection.addClass('shop-checkout-flash');
                 setTimeout(function () {
                     $orderSection.removeClass('shop-checkout-flash');
                 }, 1500);
             }
-        });
-
-        // Quantity Plus Button
-        $('#btnQtyPlus').on('click', function () {
-            let qty = parseInt($qtyInput.val(), 10) || 1;
-            if (maxStock > 0 && qty < maxStock) {
-                $qtyInput.val(qty + 1);
-                updateTotals();
-            } else if (maxStock <= 0) {
-                if (window.showToast) window.showToast('This product is out of stock.', 'warning');
-            } else {
-                if (window.showToast) window.showToast('Maximum available stock is ' + maxStock + ' units.', 'warning');
-            }
-        });
-
-        // Quantity Minus Button
-        $('#btnQtyMinus').on('click', function () {
-            let qty = parseInt($qtyInput.val(), 10) || 1;
-            if (qty > 1) {
-                $qtyInput.val(qty - 1);
-                updateTotals();
-            }
-        });
-
-        // Quantity manual input change
-        $qtyInput.on('input change', function () {
-            updateTotals();
         });
 
         // Payment Method radio card visual toggle
@@ -170,26 +290,15 @@
             $(this).closest('.payment-method-card').addClass('border-primary bg-primary-subtle');
         });
 
-        // Handle URL parameters for reordering (e.g. ?reorder_product_id=2&qty=2)
-        const urlParams = new URLSearchParams(window.location.search);
-        const reorderId = urlParams.get('reorder_product_id');
-        const reorderQty = parseInt(urlParams.get('qty'), 10) || 1;
+        // Initial paint from the server-rendered cart.
+        renderAll();
 
+        // Reorder deep-link (?reorder_product_id=..&qty=..) prefills the cart.
+        const urlParams = new URLSearchParams(window.location.search);
+        const reorderId = parseInt(urlParams.get('reorder_product_id'), 10);
+        const reorderQty = parseInt(urlParams.get('qty'), 10) || 1;
         if (reorderId) {
-            const $targetBtn = $('.btn-select-product[data-id="' + reorderId + '"]');
-            if ($targetBtn.length > 0) {
-                $targetBtn.trigger('click');
-                if (reorderQty > 1 && reorderQty <= maxStock) {
-                    $qtyInput.val(reorderQty);
-                    updateTotals();
-                }
-            }
-        } else {
-            // Auto-select first available product if none selected
-            const $firstBtn = $('.btn-select-product').first();
-            if ($firstBtn.length > 0) {
-                $firstBtn.trigger('click');
-            }
+            mutate({ action: 'add', product_id: reorderId, quantity: reorderQty }, { toast: false });
         }
     }
 
@@ -748,6 +857,8 @@
         const $latInput = $('#delivery_latitude');
         const $lngInput = $('#delivery_longitude');
         const $status = $('#addressPinStatus');
+        const $notice = $('#deliveryCoverageNotice');
+        const $form = $('#orderPlacementForm');
 
         if ($mapEl.length === 0 || $addressInput.length === 0 || typeof window.L === 'undefined') {
             return;
@@ -755,29 +866,132 @@
         if ($mapEl.data('pin-picker-initialized')) return;
         $mapEl.data('pin-picker-initialized', true);
 
-        const fallbackCoord = [14.5995, 120.9842];
+        // Delivery-zone geometry (store pin + radius) configured centrally in
+        // config/app.php and emitted by shop.php. Coordinates and radius are
+        // not secrets — no API keys or DB credentials are exposed here.
+        const cfg = window.DeliveryCoverage || null;
+        const enforceCoverage = !!(cfg && cfg.enforced !== false);
+        const es = (typeof AppMaps !== 'undefined' && AppMaps.escapeHtml) ? AppMaps.escapeHtml : function (t) { return $('<div>').text(t || '').html(); };
+
+        // Default the button to blocked until a location is confirmed when the
+        // zone is enforced. If geometry is unavailable, never block checkout.
+        $form.data('coverage-enforced', enforceCoverage);
+        $form.data('coverage-ok', enforceCoverage ? false : true);
+
+        const storeCoord = cfg ? [cfg.store.lat, cfg.store.lng] : [14.645962, 120.988134];
+        const radiusMeters = cfg ? cfg.radiusMeters : 3000;
+        const missingMsg = (cfg && cfg.messages && cfg.messages.missing) || "We couldn't confirm your exact delivery location. Please set your location on the map (or correct your address) before placing an order.";
+        const withinMsg = (cfg && cfg.messages && cfg.messages.within) || 'Great! Your address is within our delivery coverage.';
+        const outsideMsg = (cfg && cfg.messages && cfg.messages.outside) || "Sorry, we can't deliver to this location. Your selected address is outside our 3 km delivery coverage. Please select another location within our delivery area.";
+
         let debounceTimer = null;
         let lookupSeq = 0;
 
         const map = L.map('addressPreviewMap', {
             zoomControl: true,
             scrollWheelZoom: false
-        }).setView(fallbackCoord, 13);
+        }).setView(storeCoord, 13);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(map);
 
-        const pinIcon = L.divIcon({
-            className: 'pin-marker-wrapper',
-            html: '<div style="width:32px;height:32px;background:#ef4444;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,0.35);font-size:15px;">📍</div>',
-            iconSize: [32, 32],
-            iconAnchor: [16, 32],
-            popupAnchor: [0, -28]
+        // Blue, semi-transparent circle with an exact radius from config.
+        const coverageCircle = L.circle(storeCoord, {
+            radius: radiusMeters,
+            color: '#2563eb',
+            weight: 2,
+            opacity: 0.9,
+            fillColor: '#2563eb',
+            fillOpacity: 0.15
+        }).addTo(map);
+
+        // Store marker — deliberately different from the red/blue customer pin.
+        const storeIcon = L.divIcon({
+            className: 'store-marker-wrapper',
+            html: '<div class="store-marker-icon"><i class="bi bi-shop"></i></div>',
+            iconSize: [38, 38],
+            iconAnchor: [19, 19],
+            popupAnchor: [0, -18]
         });
+        L.marker(storeCoord, { icon: storeIcon, zIndexOffset: 500 })
+            .addTo(map)
+            .bindPopup('<strong>' + es((cfg && cfg.storeLabel) || 'Elevate LPG') + '</strong><br>3 km delivery coverage area');
+
+        // On-map legend label so the boundary is self-explanatory.
+        const labelControl = L.control({ position: 'topright' });
+        labelControl.onAdd = function () {
+            const div = L.DomUtil.create('div', 'coverage-map-label');
+            div.innerHTML = '<span class="coverage-map-dot"></span>3 KM DELIVERY COVERAGE';
+            return div;
+        };
+        labelControl.addTo(map);
+
+        // Frame the whole circle on first load.
+        try { map.fitBounds(coverageCircle.getBounds(), { padding: [16, 16] }); } catch (err) {}
+
+        function makePinIcon(inCoverage) {
+            const color = inCoverage ? '#16a34a' : '#ef4444';
+            return L.divIcon({
+                className: 'pin-marker-wrapper',
+                html: '<div style="width:32px;height:32px;background:' + color + ';color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,0.35);font-size:15px;">📍</div>',
+                iconSize: [32, 32],
+                iconAnchor: [16, 32],
+                popupAnchor: [0, -28]
+            });
+        }
 
         let marker = null;
+
+        function renderCoverageNotice(state) {
+            if (!$notice.length) return;
+            if (!state) {
+                $notice.html(
+                    '<div class="coverage-notice coverage-notice-neutral">' +
+                    '<i class="bi bi-geo-alt me-1"></i>' + es(missingMsg) +
+                    '</div>'
+                );
+                return;
+            }
+            if (state.within) {
+                $notice.html(
+                    '<div class="coverage-notice coverage-notice-ok">' +
+                    '<i class="bi bi-check-circle-fill me-1"></i>' + es(withinMsg) +
+                    ' <span class="coverage-distance">Distance: ' + es(state.label) + '</span>' +
+                    '</div>'
+                );
+            } else {
+                $notice.html(
+                    '<div class="coverage-notice coverage-notice-out">' +
+                    '<div><i class="bi bi-exclamation-triangle-fill me-1"></i>' + es(outsideMsg) + '</div>' +
+                    '<div class="coverage-out-meta">' +
+                    '<span class="coverage-distance"><i class="bi bi-signpost-split me-1"></i>Distance from store: ' + es(state.label) + '</span>' +
+                    '<button type="button" class="btn btn-sm btn-outline-danger" id="btnChangeDeliveryLocation">' +
+                    '<i class="bi bi-arrow-repeat me-1"></i>Change Delivery Location</button>' +
+                    '</div>' +
+                    '</div>'
+                );
+            }
+        }
+
+        function updateCoverage(lat, lng) {
+            if (!cfg) {
+                // No geometry available: never block the customer.
+                $form.data('coverage-ok', true);
+                if (marker) marker.setIcon(makePinIcon(true));
+                applyPlaceOrderState();
+                return;
+            }
+            const distance = AppMaps.distanceMeters(cfg.store.lat, cfg.store.lng, lat, lng);
+            const within = distance <= cfg.radiusMeters;
+            const label = AppMaps.formatDistance(distance);
+
+            $form.data('coverage-ok', within);
+            if (marker) marker.setIcon(makePinIcon(within));
+            renderCoverageNotice({ within: within, label: label });
+            applyPlaceOrderState();
+        }
 
         function setPin(lat, lng, opts) {
             opts = opts || {};
@@ -786,12 +1000,13 @@
             if (marker) {
                 marker.setLatLng([lat, lng]);
             } else {
-                marker = L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(map);
+                marker = L.marker([lat, lng], { icon: makePinIcon(true), draggable: true, zIndexOffset: 1000 }).addTo(map);
                 bindMarkerEvents();
             }
             if (!opts.keepView) {
                 map.setView([lat, lng], Math.max(map.getZoom(), 16));
             }
+            updateCoverage(lat, lng);
         }
 
         function setStatus(html, tone) {
@@ -810,6 +1025,7 @@
                 $latInput.val(pos.lat.toFixed(7));
                 $lngInput.val(pos.lng.toFixed(7));
                 setStatus('<i class="bi bi-hand-index-thumb me-1"></i>Pin placed at your exact location', 'success');
+                updateCoverage(pos.lat, pos.lng);
             });
         }
 
@@ -830,9 +1046,14 @@
                     setPin(result.lat, result.lng);
                     setStatus('<i class="bi bi-geo-alt-fill me-1"></i>Pin location confirmed &mdash; drag to fine-tune if needed', 'success');
                 } else {
-                    setStatus('<i class="bi bi-exclamation-triangle me-1"></i>Address not found &mdash; click or drag the pin to mark your exact spot', 'warn');
+                    setStatus('<i class="bi bi-exclamation-triangle me-1"></i>Address not found &mdash; click or drag the pin on the map to mark your exact spot', 'warn');
+                    // Never drop a pin at the store on failure — that would
+                    // falsely read as in-coverage. Leave the location unset so
+                    // the customer must confirm it.
                     if (!marker) {
-                        setPin(fallbackCoord[0], fallbackCoord[1], { keepView: true });
+                        $form.data('coverage-ok', enforceCoverage ? false : true);
+                        if (enforceCoverage) renderCoverageNotice(null);
+                        applyPlaceOrderState();
                     }
                 }
             });
@@ -850,6 +1071,15 @@
             setStatus('<i class="bi bi-hand-index-thumb me-1"></i>Pin placed at your exact location', 'success');
         });
 
+        // "Change Delivery Location" action from the out-of-coverage warning.
+        $notice.on('click', '#btnChangeDeliveryLocation', function () {
+            $addressInput.trigger('focus').trigger('select');
+            const el = $mapEl.get(0);
+            if (el && el.scrollIntoView) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+
         // Restore previously submitted coordinates (validation error re-render)
         const initialLat = parseFloat($latInput.val());
         const initialLng = parseFloat($lngInput.val());
@@ -858,6 +1088,10 @@
             setStatus('<i class="bi bi-geo-alt-fill me-1"></i>Pin restored &mdash; drag to fine-tune if needed', 'success');
         } else if ($.trim($addressInput.val()).length >= 6) {
             lookupAddress();
+        } else {
+            // Nothing chosen yet: show the prompt and keep checkout gated.
+            if (enforceCoverage) renderCoverageNotice(null);
+            applyPlaceOrderState();
         }
 
         setTimeout(function () { map.invalidateSize(); }, 300);
@@ -867,7 +1101,7 @@
     // DOM Ready Initialization
     // =========================================================================
     $(function () {
-        [initShopInteractivity, initOrdersInteractivity, initProfileInteractivity,
+        [initShopCart, initOrdersInteractivity, initProfileInteractivity,
          initAvatarUploadInteractivity,
          function () { if (window.AppMaps) AppMaps.initPinLocationMaps(); },
          function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with your rider', peerRole: 'rider' }); },

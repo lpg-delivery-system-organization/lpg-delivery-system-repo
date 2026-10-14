@@ -81,7 +81,7 @@ it("app.php exists, defines constants, and returns config array", function() {
     assert_true(defined('BASE_URL'), "BASE_URL constant must be defined");
     assert_true(defined('APP_NAME'), "APP_NAME constant must be defined");
     assert_true(defined('UPLOAD_PATH'), "UPLOAD_PATH constant must be defined");
-    assert_equals('LPG Delivery System', APP_NAME);
+    assert_equals('Elevate LPG', APP_NAME);
     return true;
 });
 
@@ -186,7 +186,7 @@ it("users table has correct columns and indexes", function() {
     $stmt = $pdo->query("DESCRIBE `users`");
     $cols = array_column($stmt->fetchAll(), 'Field');
 
-    $expectedCols = ['id', 'full_name', 'email', 'password', 'role', 'phone', 'address', 'valid_id_path', 'status', 'created_at', 'updated_at'];
+    $expectedCols = ['id', 'full_name', 'email', 'password', 'role', 'phone', 'address', 'valid_id_path', 'status', 'id_verification_status', 'id_rejection_reason', 'id_reviewed_by', 'id_reviewed_at', 'created_at', 'updated_at'];
     foreach ($expectedCols as $col) {
         assert_true(in_array($col, $cols), "users column '{$col}' must exist");
     }

@@ -59,6 +59,7 @@ if (!function_exists('render_order_card')) {
         $role = $options['role'] ?? (function_exists('current_user_role') ? current_user_role() : 'customer');
         $customActions = $options['actions_html'] ?? '';
         $productImage = (string)($order['product_image'] ?? $order['image_url'] ?? '');
+        $itemCount = (int)($order['item_count'] ?? (is_array($order['items'] ?? null) ? count($order['items']) : 1));
 
         ob_start();
         ?>
@@ -92,6 +93,7 @@ if (!function_exists('render_order_card')) {
                                 </p>
                                 <div class="small">
                                     <span class="text-muted">Quantity:</span> <strong class="text-dark"><?= e((string)$qty) ?></strong>
+                                    <?php if ($itemCount > 1): ?><span class="badge bg-light text-dark border ms-1"><?= e((string)$itemCount) ?> items</span><?php endif; ?>
                                     <span class="mx-2 text-muted">&bull;</span>
                                     <span class="text-muted">Unit Price:</span> <strong><?= e(format_currency($unitPrice)) ?></strong>
                                 </div>

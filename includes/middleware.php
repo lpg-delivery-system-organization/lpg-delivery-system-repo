@@ -174,6 +174,86 @@ function require_role(string ...$roles): void {
 }
 
 /**
+ * Require a logged-in customer's government ID to be verified.
+ *
+ * Self-registered customers start with id_verification_status = 'pending' and
+ * may sign in, but are confined to the verification page until an administrator
+ * approves their ID. Non-customer roles (admin, rider) are never gated.
+ *
+ * The status is re-read from the database on every call so a decision made by
+ * an admin mid-session takes effect immediately, and the session copy is
+ * refreshed so UI badges stay accurate.
+ *
+ * If unauthorized:
+ * - For AJAX: returns HTTP 403 JSON response
+ * - For Web: sets a flash warning and redirects to the verification page
+ *
+ * @return void
+ * @throws AuthException When running under test mode
+ */
+function require_verified_id(): void {
+    if (current_user_role() !== 'customer') {
+        return;
+    }
+
+    require_once __DIR__ . '/../classes/Database.php';
+    require_once __DIR__ . '/../classes/User.php';
+
+    try {
+        $userId = (int)current_user_id();
+        $userModel = new User(Database::connect());
+        $user = $userModel->findById($userId);
+        $status = (string)($user['id_verification_status'] ?? 'approved');
+
+        if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
+            $_SESSION['user']['id_verification_status'] = $status;
+        }
+    } catch (Throwable $e) {
+        // Fail open: a lookup failure must not lock a customer out of the app.
+        return;
+    }
+
+    if ($status === 'approved') {
+        return;
+    }
+
+    $message = ($status === 'rejected')
+        ? 'Your government ID was rejected. Please re-upload a valid ID to continue.'
+        : 'Your account is pending ID verification. You can order once an administrator approves your ID.';
+
+    if (is_ajax()) {
+        $responseData = [
+            'success' => false,
+            'error' => $message,
+            'code' => 403,
+            'id_verification_status' => $status
+        ];
+
+        if (!empty($GLOBALS['TEST_MODE'])) {
+            $GLOBALS['LAST_HTTP_CODE'] = 403;
+            $GLOBALS['LAST_RESPONSE'] = $responseData;
+            throw new AuthException($message, 403, null, $responseData);
+        }
+
+        http_response_code(403);
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode($responseData);
+        exit;
+    }
+
+    set_flash('warning', $message);
+    $redirectUrl = url('/pages/customer/verification.php');
+
+    if (!empty($GLOBALS['TEST_MODE'])) {
+        $GLOBALS['LAST_HTTP_CODE'] = 302;
+        $GLOBALS['LAST_REDIRECT'] = $redirectUrl;
+        throw new AuthException('ID verification required. Redirect to verification page.', 302, $redirectUrl);
+    }
+
+    redirect('/pages/customer/verification.php');
+}
+
+/**
  * Require visitor to be an unauthenticated guest
  *
  * If user is already authenticated:

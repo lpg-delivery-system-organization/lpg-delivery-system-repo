@@ -912,6 +912,8 @@ it('users.php renders user management table, role filters, and add user modal', 
     assert_contains('admin-user-filter-btn', $html);
     assert_contains('addUserModal', $html);
     assert_contains('editUserModal', $html);
+    assert_contains('userVerificationFilterSelect', $html);
+    assert_contains('ID Verification', $html);
 });
 
 it('users.php creates a new user account (admin, rider, customer)', function () use ($db, $testAdmin, $userModel) {
@@ -1002,6 +1004,116 @@ it('users.php enforces self-lockout guard preventing admin from suspending their
     $flash = get_flash();
     assert_equals('error', $flash['type']);
     assert_contains('cannot suspend or deactivate your own', $flash['message']);
+});
+
+it('users.php approves a pending customer government ID (approve_id)', function () use ($db, $testAdmin, $userModel) {
+    reset_admin_env();
+    login_user($testAdmin);
+
+    $tempId = $userModel->create([
+        'full_name' => 'Approve Candidate',
+        'email' => 'approve_' . bin2hex(random_bytes(3)) . '@test.com',
+        'password' => 'Password@123!',
+        'role' => 'customer',
+        'phone' => '09170006677',
+        'address' => 'Pending address',
+        'valid_id_path' => 'uploads/ids/approve_test.png',
+        'status' => 'active',
+        'id_verification_status' => 'pending'
+    ]);
+
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_POST['csrf_token'] = csrf_token();
+    $_POST['action'] = 'approve_id';
+    $_POST['user_id'] = $tempId;
+
+    render_admin_page(__DIR__ . '/../pages/admin/users.php');
+
+    assert_true(has_flash());
+    $flash = get_flash();
+    assert_equals('success', $flash['type']);
+
+    $fresh = $userModel->findById($tempId);
+    assert_equals('approved', $fresh['id_verification_status']);
+
+    $db->prepare("DELETE FROM users WHERE id = ?")->execute([$tempId]);
+});
+
+it('users.php rejects a pending ID and requires a reason (reject_id)', function () use ($db, $testAdmin, $userModel) {
+    reset_admin_env();
+    login_user($testAdmin);
+
+    $tempId = $userModel->create([
+        'full_name' => 'Reject Candidate',
+        'email' => 'reject_' . bin2hex(random_bytes(3)) . '@test.com',
+        'password' => 'Password@123!',
+        'role' => 'customer',
+        'phone' => '09170007788',
+        'address' => 'Pending address',
+        'valid_id_path' => 'uploads/ids/reject_test.png',
+        'status' => 'active',
+        'id_verification_status' => 'pending'
+    ]);
+
+    // Missing reason -> error flash, status unchanged
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_POST['csrf_token'] = csrf_token();
+    $_POST['action'] = 'reject_id';
+    $_POST['user_id'] = $tempId;
+    $_POST['reason'] = '';
+
+    render_admin_page(__DIR__ . '/../pages/admin/users.php');
+
+    assert_true(has_flash());
+    $flash = get_flash();
+    assert_equals('error', $flash['type']);
+
+    $stillPending = $userModel->findById($tempId);
+    assert_equals('pending', $stillPending['id_verification_status']);
+
+    // With reason -> rejected
+    reset_admin_env();
+    login_user($testAdmin);
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_POST['csrf_token'] = csrf_token();
+    $_POST['action'] = 'reject_id';
+    $_POST['user_id'] = $tempId;
+    $_POST['reason'] = 'Blurred photo';
+
+    render_admin_page(__DIR__ . '/../pages/admin/users.php');
+
+    assert_true(has_flash());
+    $flash = get_flash();
+    assert_equals('success', $flash['type']);
+
+    $fresh = $userModel->findById($tempId);
+    assert_equals('rejected', $fresh['id_verification_status']);
+    assert_equals('Blurred photo', $fresh['id_rejection_reason']);
+
+    $db->prepare("DELETE FROM users WHERE id = ?")->execute([$tempId]);
+});
+
+it('users.php renders the pending ID verification alert when applicants await review', function () use ($db, $testAdmin, $userModel) {
+    reset_admin_env();
+    login_user($testAdmin);
+
+    $tempId = $userModel->create([
+        'full_name' => 'Alert Candidate',
+        'email' => 'alert_' . bin2hex(random_bytes(3)) . '@test.com',
+        'password' => 'Password@123!',
+        'role' => 'customer',
+        'phone' => '09170008899',
+        'address' => 'Pending address',
+        'valid_id_path' => 'uploads/ids/alert_test.png',
+        'status' => 'active',
+        'id_verification_status' => 'pending'
+    ]);
+
+    $html = render_admin_page(__DIR__ . '/../pages/admin/users.php');
+    assert_contains('awaiting verification', $html);
+    assert_contains('verification=pending', $html);
+
+    $db->prepare("DELETE FROM users WHERE id = ?")->execute([$tempId]);
 });
 
 it('view_id.php securely proxies valid ID documents and prevents path traversal', function () use ($db, $testAdmin, $userModel) {

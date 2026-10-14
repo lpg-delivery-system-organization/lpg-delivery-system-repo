@@ -56,7 +56,9 @@
                 order_cancelled: 'bi-x-circle-fill',
                 refund_requested: 'bi-arrow-counterclockwise',
                 refund_refunded: 'bi-arrow-return-left',
-                refund_rejected: 'bi-slash-circle-fill'
+                refund_rejected: 'bi-slash-circle-fill',
+                id_verification: 'bi-shield-exclamation',
+                id_purge_warning: 'bi-trash3'
             };
             return icons[type] || 'bi-bell-fill';
         }
@@ -93,7 +95,9 @@
                 receipt_ready: 'info',
                 order_assigned: 'info',
                 order_unassigned: 'warning',
-                refund_requested: 'warning'
+                refund_requested: 'warning',
+                id_verification: 'danger',
+                id_purge_warning: 'danger'
             };
             return tones[type] || 'info';
         }

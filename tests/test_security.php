@@ -8,7 +8,7 @@
  * 2. Authentication State Helpers (login_user, logout_user, is_logged_in, current_user, current_user_role, has_role)
  * 3. CSRF Protection (token generation, csrf_input, POST verification, header verification, timing-safe equality)
  * 4. Rate Limiting (sliding window, lockout threshold, attempt counting, reset)
- * 5. Middleware Guards (require_login, require_role, require_guest, require_csrf, web & AJAX handling)
+ * 5. Middleware Guards (require_login, require_role, require_guest, require_csrf, require_verified_id, web & AJAX handling)
  * 6. Helper Utilities & XSS Sanitization (e, url, set_flash, get_flash, has_flash, format_currency, format_date)
  * 7. Secure File Upload Validator (validate_id_upload with MIME verification, size limits, format restriction)
  */
@@ -405,6 +405,75 @@ it('require_role allows permitted user and blocks unpermitted user', function ()
         assert_equals(403, $resp['code']);
     }
     assert_true($caughtAjax, 'Customer attempting admin role via AJAX should receive JSON 403');
+});
+
+it('require_verified_id confines pending customers and passes approved/admin accounts', function () {
+    require_once __DIR__ . '/../classes/Database.php';
+    require_once __DIR__ . '/../classes/User.php';
+    $db = Database::connect();
+    $userModel = new User($db);
+
+    $pendingId = $userModel->create([
+        'full_name' => 'Security Pending',
+        'email' => 'sec_pending_' . uniqid() . '@test.com',
+        'password' => 'Password@123!',
+        'role' => 'customer',
+        'phone' => '09170009900',
+        'address' => 'Security test street',
+        'status' => 'active',
+        'id_verification_status' => 'pending'
+    ]);
+    $approvedId = $userModel->create([
+        'full_name' => 'Security Approved',
+        'email' => 'sec_approved_' . uniqid() . '@test.com',
+        'password' => 'Password@123!',
+        'role' => 'customer',
+        'phone' => '09170009911',
+        'address' => 'Security test street',
+        'status' => 'active',
+        'id_verification_status' => 'approved'
+    ]);
+
+    // Pending customer (web) -> redirected to the verification page
+    reset_test_env();
+    login_user(['id' => $pendingId, 'role' => 'customer', 'full_name' => 'Security Pending']);
+    $caughtWeb = false;
+    try {
+        require_verified_id();
+    } catch (AuthException $e) {
+        $caughtWeb = true;
+        assert_equals(302, $e->getStatusCode());
+        assert_equals(url('/pages/customer/verification.php'), $e->getRedirectUrl());
+    }
+    assert_true($caughtWeb, 'Pending customer must be redirected to the verification page');
+
+    // Pending customer (AJAX) -> JSON 403 carrying the status
+    $_SERVER['HTTP_X_REQUESTED_WITH'] = 'xmlhttprequest';
+    $caughtAjax = false;
+    try {
+        require_verified_id();
+    } catch (AuthException $e) {
+        $caughtAjax = true;
+        assert_equals(403, $e->getStatusCode());
+        $resp = $e->getJsonResponse();
+        assert_equals(false, $resp['success']);
+        assert_equals('pending', $resp['id_verification_status']);
+    }
+    assert_true($caughtAjax, 'Pending customer AJAX request must receive JSON 403');
+
+    // Approved customer -> allowed
+    reset_test_env();
+    login_user(['id' => $approvedId, 'role' => 'customer', 'full_name' => 'Security Approved']);
+    require_verified_id();
+    assert_true(true);
+
+    // Admin is never gated, even with a non-existent lookup id
+    reset_test_env();
+    login_user(['id' => 999999, 'role' => 'admin', 'full_name' => 'Admin Boss']);
+    require_verified_id();
+    assert_true(true);
+
+    $db->prepare("DELETE FROM users WHERE id IN (?, ?)")->execute([$pendingId, $approvedId]);
 });
 
 it('require_guest allows unauthenticated visitor and redirects authenticated user', function () {

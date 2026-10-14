@@ -8,6 +8,7 @@ require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/middleware.php';
 require_once __DIR__ . '/classes/User.php';
+require_once __DIR__ . '/includes/verification.php';
 
 if (is_logged_in()) {
     redirect_by_role();
@@ -134,17 +135,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['auth_action'] ?? '') === '
 
     if (empty($errors)) {
         try {
-            $userModel->create([
-                'full_name'     => $regFullName,
-                'email'         => $regEmail,
-                'password'      => $password,
-                'role'          => 'customer',
-                'phone'         => $regPhone,
-                'address'       => $regAddress,
-                'valid_id_path' => $validIdPath,
-                'status'        => 'active'
+            $newUserId = $userModel->create([
+                'full_name'              => $regFullName,
+                'email'                  => $regEmail,
+                'password'               => $password,
+                'role'                   => 'customer',
+                'phone'                  => $regPhone,
+                'address'                => $regAddress,
+                'valid_id_path'          => $validIdPath,
+                'status'                 => 'active',
+                'id_verification_status' => 'pending'
             ]);
-            set_flash('success', 'Registration successful! You may now sign in.');
+
+            // Alert admins that a new government ID is awaiting review.
+            if (function_exists('notify_admins_pending_verification')) {
+                notify_admins_pending_verification($newUserId, $regFullName);
+            }
+
+            set_flash('success', 'Registration successful! Your government ID is now pending verification. You may sign in to check your status.');
             redirect('/index.php');
         } catch (Throwable $e) {
             $errors[] = 'Registration failed: ' . $e->getMessage();
@@ -178,7 +186,7 @@ $flashIcon = $flashIcons[$flashType];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?= csrf_token() ?>">
-    <title><?= e($page_title) ?> — <?= defined('APP_NAME') ? APP_NAME : 'LPG Delivery System' ?></title>
+    <title><?= e($page_title) ?> — <?= defined('APP_NAME') ? APP_NAME : 'Elevate LPG' ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -596,7 +604,7 @@ $flashIcon = $flashIcons[$flashType];
         <div class="auth-showcase-brand">
             <span class="auth-showcase-logo"><i class="bi bi-fire"></i></span>
             <div>
-                <div class="fw-bold fs-5 lh-1">LPG Delivery System</div>
+                <div class="fw-bold fs-5 lh-1">Elevate LPG</div>
                 <small style="color: rgba(255,255,255,0.65);">Fast • Safe • Reliable</small>
             </div>
         </div>
@@ -633,7 +641,7 @@ $flashIcon = $flashIcons[$flashType];
     <!-- Branding (mobile / tablet only) -->
     <div class="auth-mobile-brand" data-aos="fade-down" data-aos-delay="100">
         <div class="auth-brand-icon"><i class="bi bi-fire"></i></div>
-        <h1 class="h4 fw-bold text-dark mb-0">LPG Delivery System</h1>
+        <h1 class="h4 fw-bold text-dark mb-0">Elevate LPG</h1>
         <p class="text-muted small mt-1 mb-0">Fast, safe, and reliable LPG cylinder delivery</p>
     </div>
 

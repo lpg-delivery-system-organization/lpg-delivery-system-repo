@@ -275,6 +275,18 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         </div>
                     </div>
 
+                    <?php if (!empty($order['items']) && count($order['items']) > 1): ?>
+                        <div class="mb-3 p-3 border rounded-3">
+                            <label class="text-muted extra-small text-uppercase fw-semibold d-block mb-2">Items to Deliver</label>
+                            <?php foreach ($order['items'] as $ri): ?>
+                                <div class="d-flex justify-content-between small py-1 border-bottom">
+                                    <span class="text-dark"><?= e($ri['product_name'] ?? 'LPG Cylinder') ?></span>
+                                    <span class="fw-semibold text-dark">&times;<?= (int)($ri['quantity'] ?? 0) ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+
                     <!-- Payment Status Callout -->
                     <?php if ($isCod): ?>
                         <div class="alert alert-warning border border-warning-subtle p-3 mb-3">

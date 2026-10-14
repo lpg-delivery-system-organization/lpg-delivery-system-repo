@@ -9,6 +9,7 @@ require_once __DIR__ . '/Product.php';
 require_once __DIR__ . '/User.php';
 require_once __DIR__ . '/Notification.php';
 require_once __DIR__ . '/OrderNotifier.php';
+require_once __DIR__ . '/DeliveryCoverage.php';
 
 class Order {
     /**
@@ -65,14 +66,17 @@ class Order {
      */
     public function place(array $orderData, bool $notifyAdmins = true): int {
         $customerId = (int)($orderData['customer_id'] ?? 0);
-        $productId = (int)($orderData['product_id'] ?? 0);
-        $quantity = (int)($orderData['quantity'] ?? 0);
         $paymentMethod = $orderData['payment_method'] ?? 'cod';
         $paymentReference = isset($orderData['payment_reference']) ? trim((string)$orderData['payment_reference']) : null;
         $deliveryAddress = trim($orderData['delivery_address'] ?? '');
         $contactPhone = trim($orderData['contact_phone'] ?? '');
         $notes = isset($orderData['notes']) ? trim($orderData['notes']) : null;
         $status = $orderData['status'] ?? 'pending';
+
+        // Normalise the requested line items. A full cart passes an `items`
+        // array; legacy callers still pass a single product_id + quantity, so
+        // both shapes place the same kind of order.
+        $items = $this->normaliseItems($orderData);
 
         // Resolve exact drop-off coordinates (client pin preferred, geocode fallback)
         [$deliveryLatitude, $deliveryLongitude] = $this->resolveDeliveryCoordinates(
@@ -81,8 +85,12 @@ class Order {
             $orderData['delivery_longitude'] ?? null
         );
 
-        if ($customerId <= 0 || $productId <= 0 || $quantity <= 0) {
-            throw new InvalidArgumentException("Customer ID, Product ID, and a positive Quantity are required.");
+        if ($customerId <= 0) {
+            throw new InvalidArgumentException("A valid customer is required.");
+        }
+
+        if (empty($items)) {
+            throw new InvalidArgumentException("At least one product is required to place an order.");
         }
 
         if (empty($deliveryAddress) || empty($contactPhone)) {
@@ -94,44 +102,90 @@ class Order {
             throw new InvalidArgumentException("Invalid payment method '{$paymentMethod}'.");
         }
 
+        // Enforce the circular 3 km delivery zone BEFORE opening a transaction
+        // or touching inventory, so an out-of-coverage request can never create
+        // an order or reserve stock. The distance is recalculated here from the
+        // coordinates — a value sent by the browser is never trusted.
+        if (DeliveryCoverage::isEnforced()) {
+            $coverage = DeliveryCoverage::evaluate($deliveryLatitude, $deliveryLongitude);
+            if (!$coverage['within']) {
+                throw new InvalidArgumentException($coverage['message']);
+            }
+        }
+
         // Begin transaction for row locking & atomic updates
         $this->db->beginTransaction();
 
         try {
             $productModel = new Product($this->db);
 
-            // Pessimistic lock on product record
-            $product = $productModel->findByIdForUpdate($productId);
+            $lineItems = [];
+            $totalAmount = 0.0;
+            $totalQuantity = 0;
 
-            if (!$product) {
-                throw new RuntimeException("Product #{$productId} not found.");
-            }
+            // Validate and reserve each product, locking one product row at a
+            // time. Any failure rolls the whole order back, so a multi-item
+            // order is all-or-nothing.
+            foreach ($items as $item) {
+                $productId = (int)$item['product_id'];
+                $quantity = (int)$item['quantity'];
 
-            if ($product['status'] !== 'active') {
-                throw new RuntimeException("Product '{$product['name']}' is currently inactive.");
-            }
+                // Pessimistic lock on product record
+                $product = $productModel->findByIdForUpdate($productId);
 
-            if ((int)$product['stock'] < $quantity) {
-                throw new RuntimeException("Insufficient stock for '{$product['name']}'. Requested: {$quantity}, Available: {$product['stock']}.");
-            }
-
-            // Snapshot the unit price at order time
-            $unitPrice = (float)$product['price'];
-            $totalAmount = round($unitPrice * $quantity, 2);
-
-            // Decrement product inventory atomically.
-            // For 'pending_payment' orders (online checkout) stock is NOT
-            // reserved yet — it is decremented inside confirmPayment() once
-            // the payment webhook confirms. This prevents tying up stock for
-            // unpaid or abandoned online orders.
-            if ($status !== 'pending_payment') {
-                $decremented = $productModel->decrementStock($productId, $quantity);
-                if (!$decremented) {
-                    throw new RuntimeException("Failed to reserve stock for product #{$productId}.");
+                if (!$product) {
+                    throw new RuntimeException("Product #{$productId} not found.");
                 }
+
+                if ($product['status'] !== 'active') {
+                    throw new RuntimeException("Product '{$product['name']}' is currently inactive.");
+                }
+
+                if ((int)$product['stock'] < $quantity) {
+                    throw new RuntimeException("Insufficient stock for '{$product['name']}'. Requested: {$quantity}, Available: {$product['stock']}.");
+                }
+
+                // Snapshot the unit price at order time
+                $unitPrice = (float)$product['price'];
+                $subtotal = round($unitPrice * $quantity, 2);
+
+                // Decrement product inventory atomically.
+                // For 'pending_payment' orders (online checkout) stock is NOT
+                // reserved yet — it is decremented inside confirmPayment() once
+                // the payment webhook confirms. This prevents tying up stock for
+                // unpaid or abandoned online orders.
+                if ($status !== 'pending_payment') {
+                    $decremented = $productModel->decrementStock($productId, $quantity);
+                    if (!$decremented) {
+                        throw new RuntimeException("Failed to reserve stock for product #{$productId}.");
+                    }
+                }
+
+                $lineItems[] = [
+                    'product_id'   => $productId,
+                    'product_name' => (string)$product['name'],
+                    'brand'        => (string)$product['brand'],
+                    'weight'       => (string)$product['weight'],
+                    'unit_price'   => $unitPrice,
+                    'quantity'     => $quantity,
+                    'subtotal'     => $subtotal,
+                ];
+
+                $totalAmount += $subtotal;
+                $totalQuantity += $quantity;
             }
 
-            // Insert new order record
+            $totalAmount = round($totalAmount, 2);
+            $primaryProductId = (int)$lineItems[0]['product_id'];
+
+            // Weighted-average unit price keeps the legacy summary columns
+            // self-consistent (orders.total_amount ~ quantity * unit_price).
+            // For a single-item order this is exactly the product's price.
+            $summaryUnitPrice = $totalQuantity > 0 ? round($totalAmount / $totalQuantity, 2) : 0.0;
+
+            // Insert new order record (summary columns describe the first item
+            // plus the order totals; the authoritative per-product detail lives
+            // in order_items below).
             $stmt = $this->db->prepare("
                 INSERT INTO orders (
                     customer_id, product_id, rider_id, quantity, unit_price, total_amount,
@@ -144,9 +198,9 @@ class Order {
 
             $stmt->execute([
                 $customerId,
-                $productId,
-                $quantity,
-                $unitPrice,
+                $primaryProductId,
+                $totalQuantity,
+                $summaryUnitPrice,
                 $totalAmount,
                 $paymentMethod,
                 $paymentReference,
@@ -159,6 +213,26 @@ class Order {
             ]);
 
             $orderId = (int)$this->db->lastInsertId();
+
+            // Persist the individual line items.
+            $itemStmt = $this->db->prepare("
+                INSERT INTO order_items (
+                    order_id, product_id, product_name, brand, weight,
+                    unit_price, quantity, subtotal, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ");
+            foreach ($lineItems as $line) {
+                $itemStmt->execute([
+                    $orderId,
+                    $line['product_id'],
+                    $line['product_name'],
+                    $line['brand'],
+                    $line['weight'],
+                    $line['unit_price'],
+                    $line['quantity'],
+                    $line['subtotal'],
+                ]);
+            }
 
             $this->db->commit();
 
@@ -180,6 +254,142 @@ class Order {
             }
             throw $e;
         }
+    }
+
+    /**
+     * Normalise the requested line items into [['product_id'=>int,'quantity'=>int], ...].
+     *
+     * Accepts either the new `items` array or the legacy single product_id +
+     * quantity pair, and merges duplicate product IDs so the same product can
+     * never be reserved twice in one order.
+     *
+     * @param array $orderData
+     * @return array<int, array{product_id:int, quantity:int}>
+     */
+    private function normaliseItems(array $orderData): array {
+        $raw = $orderData['items'] ?? null;
+
+        if (!is_array($raw) || empty($raw)) {
+            $legacyId = (int)($orderData['product_id'] ?? 0);
+            $legacyQty = (int)($orderData['quantity'] ?? 0);
+            if ($legacyId <= 0 || $legacyQty <= 0) {
+                return [];
+            }
+            return [['product_id' => $legacyId, 'quantity' => $legacyQty]];
+        }
+
+        $merged = [];
+        foreach ($raw as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $productId = (int)($item['product_id'] ?? 0);
+            $quantity = (int)($item['quantity'] ?? 0);
+            if ($productId <= 0 || $quantity <= 0) {
+                continue;
+            }
+            $merged[$productId] = ($merged[$productId] ?? 0) + $quantity;
+        }
+
+        $items = [];
+        foreach ($merged as $productId => $quantity) {
+            $items[] = ['product_id' => (int)$productId, 'quantity' => (int)$quantity];
+        }
+
+        return $items;
+    }
+
+    /**
+     * The line items for an order.
+     *
+     * Falls back to the single product embedded in the order row for legacy or
+     * seed orders that predate the order_items table, so every consumer always
+     * gets at least one item.
+     *
+     * @param int $orderId
+     * @return array<int, array<string, mixed>>
+     */
+    public function getItems(int $orderId): array {
+        $stmt = $this->db->prepare("
+            SELECT id, order_id, product_id, product_name, brand, weight, unit_price, quantity, subtotal
+            FROM order_items
+            WHERE order_id = ?
+            ORDER BY id ASC
+        ");
+        $stmt->execute([$orderId]);
+        $rows = $stmt->fetchAll();
+
+        if (empty($rows)) {
+            $fallback = $this->db->prepare("
+                SELECT o.product_id, o.quantity, o.unit_price, o.total_amount,
+                       p.name AS product_name, p.brand, p.weight
+                FROM orders o
+                LEFT JOIN products p ON p.id = o.product_id
+                WHERE o.id = ?
+                LIMIT 1
+            ");
+            $fallback->execute([$orderId]);
+            $order = $fallback->fetch();
+            if ($order) {
+                $rows = [[
+                    'id'           => 0,
+                    'order_id'     => $orderId,
+                    'product_id'   => $order['product_id'] !== null ? (int)$order['product_id'] : null,
+                    'product_name' => $order['product_name'] ?? 'LPG Cylinder',
+                    'brand'        => $order['brand'],
+                    'weight'       => $order['weight'],
+                    'unit_price'   => (float)$order['unit_price'],
+                    'quantity'     => (int)$order['quantity'],
+                    'subtotal'     => (float)$order['total_amount'],
+                ]];
+            }
+        }
+
+        foreach ($rows as &$row) {
+            $row['unit_price'] = (float)$row['unit_price'];
+            $row['quantity']   = (int)$row['quantity'];
+            $row['subtotal']   = (float)$row['subtotal'];
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    /**
+     * The product/quantity pairs that must have stock reserved or restored for
+     * an order. Prefers order_items, falling back to the order's single product.
+     *
+     * @param int $orderId
+     * @return array<int, array{product_id:int, quantity:int}>
+     */
+    private function getStockMovements(int $orderId): array {
+        $stmt = $this->db->prepare("
+            SELECT product_id, quantity
+            FROM order_items
+            WHERE order_id = ? AND product_id IS NOT NULL
+        ");
+        $stmt->execute([$orderId]);
+        $rows = $stmt->fetchAll();
+
+        if (!empty($rows)) {
+            $movements = [];
+            foreach ($rows as $row) {
+                $movements[] = [
+                    'product_id' => (int)$row['product_id'],
+                    'quantity'   => (int)$row['quantity'],
+                ];
+            }
+            return $movements;
+        }
+
+        $fallback = $this->db->prepare("SELECT product_id, quantity FROM orders WHERE id = ? LIMIT 1");
+        $fallback->execute([$orderId]);
+        $order = $fallback->fetch();
+        if (!$order || (int)$order['product_id'] <= 0) {
+            return [];
+        }
+
+        return [['product_id' => (int)$order['product_id'], 'quantity' => (int)$order['quantity']]];
     }
 
     /**
@@ -314,6 +524,9 @@ class Order {
         ");
         $stmt->execute([$id]);
         $order = $stmt->fetch();
+        if ($order) {
+            $order['items'] = $this->getItems($id);
+        }
         return $order ?: null;
     }
 
@@ -386,24 +599,30 @@ class Order {
                 throw new RuntimeException("Order #{$orderId} is not awaiting payment.");
             }
 
-            // Reserve stock now that payment is confirmed.
+            // Reserve stock now that payment is confirmed. Iterate every line
+            // item, locking one product row at a time to prevent overselling.
             $productModel = new Product($this->db);
 
-            // Pessimistic lock on product row to prevent overselling.
-            $product = $productModel->findByIdForUpdate((int)$order['product_id']);
-            if (!$product) {
-                throw new RuntimeException("Product #{$order['product_id']} not found.");
-            }
-            if ($product['status'] !== 'active') {
-                throw new RuntimeException("Product '{$product['name']}' is no longer active.");
-            }
-            if ((int)$product['stock'] < (int)$order['quantity']) {
-                throw new RuntimeException("Insufficient stock for '{$product['name']}'. Payment will be refunded separately.");
-            }
+            foreach ($this->getStockMovements($orderId) as $movement) {
+                $pid = $movement['product_id'];
+                $qty = $movement['quantity'];
 
-            $decremented = $productModel->decrementStock((int)$order['product_id'], (int)$order['quantity']);
-            if (!$decremented) {
-                throw new RuntimeException("Failed to reserve stock for product #{$order['product_id']}.");
+                // Pessimistic lock on product row to prevent overselling.
+                $product = $productModel->findByIdForUpdate($pid);
+                if (!$product) {
+                    throw new RuntimeException("Product #{$pid} not found.");
+                }
+                if ($product['status'] !== 'active') {
+                    throw new RuntimeException("Product '{$product['name']}' is no longer active.");
+                }
+                if ((int)$product['stock'] < $qty) {
+                    throw new RuntimeException("Insufficient stock for '{$product['name']}'. Payment will be refunded separately.");
+                }
+
+                $decremented = $productModel->decrementStock($pid, $qty);
+                if (!$decremented) {
+                    throw new RuntimeException("Failed to reserve stock for product #{$pid}.");
+                }
             }
 
             // Mark paid and move to normal pending queue.
@@ -444,7 +663,9 @@ class Order {
         $stmt = $this->db->prepare("
             SELECT o.*,
                    p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image,
-                   r.full_name AS rider_name, r.phone AS rider_phone
+                   r.full_name AS rider_name, r.phone AS rider_phone,
+                   (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count,
+                   (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_units
             FROM orders o
             JOIN products p ON o.product_id = p.id
             LEFT JOIN users r ON o.rider_id = r.id
@@ -467,7 +688,9 @@ class Order {
             $stmt = $this->db->prepare("
                 SELECT o.*,
                        c.full_name AS customer_name, c.phone AS customer_phone,
-                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image
+                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image,
+                       (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count,
+                       (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_units
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 JOIN products p ON o.product_id = p.id
@@ -479,7 +702,9 @@ class Order {
             $stmt = $this->db->prepare("
                 SELECT o.*,
                        c.full_name AS customer_name, c.phone AS customer_phone,
-                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image
+                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image,
+                       (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count,
+                       (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_units
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 JOIN products p ON o.product_id = p.id
@@ -500,7 +725,9 @@ class Order {
         $stmt = $this->db->query("
             SELECT o.*,
                    c.full_name AS customer_name, c.phone AS customer_phone,
-                   p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image
+                   p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image,
+                   (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count,
+                   (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_units
             FROM orders o
             JOIN users c ON o.customer_id = c.id
             JOIN products p ON o.product_id = p.id
@@ -522,7 +749,9 @@ class Order {
                 SELECT o.*,
                        c.full_name AS customer_name, c.email AS customer_email,
                        r.full_name AS rider_name,
-                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image
+                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image,
+                       (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count,
+                       (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_units
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 JOIN products p ON o.product_id = p.id
@@ -536,7 +765,9 @@ class Order {
                 SELECT o.*,
                        c.full_name AS customer_name, c.email AS customer_email,
                        r.full_name AS rider_name,
-                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image
+                       p.name AS product_name, p.brand AS product_brand, p.weight AS product_weight, p.image_url AS product_image,
+                       (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count,
+                       (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi WHERE oi.order_id = o.id) AS item_units
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 JOIN products p ON o.product_id = p.id
@@ -793,7 +1024,9 @@ class Order {
             // so cancelling them must not add stock back.
             if ($order['status'] !== 'pending_payment') {
                 $productModel = new Product($this->db);
-                $productModel->incrementStock((int)$order['product_id'], (int)$order['quantity']);
+                foreach ($this->getStockMovements($orderId) as $movement) {
+                    $productModel->incrementStock($movement['product_id'], $movement['quantity']);
+                }
             }
 
             // Update order status
@@ -931,9 +1164,11 @@ class Order {
                 throw new RuntimeException("Refund for order #{$orderId} was already processed by another request.");
             }
 
-            // Stock was reserved when payment confirmed, so restore it now.
+            // Stock was reserved when payment confirmed, so restore every line.
             $productModel = new Product($this->db);
-            $productModel->incrementStock((int)$order['product_id'], (int)$order['quantity']);
+            foreach ($this->getStockMovements($orderId) as $movement) {
+                $productModel->incrementStock($movement['product_id'], $movement['quantity']);
+            }
 
             $upd = $this->db->prepare("
                 UPDATE orders

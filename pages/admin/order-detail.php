@@ -298,6 +298,18 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         <strong class="text-dark"><?= (int)$order['quantity'] ?> unit(s)</strong>
                     </div>
 
+                    <?php if (!empty($order['items']) && count($order['items']) > 1): ?>
+                    <div class="py-2 border-bottom">
+                        <span class="text-muted d-block mb-1">Items:</span>
+                        <?php foreach ($order['items'] as $ai): ?>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-dark"><?= e($ai['product_name'] ?? 'LPG Cylinder') ?> <span class="text-muted">&times;<?= (int)($ai['quantity'] ?? 0) ?></span></span>
+                                <span class="fw-semibold text-dark"><?= e(format_currency($ai['subtotal'] ?? 0)) ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="d-flex justify-content-between py-2 border-bottom">
                         <span class="text-muted">Unit Price:</span>
                         <span class="fw-semibold text-dark"><?= e(format_currency($order['unit_price'] ?? 0)) ?></span>

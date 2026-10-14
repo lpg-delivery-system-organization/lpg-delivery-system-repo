@@ -890,6 +890,109 @@ it('Admin retrieves user profile and password hash is redacted (get_user)', func
     assert_false(isset($res['data']['data']['password']), 'Password hash MUST NEVER be exposed in JSON response');
 });
 
+it('Admin approves a pending customer government ID (verify_id approve)', function () use ($usersApi, $testAdmin, $userModel, $db) {
+    reset_api_env();
+    login_user($testAdmin);
+    $token = csrf_token();
+
+    $pendingId = $userModel->create([
+        'full_name' => 'API Approve Candidate',
+        'email' => 'api_approve_' . bin2hex(random_bytes(3)) . '@test.com',
+        'password' => 'Password@123!',
+        'role' => 'customer',
+        'phone' => '09170003344',
+        'address' => 'API test address',
+        'valid_id_path' => 'uploads/ids/api_approve.png',
+        'status' => 'active',
+        'id_verification_status' => 'pending'
+    ]);
+
+    $res = call_endpoint($usersApi, [
+        'action' => 'verify_id',
+        'user_id' => $pendingId,
+        'decision' => 'approve',
+        'csrf_token' => $token
+    ]);
+
+    assert_equals(200, $res['code']);
+    assert_true($res['data']['success'] ?? false);
+    assert_equals('approved', $res['data']['data']['id_verification_status']);
+    assert_false(isset($res['data']['data']['password']), 'Password hash must never be exposed');
+
+    $db->prepare("DELETE FROM users WHERE id = ?")->execute([$pendingId]);
+});
+
+it('Admin rejects a pending ID and a reason is required (verify_id reject)', function () use ($usersApi, $testAdmin, $userModel, $db) {
+    reset_api_env();
+    login_user($testAdmin);
+    $token = csrf_token();
+
+    $pendingId = $userModel->create([
+        'full_name' => 'API Reject Candidate',
+        'email' => 'api_reject_' . bin2hex(random_bytes(3)) . '@test.com',
+        'password' => 'Password@123!',
+        'role' => 'customer',
+        'phone' => '09170004455',
+        'address' => 'API reject address',
+        'valid_id_path' => 'uploads/ids/api_reject.png',
+        'status' => 'active',
+        'id_verification_status' => 'pending'
+    ]);
+
+    // Missing reason -> HTTP 400
+    $res1 = call_endpoint($usersApi, [
+        'action' => 'verify_id',
+        'user_id' => $pendingId,
+        'decision' => 'reject',
+        'reason' => '',
+        'csrf_token' => $token
+    ]);
+    assert_equals(400, $res1['code']);
+    assert_false($res1['data']['success'] ?? true);
+
+    // Valid rejection records the reason
+    $res2 = call_endpoint($usersApi, [
+        'action' => 'verify_id',
+        'user_id' => $pendingId,
+        'decision' => 'reject',
+        'reason' => 'Document is unreadable',
+        'csrf_token' => $token
+    ]);
+    assert_equals(200, $res2['code']);
+    assert_equals('rejected', $res2['data']['data']['id_verification_status']);
+    assert_equals('Document is unreadable', $res2['data']['data']['id_rejection_reason']);
+
+    $db->prepare("DELETE FROM users WHERE id = ?")->execute([$pendingId]);
+});
+
+it('verify_id rejects a user with no uploaded ID (HTTP 400)', function () use ($usersApi, $testAdmin, $userModel, $db) {
+    reset_api_env();
+    login_user($testAdmin);
+    $token = csrf_token();
+
+    $noId = $userModel->create([
+        'full_name' => 'API No ID Candidate',
+        'email' => 'api_noid_' . bin2hex(random_bytes(3)) . '@test.com',
+        'password' => 'Password@123!',
+        'role' => 'customer',
+        'phone' => '09170005566',
+        'address' => 'API no-id address',
+        'status' => 'active',
+        'id_verification_status' => 'pending'
+    ]);
+
+    $res = call_endpoint($usersApi, [
+        'action' => 'verify_id',
+        'user_id' => $noId,
+        'decision' => 'approve',
+        'csrf_token' => $token
+    ]);
+    assert_equals(400, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+
+    $db->prepare("DELETE FROM users WHERE id = ?")->execute([$noId]);
+});
+
 // =========================================================================
 // Group 8: Error Boundaries & Concurrency Conflict Validations
 // =========================================================================

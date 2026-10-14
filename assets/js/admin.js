@@ -637,6 +637,7 @@
 
         let currentRoleFilter = 'all';
         let currentStatusFilter = 'all';
+        let currentVerificationFilter = 'all';
         let currentSearchQuery = '';
 
         function applyUserFilters() {
@@ -647,6 +648,7 @@
                 const $row = $(this);
                 const role = ($row.data('role') || '').toLowerCase();
                 const status = ($row.data('status') || '').toLowerCase();
+                const verification = ($row.data('verification') || '').toLowerCase();
                 const name = ($row.data('name') || '').toLowerCase();
                 const email = ($row.data('email') || '').toLowerCase();
                 const phone = ($row.data('phone') || '').toLowerCase();
@@ -658,6 +660,9 @@
                 // Status match
                 let statusMatch = (currentStatusFilter === 'all') || (status === currentStatusFilter);
 
+                // ID verification match (pending / approved / rejected)
+                let verificationMatch = (currentVerificationFilter === 'all') || (verification === currentVerificationFilter);
+
                 // Search query match
                 let searchMatch = true;
                 if (currentSearchQuery.trim() !== '') {
@@ -665,7 +670,7 @@
                     searchMatch = name.includes(q) || email.includes(q) || phone.includes(q) || address.includes(q);
                 }
 
-                if (roleMatch && statusMatch && searchMatch) {
+                if (roleMatch && statusMatch && verificationMatch && searchMatch) {
                     $row.show();
                     visibleCount++;
                 } else {
@@ -705,6 +710,12 @@
             applyUserFilters();
         });
 
+        // ID Verification Select Filter
+        $('#userVerificationFilterSelect').on('change', function () {
+            currentVerificationFilter = $(this).val() || 'all';
+            applyUserFilters();
+        });
+
         // Edit User Modal Opener
         $(document).on('click', '.btn-open-edit-user', function (e) {
             e.preventDefault();
@@ -737,9 +748,33 @@
             }
         });
 
-        // URL Query parameter filtering (e.g. ?role=rider)
+        // Reject Government ID Modal Opener
+        $(document).on('click', '.btn-open-reject-id', function (e) {
+            e.preventDefault();
+            const $btn = $(this);
+            $('#rejectIdUserId').val($btn.attr('data-id') || '0');
+            $('#rejectIdUserName').text($btn.attr('data-name') || 'this user');
+            $('#rejectIdReason').val('');
+
+            const modalEl = document.getElementById('rejectIdModal');
+            if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            } else {
+                console.error('Reject ID modal cannot open: modal element or Bootstrap JS missing.');
+            }
+        });
+
+        // URL Query parameter filtering (e.g. ?role=rider or ?verification=pending)
         const urlParams = new URLSearchParams(window.location.search);
         const queryRole = urlParams.get('role');
+        const queryVerification = urlParams.get('verification');
+        if (queryVerification) {
+            const $verificationSelect = $('#userVerificationFilterSelect');
+            if ($verificationSelect.find('option[value="' + queryVerification + '"]').length) {
+                $verificationSelect.val(queryVerification);
+                currentVerificationFilter = queryVerification;
+            }
+        }
         if (queryRole) {
             const $roleBtn = $('.admin-user-filter-btn[data-role="' + queryRole + '"]');
             if ($roleBtn.length > 0) {

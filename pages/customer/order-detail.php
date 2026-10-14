@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../classes/Product.php';
 require_once __DIR__ . '/../../classes/User.php';
 
 require_role('customer');
+require_verified_id();
 
 $customerId = (int)current_user_id();
 $orderId = (int)($_GET['id'] ?? 0);
@@ -223,12 +224,22 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                 </tr>
                             </thead>
                             <tbody>
+                                <?php
+                                $detailItems = !empty($order['items']) ? $order['items'] : [[
+                                    'product_name' => $order['product_name'] ?? 'LPG Cylinder',
+                                    'quantity'     => (int)($order['quantity'] ?? 1),
+                                    'unit_price'   => (float)($order['unit_price'] ?? 0),
+                                    'subtotal'     => (float)($order['total_amount'] ?? 0),
+                                ]];
+                                foreach ($detailItems as $di):
+                                ?>
                                 <tr>
-                                    <td class="fw-semibold text-dark"><?= e($order['product_name'] ?? 'LPG Cylinder') ?></td>
-                                    <td class="text-center text-dark fw-semibold"><?= (int)$order['quantity'] ?></td>
-                                    <td class="text-end text-dark"><?= e(format_currency($order['unit_price'] ?? 0)) ?></td>
-                                    <td class="text-end fw-bold text-dark"><?= e(format_currency($order['total_amount'] ?? 0)) ?></td>
+                                    <td class="fw-semibold text-dark"><?= e($di['product_name'] ?? 'LPG Cylinder') ?></td>
+                                    <td class="text-center text-dark fw-semibold"><?= (int)$di['quantity'] ?></td>
+                                    <td class="text-end text-dark"><?= e(format_currency($di['unit_price'] ?? 0)) ?></td>
+                                    <td class="text-end fw-bold text-dark"><?= e(format_currency($di['subtotal'] ?? 0)) ?></td>
                                 </tr>
+                                <?php endforeach; ?>
                             </tbody>
                             <tfoot>
                                 <tr>

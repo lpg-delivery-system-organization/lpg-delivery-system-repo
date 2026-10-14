@@ -12,9 +12,11 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/middleware.php';
 require_once __DIR__ . '/../../classes/Database.php';
 require_once __DIR__ . '/../../classes/User.php';
+require_once __DIR__ . '/../../includes/verification.php';
 
 // Enforce customer access
 require_role('customer');
+require_verified_id();
 
 $db = Database::connect();
 $userModel = new User($db);
@@ -112,10 +114,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'address'   => $address
             ];
 
-            if ($validIdRelativePath !== null) {
-                $updatePayload['valid_id_path'] = $validIdRelativePath;
-            }
-
             if ($avatarRelativePath !== null) {
                 $updatePayload['profile_picture'] = $avatarRelativePath;
             }
@@ -131,13 +129,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['user']['full_name'] = $fullName;
                         $_SESSION['user']['phone'] = $phone;
                         $_SESSION['user']['address'] = $address;
-                        if ($validIdRelativePath !== null) {
-                            $_SESSION['user']['valid_id_path'] = $validIdRelativePath;
-                        }
                         if ($avatarRelativePath !== null) {
                             $_SESSION['user']['profile_picture'] = $avatarRelativePath;
                         }
                     }
+
+                    // A newly uploaded ID replaces the verified document and must be
+                    // re-reviewed, resetting the account back to "pending".
+                    if ($validIdRelativePath !== null) {
+                        $userModel->submitId($customerId, $validIdRelativePath);
+                        notify_admins_pending_verification($customerId, $fullName);
+                        if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
+                            $_SESSION['user']['valid_id_path'] = $validIdRelativePath;
+                            $_SESSION['user']['id_verification_status'] = 'pending';
+                        }
+                        set_flash('info', 'Your new government ID was submitted and is pending verification. You can continue once an administrator approves it.');
+                        redirect('/pages/customer/verification.php');
+                        return;
+                    }
+
                     set_flash('success', 'Your profile details have been successfully updated.');
                     redirect('/pages/customer/profile.php');
                     return;

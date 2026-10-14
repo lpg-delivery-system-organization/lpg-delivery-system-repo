@@ -16,6 +16,20 @@ class Mailer {
     private bool $mockMode;
 
     /**
+     * SMTP debug verbosity (0 = off). Set via the 'debug' config key.
+     *
+     * @var int
+     */
+    private int $debug = 0;
+
+    /**
+     * Last transport error, if a real send failed.
+     *
+     * @var string|null
+     */
+    private ?string $lastError = null;
+
+    /**
      * In-memory store for sent emails in mock/test mode
      *
      * @var array
@@ -29,8 +43,15 @@ class Mailer {
      */
     public function __construct(?array $config = null) {
         if ($config === null) {
-            $configFile = dirname(__DIR__) . '/config/mail.php';
-            if (file_exists($configFile)) {
+            $configDir   = dirname(__DIR__) . '/config';
+            $localFile   = $configDir . '/mail.local.php';
+            $configFile  = $configDir . '/mail.php';
+
+            // Real credentials live in a git-ignored mail.local.php; the
+            // committed config/mail.php stays a secret-free template.
+            if (file_exists($localFile)) {
+                $this->config = require $localFile;
+            } elseif (file_exists($configFile)) {
                 $this->config = require $configFile;
             } else {
                 $this->config = [
@@ -40,7 +61,7 @@ class Mailer {
                     'username' => 'noreply@lpgdeliverysystem.com',
                     'password' => '',
                     'from_email' => 'noreply@lpgdeliverysystem.com',
-                    'from_name' => 'LPG Delivery System',
+                    'from_name' => 'Elevate LPG',
                     'mock_mode' => true,
                 ];
             }
@@ -48,7 +69,13 @@ class Mailer {
             $this->config = $config;
         }
 
-        $this->mockMode = (bool)($this->config['mock_mode'] ?? true);
+        $this->debug = (int)($this->config['debug'] ?? 0);
+
+        // Never touch a real SMTP server while the automated suites run: every
+        // test file runs in its own process with $GLOBALS['TEST_MODE'] = true.
+        $isTestEnvironment = !empty($GLOBALS['TEST_MODE']);
+
+        $this->mockMode = $isTestEnvironment || (bool)($this->config['mock_mode'] ?? true);
     }
 
     /**
@@ -58,6 +85,25 @@ class Mailer {
      */
     public function isMockMode(): bool {
         return $this->mockMode;
+    }
+
+    /**
+     * Last transport error from a failed real send, or null.
+     *
+     * @return string|null
+     */
+    public function getLastError(): ?string {
+        return $this->lastError;
+    }
+
+    /**
+     * Override SMTP debug verbosity at runtime.
+     *
+     * @param int $level 0 = off, 1/2 = verbose SMTP transcript
+     * @return void
+     */
+    public function setDebug(int $level): void {
+        $this->debug = max(0, $level);
     }
 
     /**
@@ -111,6 +157,21 @@ class Mailer {
      * @return bool True if sent (or mocked successfully)
      */
     public function send(string $toEmail, string $toName, string $subject, string $bodyHtml, string $altBodyText = ''): bool {
+        $this->lastError = null;
+
+        // Try to load PHPMailer if not already loaded
+        if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
+            $possiblePaths = [
+                __DIR__ . '/../lib/PHPMailer/src/Exception.php',
+                __DIR__ . '/../lib/PHPMailer/src/PHPMailer.php',
+                __DIR__ . '/../lib/PHPMailer/src/SMTP.php',
+            ];
+            foreach ($possiblePaths as $path) {
+                if (file_exists($path)) {
+                    require_once $path;
+                }
+            }
+        }
         // Fallback / mock mode: capture in memory
         if ($this->mockMode || !class_exists('PHPMailer\PHPMailer\PHPMailer')) {
             self::$sentLogs[] = [
@@ -120,7 +181,7 @@ class Mailer {
                 'body_html'    => $bodyHtml,
                 'alt_body'     => $altBodyText ?: strip_tags($bodyHtml),
                 'from_email'   => $this->config['from_email'] ?? 'noreply@lpgdeliverysystem.com',
-                'from_name'    => $this->config['from_name'] ?? 'LPG Delivery System',
+                'from_name'    => $this->config['from_name'] ?? 'Elevate LPG',
                 'timestamp'    => time(),
             ];
             return true;
@@ -139,9 +200,21 @@ class Mailer {
             $mail->Password   = $this->config['password'] ?? '';
             $mail->SMTPSecure = $this->config['encryption'] ?? 'tls';
             $mail->Port       = (int)($this->config['port'] ?? 587);
+            $mail->CharSet    = 'UTF-8';
+            $mail->Timeout    = (int)($this->config['timeout'] ?? 15);
+
+            if ($this->debug > 0) {
+                $mail->SMTPDebug = $this->debug;
+                $mail->Debugoutput = function ($str, $level) {
+                    error_log('SMTP[' . $level . ']: ' . trim($str));
+                    if (PHP_SAPI === 'cli') {
+                        echo '  ' . trim($str) . PHP_EOL;
+                    }
+                };
+            }
 
             $fromEmail = $this->config['from_email'] ?? 'noreply@lpgdeliverysystem.com';
-            $fromName  = $this->config['from_name'] ?? 'LPG Delivery System';
+            $fromName  = $this->config['from_name'] ?? 'Elevate LPG';
             $mail->setFrom($fromEmail, $fromName);
             $mail->addAddress($toEmail, $toName);
 
@@ -150,8 +223,13 @@ class Mailer {
             $mail->Body    = $bodyHtml;
             $mail->AltBody = $altBodyText ?: strip_tags($bodyHtml);
 
-            return (bool)$mail->send();
+            $sent = (bool)$mail->send();
+            if (!$sent) {
+                $this->lastError = trim((string)($mail->ErrorInfo ?? '')) ?: 'Unknown PHPMailer error';
+            }
+            return $sent;
         } catch (Throwable $e) {
+            $this->lastError = $e->getMessage();
             error_log("Mailer error: " . $e->getMessage());
             return false;
         }
@@ -178,7 +256,7 @@ class Mailer {
         }
 
         $resetUrl = rtrim($baseUrl, '/') . '/forgot-password.php?token=' . urlencode($resetToken);
-        $appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
+        $appName = defined('APP_NAME') ? APP_NAME : 'Elevate LPG';
 
         $subject = "Password Reset Request - {$appName}";
 

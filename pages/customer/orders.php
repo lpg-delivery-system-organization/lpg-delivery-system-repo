@@ -18,6 +18,7 @@ require_once __DIR__ . '/../../classes/Order.php';
 
 // Enforce customer role access
 require_role('customer');
+require_verified_id();
 
 $db = Database::connect();
 $orderModel = new Order($db);

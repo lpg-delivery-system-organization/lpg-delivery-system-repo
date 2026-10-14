@@ -247,7 +247,7 @@ Review and edit configuration files in the `config/` directory if your environme
 - **`config/app.php`**:
   ```php
   return [
-      'app_name' => 'LPG Delivery System',
+      'app_name' => 'Elevate LPG',
       'base_url' => 'http://localhost/lpg-delivery-system-repo',
       'session_timeout' => 1800, // 30 minutes
       'env'      => 'development'

@@ -895,6 +895,105 @@ div.rounded-circle.d-inline-flex {
     z-index: 10;
 }
 
+/* Store marker (center of the delivery circle) */
+.store-marker-wrapper {
+    background: transparent;
+    border: none;
+}
+
+.store-marker-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #1d4ed8;
+    color: #ffffff;
+    border: 3px solid #ffffff;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    font-size: 1rem;
+}
+
+/* "3 KM DELIVERY COVERAGE" legend pinned inside the map */
+.coverage-map-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(37, 99, 235, 0.92);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
+}
+
+.coverage-map-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #bfdbfe;
+    box-shadow: 0 0 0 3px rgba(191, 219, 254, 0.45);
+}
+
+/* In/out-of-coverage status block shown under the checkout map */
+.coverage-notice {
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    border: 1px solid transparent;
+}
+
+.coverage-notice-neutral {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+.coverage-notice-ok {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
+.coverage-notice-out {
+    background: #fef2f2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+.coverage-distance {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.coverage-out-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+@media (max-width: 575.98px) {
+    .address-preview-map {
+        height: 200px;
+    }
+
+    .coverage-out-meta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .coverage-out-meta .btn {
+        width: 100%;
+    }
+}
+
 /* Admin live rider tracking map */
 .admin-live-map {
     height: 340px;
@@ -1086,6 +1185,74 @@ div.rounded-circle.d-inline-flex {
     0%   { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.5); }
     35%  { box-shadow: 0 0 0 10px rgba(13, 148, 136, 0.25); }
     100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
+}
+
+/* =========================================================================
+   12b. Shop Cart — slide-out drawer & checkout summary
+   ========================================================================= */
+.cart-drawer {
+    width: 380px;
+    max-width: 92vw;
+}
+
+.cart-drawer .offcanvas-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.cart-drawer-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--bs-border-color, #e9ecef);
+}
+
+.cart-drawer-item:last-child {
+    border-bottom: 0;
+}
+
+.cart-drawer-item.cart-item-invalid {
+    background: rgba(220, 38, 38, 0.05);
+    border-radius: 0.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.cart-qty-group {
+    width: 128px;
+    flex-wrap: nowrap;
+}
+
+.cart-qty-input {
+    max-width: 42px;
+    font-weight: 600;
+    background: #fff;
+}
+
+.checkout-cart-list {
+    border: 1px solid var(--bs-border-color, #e9ecef);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bs-light, #f8f9fa);
+}
+
+.checkout-cart-row {
+    padding: 0.4rem 0;
+    border-bottom: 1px dashed var(--bs-border-color, #e9ecef);
+}
+
+.checkout-cart-row:last-child {
+    border-bottom: 0;
+}
+
+[data-theme="dark"] .cart-qty-input {
+    background: #1f2937;
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .checkout-cart-list {
+    background: #1f2937;
 }
 
 /* =========================================================================

@@ -14,7 +14,7 @@ $userRole = current_user_role();
 $userName = $_SESSION['user_name'] ?? 'User';
 $userEmail = $_SESSION['user_email'] ?? '';
 $userInitial = strtoupper(substr($userName, 0, 1));
-$appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
+$appName = defined('APP_NAME') ? APP_NAME : 'Elevate LPG';
 $pageTitle = isset($page_title) && $page_title !== '' ? $page_title . ' - ' . $appName : $appName;
 
 // Determine brand link based on authentication role

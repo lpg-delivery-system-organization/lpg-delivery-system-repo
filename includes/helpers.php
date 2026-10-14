@@ -31,6 +31,73 @@ if (!defined('APP_TIMEZONE')) {
 date_default_timezone_set(APP_TIMEZONE);
 
 /**
+ * Government ID rejection life-cycle defaults.
+ *
+ * Used when config/app.php is unavailable (CLI tools, bare includes). A
+ * rejected applicant has ID_REJECTION_GRACE_HOURS to re-upload before the
+ * account is purged, and receives a final reminder once the remaining time
+ * falls within ID_REJECTION_REMINDER_LEAD_HOURS.
+ */
+if (!defined('ID_REJECTION_GRACE_HOURS')) {
+    define('ID_REJECTION_GRACE_HOURS', 24);
+}
+if (!defined('ID_REJECTION_REMINDER_LEAD_HOURS')) {
+    define('ID_REJECTION_REMINDER_LEAD_HOURS', 4);
+}
+
+/**
+ * Delivery coverage defaults.
+ *
+ * Used when config/app.php is unavailable (CLI tools, bare includes). Keep
+ * these identical to config/app.php — they define the circular 3 km delivery
+ * zone centered on the store and are the single source of truth for both the
+ * on-screen coverage circle and the server-side distance validation.
+ *
+ * Store: 21 5th Street, corner 6th Avenue, Grace Park East, Caloocan.
+ * (Cross-verified: BMF Gas Corporation listing + Philippine DOE LTO record.)
+ */
+if (!defined('STORE_LATITUDE')) {
+    define('STORE_LATITUDE', 14.645962);
+}
+if (!defined('STORE_LONGITUDE')) {
+    define('STORE_LONGITUDE', 120.988134);
+}
+if (!defined('DELIVERY_RADIUS_METERS')) {
+    define('DELIVERY_RADIUS_METERS', 3000);
+}
+
+// Shared delivery-coverage (geofence) logic — the same class the order
+// submission path uses, so pages and models measure distance identically.
+require_once __DIR__ . '/../classes/DeliveryCoverage.php';
+
+/**
+ * Straight-line (great-circle) distance in meters between two coordinates.
+ *
+ * Thin wrapper over DeliveryCoverage::distanceMeters() so procedural page
+ * code has a plain function available in the existing helper style.
+ *
+ * @param float $lat1
+ * @param float $lon1
+ * @param float $lat2
+ * @param float $lon2
+ * @return float
+ */
+function calculate_distance_meters(float $lat1, float $lon1, float $lat2, float $lon2): float {
+    return DeliveryCoverage::distanceMeters($lat1, $lon1, $lat2, $lon2);
+}
+
+/**
+ * Evaluate a customer location against the 3 km store delivery zone.
+ *
+ * @param mixed $lat
+ * @param mixed $lng
+ * @return array See DeliveryCoverage::evaluate()
+ */
+function delivery_coverage_check($lat, $lng): array {
+    return DeliveryCoverage::evaluate($lat, $lng);
+}
+
+/**
  * Escape HTML special characters for secure output (XSS mitigation)
  *
  * @param string|null $value

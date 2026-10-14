@@ -100,6 +100,42 @@
         },
 
         /**
+         * Great-circle distance between two coordinates via the Haversine
+         * formula, using the Earth's mean radius (6,371,000 m). Mirrors the
+         * server-side DeliveryCoverage::distanceMeters() so the on-screen
+         * distance matches the number PHP enforces at order time.
+         *
+         * @param {number} lat1
+         * @param {number} lon1
+         * @param {number} lat2
+         * @param {number} lon2
+         * @returns {number} distance in meters
+         */
+        distanceMeters: function (lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const toRad = Math.PI / 180;
+            const dLat = (lat2 - lat1) * toRad;
+            const dLon = (lon2 - lon1) * toRad;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad)
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(Math.min(1, a)), Math.sqrt(1 - Math.min(1, a)));
+            return R * c;
+        },
+
+        /**
+         * Human-readable distance: meters for short hops, km otherwise.
+         * @param {number} meters
+         * @returns {string}
+         */
+        formatDistance: function (meters) {
+            if (meters >= 1000) {
+                return (meters / 1000).toFixed(2) + ' km';
+            }
+            return Math.round(meters) + ' m';
+        },
+
+        /**
          * Parse saved delivery coordinates.
          * @returns {Array|null} [lat, lng] or null when absent/invalid
          */

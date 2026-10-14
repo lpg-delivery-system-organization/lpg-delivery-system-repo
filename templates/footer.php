@@ -7,7 +7,7 @@
  * custom app JS, page-specific JS, and renders the toast notification container.
  */
 
-$appName = defined('APP_NAME') ? APP_NAME : 'LPG Delivery System';
+$appName = defined('APP_NAME') ? APP_NAME : 'Elevate LPG';
 ?>
             </main>
 

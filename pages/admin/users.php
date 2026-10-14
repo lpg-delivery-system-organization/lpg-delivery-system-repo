@@ -17,6 +17,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/middleware.php';
 require_once __DIR__ . '/../../classes/Database.php';
 require_once __DIR__ . '/../../classes/User.php';
+require_once __DIR__ . '/../../includes/verification.php';
 
 // Enforce admin role guard
 require_role('admin');
@@ -25,6 +26,11 @@ $db = Database::connect();
 $userModel = new User($db);
 
 $currentAdminId = (int)current_user_id();
+
+// Opportunistically enforce the government ID rejection grace period on admin
+// visits, so expired accounts are removed even if the cron script was never
+// scheduled. run_verification_cleanup() swallows all errors internally.
+run_verification_cleanup();
 
 // Handle POST actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -72,6 +78,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]);
                 }
                 set_flash('success', "Account status for {$user['full_name']} updated to " . ucfirst($newStatus) . ".");
+                break;
+
+            case 'approve_id':
+                if ($userId <= 0) {
+                    throw new InvalidArgumentException('Invalid user ID specified.');
+                }
+                $user = $userModel->findById($userId);
+                if (!$user) {
+                    throw new InvalidArgumentException("User #{$userId} not found.");
+                }
+                if (empty($user['valid_id_path'])) {
+                    throw new RuntimeException("{$user['full_name']} has no uploaded ID to verify.");
+                }
+
+                $userModel->approveId($userId, $currentAdminId);
+                notify_user_id_decision($userId, 'approved');
+
+                if (is_ajax()) {
+                    json_response([
+                        'success' => true,
+                        'message' => "Government ID for {$user['full_name']} approved.",
+                        'user_id' => $userId,
+                        'id_verification_status' => 'approved'
+                    ]);
+                }
+                set_flash('success', "Government ID for {$user['full_name']} has been approved.");
+                break;
+
+            case 'reject_id':
+                if ($userId <= 0) {
+                    throw new InvalidArgumentException('Invalid user ID specified.');
+                }
+                $reason = sanitize_input($_POST['reason'] ?? '');
+                if ($reason === '') {
+                    throw new InvalidArgumentException('Please provide a reason for rejecting this ID.');
+                }
+
+                $user = $userModel->findById($userId);
+                if (!$user) {
+                    throw new InvalidArgumentException("User #{$userId} not found.");
+                }
+
+                $userModel->rejectId($userId, $reason, $currentAdminId);
+                notify_user_id_decision($userId, 'rejected', $reason);
+
+                if (is_ajax()) {
+                    json_response([
+                        'success' => true,
+                        'message' => "Government ID for {$user['full_name']} rejected.",
+                        'user_id' => $userId,
+                        'id_verification_status' => 'rejected'
+                    ]);
+                }
+                set_flash('success', "Government ID for {$user['full_name']} has been rejected.");
                 break;
 
             case 'create_user':
@@ -188,6 +248,7 @@ $totalCustomers = 0;
 $totalRiders = 0;
 $totalAdmins = 0;
 $suspendedCount = 0;
+$pendingVerifications = $userModel->countPendingVerifications();
 
 foreach ($users as $u) {
     $r = $u['role'] ?? 'customer';
@@ -235,6 +296,20 @@ require_once __DIR__ . '/../../templates/header.php';
             </div>
         </div>
     </div>
+
+    <?php if ($pendingVerifications > 0): ?>
+    <!-- Pending ID Verification Alert -->
+    <div class="alert alert-warning border-0 shadow-sm d-flex flex-wrap align-items-center gap-3" role="alert">
+        <i class="bi bi-patch-exclamation-fill fs-4"></i>
+        <div class="flex-grow-1">
+            <strong><?= $pendingVerifications ?> government ID<?= $pendingVerifications === 1 ? '' : 's' ?> awaiting verification.</strong>
+            <div class="small mb-0">Review the uploaded documents and approve or reject them.</div>
+        </div>
+        <a href="<?= url('pages/admin/users.php?verification=pending') ?>" class="btn btn-warning btn-sm fw-bold">
+            <i class="bi bi-check2-square me-1"></i>Review now
+        </a>
+    </div>
+    <?php endif; ?>
 
     <!-- User Metric Cards -->
     <div class="row g-3 mb-4">
@@ -325,7 +400,7 @@ require_once __DIR__ . '/../../templates/header.php';
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
             <div class="row g-3 align-items-center">
-                <div class="col-md-6">
+                <div class="col-md-5">
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
                         <input type="text" class="form-control border-start-0" id="userSearchInput" placeholder="Search by user name, email, phone, or address...">
@@ -339,7 +414,15 @@ require_once __DIR__ . '/../../templates/header.php';
                         <option value="suspended">Suspended Only</option>
                     </select>
                 </div>
-                <div class="col-md-3 text-md-end text-muted small">
+                <div class="col-md-2">
+                    <select class="form-select" id="userVerificationFilterSelect" title="Filter by government ID verification">
+                        <option value="all">All ID Statuses</option>
+                        <option value="pending">ID Pending</option>
+                        <option value="approved">ID Approved</option>
+                        <option value="rejected">ID Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-2 text-md-end text-muted small">
                     Showing <strong id="visibleUserCount"><?= $totalUsers ?></strong> users
                 </div>
             </div>
@@ -367,7 +450,7 @@ require_once __DIR__ . '/../../templates/header.php';
                                 <th>Role</th>
                                 <th>Contact Phone</th>
                                 <th>Delivery / Billing Address</th>
-                                <th>Valid ID Document</th>
+                                <th>ID Verification</th>
                                 <th>Status</th>
                                 <th>Registered</th>
                                 <th class="text-end pe-4">Actions</th>
@@ -384,6 +467,15 @@ require_once __DIR__ . '/../../templates/header.php';
                                 $uAddress = (string)$user['address'];
                                 $uStatus = (string)$user['status'];
                                 $uValidId = (string)($user['valid_id_path'] ?? '');
+                                $uVerification = (string)($user['id_verification_status'] ?? 'approved');
+                                $uRejectionReason = trim((string)($user['id_rejection_reason'] ?? ''));
+                                $uPurgeWarned = !empty($user['purge_warned_at']);
+                                $uPurgeHoursLeft = null;
+                                if ($uVerification === 'rejected' && !empty($user['id_reviewed_at'])) {
+                                    $uGrace = defined('ID_REJECTION_GRACE_HOURS') ? (int)ID_REJECTION_GRACE_HOURS : 24;
+                                    $uDeadlineTs = strtotime((string)$user['id_reviewed_at']) + ($uGrace * 3600);
+                                    $uPurgeHoursLeft = (int)ceil(($uDeadlineTs - time()) / 3600);
+                                }
                                 $uInitial = strtoupper(substr($uName, 0, 1));
                                 $isSelf = ($uId === $currentAdminId);
 
@@ -395,11 +487,17 @@ require_once __DIR__ . '/../../templates/header.php';
                                 $statusBadgeClass = 'bg-success';
                                 if ($uStatus === 'suspended') $statusBadgeClass = 'bg-danger';
                                 elseif ($uStatus === 'inactive') $statusBadgeClass = 'bg-secondary';
+
+                                $verifBadgeClass = 'bg-success';
+                                $verifLabel = 'Approved';
+                                if ($uVerification === 'pending') { $verifBadgeClass = 'bg-warning text-dark'; $verifLabel = 'Pending'; }
+                                elseif ($uVerification === 'rejected') { $verifBadgeClass = 'bg-danger'; $verifLabel = 'Rejected'; }
                                 ?>
                                 <tr class="admin-user-row"
                                     data-id="<?= $uId ?>"
                                     data-role="<?= e($uRole) ?>"
                                     data-status="<?= e($uStatus) ?>"
+                                    data-verification="<?= e($uVerification) ?>"
                                     data-name="<?= e($uName) ?>"
                                     data-email="<?= e($uEmail) ?>"
                                     data-phone="<?= e($uPhone) ?>"
@@ -446,15 +544,52 @@ require_once __DIR__ . '/../../templates/header.php';
                                         </div>
                                     </td>
 
-                                    <!-- Valid ID Document -->
+                                    <!-- ID Verification -->
                                     <td>
                                         <?php if (!empty($uValidId)): ?>
-                                            <a href="<?= url('pages/admin/view_id.php?user_id=' . $uId) ?>" 
-                                               target="_blank" 
-                                               class="btn btn-outline-info btn-sm p-1 px-2 text-decoration-none fw-semibold extra-small"
-                                               title="View Government ID Document">
-                                                <i class="bi bi-file-earmark-person me-1"></i>View ID
-                                            </a>
+                                            <div class="d-flex flex-column gap-1">
+                                                <div class="d-flex align-items-center gap-1 flex-wrap">
+                                                    <span class="badge <?= $verifBadgeClass ?> text-uppercase px-2 py-1" title="Government ID status"><?= e($verifLabel) ?></span>
+                                                    <a href="<?= url('pages/admin/view_id.php?user_id=' . $uId) ?>"
+                                                       target="_blank"
+                                                       class="btn btn-outline-info btn-sm p-1 px-2 text-decoration-none fw-semibold extra-small"
+                                                       title="View Government ID Document">
+                                                        <i class="bi bi-file-earmark-person me-1"></i>View
+                                                    </a>
+                                                </div>
+                                                <?php if ($uVerification === 'pending'): ?>
+                                                    <div class="d-inline-flex gap-1">
+                                                        <form action="<?= url('pages/admin/users.php') ?>" method="POST" class="m-0">
+                                                            <?= csrf_input() ?>
+                                                            <input type="hidden" name="action" value="approve_id">
+                                                            <input type="hidden" name="user_id" value="<?= $uId ?>">
+                                                            <button type="submit" class="btn btn-success btn-sm p-1 px-2 extra-small fw-semibold"
+                                                                    data-confirm="Approve the government ID of <?= e($uName) ?>? They will be able to place orders."
+                                                                    data-confirm-title="Approve ID"
+                                                                    data-confirm-icon="bi-patch-check"
+                                                                    data-confirm-btn-class="btn-success">
+                                                                <i class="bi bi-check-lg me-1"></i>Approve
+                                                            </button>
+                                                        </form>
+                                                        <button type="button"
+                                                                class="btn btn-outline-danger btn-sm p-1 px-2 extra-small fw-semibold btn-open-reject-id"
+                                                                data-id="<?= $uId ?>"
+                                                                data-name="<?= e($uName) ?>">
+                                                            <i class="bi bi-x-lg me-1"></i>Reject
+                                                        </button>
+                                                    </div>
+                                                <?php elseif ($uVerification === 'rejected' && $uRejectionReason !== ''): ?>
+                                                    <span class="extra-small text-danger text-truncate" style="max-width: 200px;" title="<?= e($uRejectionReason) ?>">
+                                                        <i class="bi bi-info-circle me-1"></i><?= e($uRejectionReason) ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                                <?php if ($uVerification === 'rejected' && $uPurgeHoursLeft !== null): ?>
+                                                    <span class="extra-small <?= $uPurgeHoursLeft <= 0 ? 'text-danger fw-semibold' : 'text-warning-emphasis' ?>"
+                                                          title="The account is deleted automatically if no valid ID is submitted.">
+                                                        <i class="bi bi-trash3 me-1"></i>Auto-delete in ~<?= max(0, $uPurgeHoursLeft) ?>h<?= $uPurgeWarned ? ' (warned)' : '' ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
                                         <?php else: ?>
                                             <span class="text-muted extra-small fst-italic">None</span>
                                         <?php endif; ?>
@@ -685,6 +820,45 @@ require_once __DIR__ . '/../../templates/header.php';
                     <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary px-4 fw-semibold">
                         <i class="bi bi-check-lg me-1"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: Reject Government ID -->
+<div class="modal fade" id="rejectIdModal" tabindex="-1" aria-labelledby="rejectIdModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="<?= url('pages/admin/users.php') ?>" method="POST" id="rejectIdForm">
+                <?= csrf_input() ?>
+                <input type="hidden" name="action" value="reject_id">
+                <input type="hidden" name="user_id" id="rejectIdUserId" value="0">
+
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title fw-bold" id="rejectIdModalLabel">
+                        <i class="bi bi-shield-x me-2"></i>Reject Government ID
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="small text-muted">
+                        You are rejecting the submitted ID of
+                        <strong id="rejectIdUserName" class="text-dark">this user</strong>.
+                        The applicant will be notified and can upload a corrected document.
+                    </p>
+                    <div class="mb-2">
+                        <label for="rejectIdReason" class="form-label fw-semibold">Reason <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="reason" id="rejectIdReason" rows="3" maxlength="500"
+                                  placeholder="e.g. Photo is blurred / ID is expired / details do not match" required></textarea>
+                        <div class="form-text">Shown to the applicant so they can correct the issue.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-semibold">
+                        <i class="bi bi-x-lg me-1"></i>Reject ID
                     </button>
                 </div>
             </form>

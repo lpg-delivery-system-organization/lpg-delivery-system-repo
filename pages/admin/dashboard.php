@@ -392,7 +392,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
 
             <!-- Print-only document header -->
             <div class="sales-print-only sales-print-doc">
-                <div class="sales-print-title"><?= e(defined('APP_NAME') ? APP_NAME : 'LPG Delivery System') ?></div>
+                <div class="sales-print-title"><?= e(defined('APP_NAME') ? APP_NAME : 'Elevate LPG') ?></div>
                 <div class="sales-print-subtitle">SALES REPORT &mdash; <?= e(strtoupper($reportLabels[$reportType])) ?></div>
                 <div class="sales-print-meta">
                     Period: <?= e(format_date($reportFrom, 'M d, Y')) ?> to <?= e(format_date($reportTo, 'M d, Y')) ?>

@@ -35,6 +35,10 @@ $currentUser = current_user();
 $userId = (int)$currentUser['id'];
 $userRole = $currentUser['role'];
 
+require_once __DIR__ . '/../includes/middleware.php';
+// Customers with an unverified government ID may not use order chat.
+require_verified_id();
+
 $input = array_merge($_POST, json_decode(file_get_contents('php://input'), true) ?? [], $_GET);
 $action = trim($input['action'] ?? '');
 

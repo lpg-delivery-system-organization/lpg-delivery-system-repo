@@ -14,20 +14,26 @@ require_once __DIR__ . '/../../classes/Database.php';
 require_once __DIR__ . '/../../classes/User.php';
 require_once __DIR__ . '/../../classes/Product.php';
 require_once __DIR__ . '/../../classes/Order.php';
+require_once __DIR__ . '/../../classes/Cart.php';
 require_once __DIR__ . '/../../classes/PayMongo.php';
 
 // Enforce customer role access
 require_role('customer');
+require_verified_id();
 
 $db = Database::connect();
 $productModel = new Product($db);
 $orderModel = new Order($db);
 $userModel = new User($db);
+$cartModel = new Cart($db);
 
 $customerId = (int)current_user_id();
 $customer = $userModel->findById($customerId);
 
 $products = $productModel->getActive();
+
+// The persistent DB cart is the source of truth for what will be ordered.
+$cartSummary = $cartModel->getSummary($customerId);
 
 /**
  * ---------------------------------------------------------------------
@@ -73,6 +79,8 @@ $formData = [
     'quantity'         => (int)($_GET['qty'] ?? 1),
     'payment_method'   => 'cod',
     'delivery_address' => $customer['address'] ?? '',
+    'delivery_latitude' => '',
+    'delivery_longitude' => '',
     'contact_phone'    => $customer['phone'] ?? '',
     'notes'            => ''
 ];
@@ -93,26 +101,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Your security token is invalid or expired. Please refresh the page and try again.';
     }
 
-    // 2. Validate Product Selection
-    if ($formData['product_id'] <= 0) {
-        $errors[] = 'Please select a valid LPG cylinder product from the catalog.';
-    } else {
-        $selectedProduct = $productModel->findById($formData['product_id']);
-        if (!$selectedProduct || $selectedProduct['status'] !== 'active') {
-            $errors[] = 'The selected product is currently unavailable.';
-        } elseif ($formData['quantity'] > (int)$selectedProduct['stock']) {
-            $errors[] = "Requested quantity exceeds available stock ({$selectedProduct['stock']} available).";
-        }
-    }
+    // 2. Resolve the line items to order. The persistent DB cart is preferred;
+    //    the legacy single product_id + quantity fields remain as a fallback so
+    //    existing links/tests that POST directly still work. Every line is
+    //    re-validated against live stock before the order is placed.
+    $checkoutItems = [];
+    $cartItems = $cartModel->getItems($customerId);
 
-    // 3. Validate Quantity
-    if ($formData['quantity'] <= 0) {
-        $errors[] = 'Quantity must be at least 1 unit.';
+    if (!empty($cartItems)) {
+        foreach ($cartItems as $ci) {
+            if (!$ci['is_active']) {
+                $errors[] = "The product '" . $ci['name'] . "' is currently unavailable. Please remove it from your cart.";
+                continue;
+            }
+            if ($ci['quantity'] > (int)$ci['stock']) {
+                $errors[] = "Only {$ci['stock']} unit(s) of '" . $ci['name'] . "' are available. Please update your cart.";
+                continue;
+            }
+            $checkoutItems[] = [
+                'product_id' => $ci['product_id'],
+                'quantity'   => $ci['quantity'],
+            ];
+        }
+    } else {
+        if ($formData['quantity'] <= 0) {
+            $errors[] = 'Quantity must be at least 1 unit.';
+        }
+        if ($formData['product_id'] <= 0) {
+            $errors[] = 'Your cart is empty. Please add at least one LPG cylinder before placing an order.';
+        } else {
+            $selectedProduct = $productModel->findById($formData['product_id']);
+            if (!$selectedProduct || $selectedProduct['status'] !== 'active') {
+                $errors[] = 'The selected product is currently unavailable.';
+            } elseif ($formData['quantity'] > (int)$selectedProduct['stock']) {
+                $errors[] = "Requested quantity exceeds available stock ({$selectedProduct['stock']} available).";
+            } else {
+                $checkoutItems[] = [
+                    'product_id' => $formData['product_id'],
+                    'quantity'   => $formData['quantity'],
+                ];
+            }
+        }
     }
 
     // 4. Validate Delivery Address
     if (empty($formData['delivery_address'])) {
         $errors[] = 'Please enter your complete delivery address.';
+    }
+
+    // 4b. Validate Delivery Coverage (server-side, independent of the map).
+    // The distance is recalculated here from the submitted coordinates so a
+    // tampered, duplicated or scripted request can never place an order to an
+    // address outside the configured 3 km zone. This runs before place(), so
+    // no order row or inventory change is made when it fails — and the
+    // customer's cart below is preserved for them to fix the location.
+    if (empty($errors) && DeliveryCoverage::isEnforced()) {
+        $coverage = DeliveryCoverage::evaluate(
+            $formData['delivery_latitude'] ?? null,
+            $formData['delivery_longitude'] ?? null
+        );
+        if (!$coverage['within']) {
+            $errors[] = $coverage['message'];
+        }
     }
 
     // 5. Validate Contact Phone Number
@@ -134,8 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $newOrderId = $orderModel->place([
                 'customer_id'      => $customerId,
-                'product_id'       => $formData['product_id'],
-                'quantity'         => $formData['quantity'],
+                'items'            => $checkoutItems,
                 'payment_method'   => $formData['payment_method'],
                 'delivery_address' => $formData['delivery_address'],
                 'contact_phone' => $formData['contact_phone'],
@@ -144,6 +193,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'delivery_longitude' => $formData['delivery_longitude'],
                 'status'           => $isOnline ? 'pending_payment' : 'pending'
             ]);
+
+            // The cart has been turned into an order, so empty it now.
+            $cartModel->clear($customerId);
 
             // Online payment: create a PayMongo hosted checkout session and
             // redirect the customer to PayMongo to complete payment. Stock is
@@ -154,20 +206,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Online payment is currently unavailable. Please use Cash on Delivery.');
                 }
 
-                $selectedProduct = $productModel->findById($formData['product_id']);
-                $unitAmountCents = (int)round(((float)($selectedProduct['price'] ?? 0)) * 100);
-                $totalCents = $unitAmountCents * (int)$formData['quantity'];
+                // One PayMongo line item per ordered product.
+                $lineItems = [];
+                foreach ($checkoutItems as $ci) {
+                    $lineProduct = $productModel->findById($ci['product_id']);
+                    $unitAmountCents = (int)round(((float)($lineProduct['price'] ?? 0)) * 100);
+                    $lineTotalCents = $unitAmountCents * (int)$ci['quantity'];
+
+                    $lineItems[] = [
+                        'name'     => (($lineProduct['name'] ?? 'LPG Cylinder') . ' x' . (int)$ci['quantity']),
+                        'amount'   => $lineTotalCents,
+                        'currency' => 'PHP',
+                        'quantity' => 1,
+                    ];
+                }
 
                 $successUrl = absolute_url("pages/customer/order-detail.php?id={$newOrderId}&placed=1");
                 $cancelUrl  = absolute_url("pages/customer/shop.php");
 
                 $session = $paymongo->createCheckoutSession(
-                    [[
-                        'name'     => (($selectedProduct['name'] ?? 'LPG Cylinder') . ' x' . (int)$formData['quantity']),
-                        'amount'   => $totalCents,
-                        'currency' => 'PHP',
-                        'quantity' => 1,
-                    ]],
+                    $lineItems,
                     (string)$newOrderId,
                     $successUrl,
                     $cancelUrl,
@@ -268,8 +326,12 @@ require_once __DIR__ . '/../../templates/header.php';
         <!-- Products Grid Column -->
         <div class="col-lg-7 col-xl-8">
             <div class="shop-products-scroll">
-                <div class="d-flex align-items-center justify-content-between mb-3">
-                    <h5 class="fw-bold mb-0 text-dark">Available Products!!!!!! (<?= count($products) ?>)</h5>
+                <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                    <h5 class="fw-bold mb-0 text-dark">Available Products (<?= count($products) ?>)</h5>
+                    <button type="button" class="btn btn-primary btn-sm position-relative" id="btnOpenCart">
+                        <i class="bi bi-cart3 me-1"></i>Cart
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger<?= $cartSummary['units'] > 0 ? '' : ' d-none' ?>" id="cartBadge"><?= (int)$cartSummary['units'] ?></span>
+                    </button>
                 </div>
 
             <?php if (empty($products)): ?>
@@ -286,10 +348,9 @@ require_once __DIR__ . '/../../templates/header.php';
                         $pStock = (int)$product['stock'];
                         $pPrice = (float)$product['price'];
                         $isOutOfStock = ($pStock <= 0);
-                        $isSelected = ($pId === $formData['product_id']);
                         ?>
                         <div class="col-md-6 col-xl-4" data-aos="fade-up" data-aos-delay="<?= ($pId % 3) * 80 ?>">
-                            <div class="card app-product-card h-100 border-0 shadow-sm <?= $isSelected ? 'app-product-selected' : '' ?>" id="productCard_<?= $pId ?>">
+                            <div class="card app-product-card h-100 border-0 shadow-sm" id="productCard_<?= $pId ?>">
                                 <div class="app-product-img-wrapper position-relative text-center p-3">
                                     <?php if (!empty($product['image_url']) && file_exists(dirname(__DIR__, 2) . '/' . ltrim($product['image_url'], '/'))): ?>
                                         <img src="<?= asset($product['image_url']) ?>" alt="<?= e($product['name']) ?>" style="max-height: 140px; max-width: 80%; object-fit: contain;">
@@ -326,7 +387,7 @@ require_once __DIR__ . '/../../templates/header.php';
                                             <span class="fs-5 fw-bold text-primary"><?= e(format_currency($pPrice)) ?></span>
                                         </div>
                                         <button type="button" 
-                                                class="btn btn-sm <?= $isSelected ? 'btn-primary' : 'btn-outline-primary' ?> btn-select-product px-3"
+                                                class="btn btn-sm btn-outline-primary btn-add-to-cart px-3"
                                                 data-id="<?= $pId ?>"
                                                 data-name="<?= e($product['name']) ?>"
                                                 data-brand="<?= e($product['brand']) ?>"
@@ -334,7 +395,7 @@ require_once __DIR__ . '/../../templates/header.php';
                                                 data-price="<?= $pPrice ?>"
                                                 data-stock="<?= $pStock ?>"
                                                 <?= $isOutOfStock ? 'disabled' : '' ?>>
-                                            <?= $isOutOfStock ? 'Sold Out' : ($isSelected ? '<i class="bi bi-check2 me-1"></i>Selected' : 'Select') ?>
+                                            <?= $isOutOfStock ? 'Sold Out' : '<i class="bi bi-cart-plus me-1"></i>Add to Cart' ?>
                                         </button>
                                     </div>
                                 </div>
@@ -358,44 +419,20 @@ require_once __DIR__ . '/../../templates/header.php';
                     <form action="<?= url('pages/customer/shop.php') ?>" method="POST" id="orderPlacementForm">
                         <?= csrf_input() ?>
                         <input type="hidden" name="product_id" id="order_product_id" value="<?= (int)$formData['product_id'] ?>">
+                        <input type="hidden" name="quantity" id="order_quantity" value="<?= (int)$formData['quantity'] ?>">
 
-                        <!-- Selected Product Summary Box -->
-                        <div class="p-3 bg-light rounded-3 mb-3 border">
-                            <div class="d-flex align-items-start justify-content-between">
-                                <div>
-                                    <span class="text-muted extra-small text-uppercase fw-semibold d-block">Selected Cylinder</span>
-                                    <h6 class="fw-bold mb-1 text-dark" id="orderProductNameDisplay">LPG Cylinder</h6>
-                                    <div id="orderProductMetaDisplay" class="mb-1"></div>
-                                    <div id="orderStockStatusDisplay" class="small"></div>
-                                </div>
-                                <div class="text-end">
-                                    <span class="text-muted extra-small text-uppercase fw-semibold d-block">Unit Price</span>
-                                    <h5 class="fw-bold text-primary mb-0" id="orderUnitPriceDisplay">₱0.00</h5>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Quantity Selector -->
+                        <!-- Cart Contents -->
                         <div class="mb-3">
-                            <label class="form-label fw-semibold small text-dark d-flex justify-content-between align-items-center">
-                                <span>Quantity</span>
-                                <span class="text-muted extra-small">Cylinders to deliver</span>
-                            </label>
-                            <div class="input-group">
-                                <button type="button" class="btn btn-outline-secondary px-3" id="btnQtyMinus" aria-label="Decrease quantity">
-                                    <i class="bi bi-dash-lg"></i>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="text-muted extra-small text-uppercase fw-semibold">Your Cart</span>
+                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none extra-small" id="btnOpenCartInline">
+                                    <i class="bi bi-pencil me-1"></i>Edit Cart
                                 </button>
-                                <input type="number" 
-                                       name="quantity" 
-                                       id="order_quantity" 
-                                       class="form-control text-center fw-bold fs-5 input-order-qty" 
-                                       value="<?= (int)$formData['quantity'] ?>" 
-                                       min="1" 
-                                       max="10" 
-                                       required>
-                                <button type="button" class="btn btn-outline-secondary px-3" id="btnQtyPlus" aria-label="Increase quantity">
-                                    <i class="bi bi-plus-lg"></i>
-                                </button>
+                            </div>
+                            <div id="checkoutCartList" class="checkout-cart-list"></div>
+                            <div id="checkoutCartEmpty" class="text-center text-muted small py-3 border rounded-3 bg-light">
+                                <i class="bi bi-cart-x fs-4 d-block mb-1 opacity-50"></i>
+                                Your cart is empty. Add a cylinder to get started.
                             </div>
                         </div>
 
@@ -472,6 +509,8 @@ require_once __DIR__ . '/../../templates/header.php';
                                 <span id="addressPinStatus" class="extra-small text-muted"><i class="bi bi-hourglass-split me-1"></i>Waiting for address...</span>
                             </div>
                             <div id="addressPreviewMap" class="address-preview-map rounded-3 border"></div>
+                            <!-- Delivery coverage status: populated by customer.js based on the selected pin -->
+                            <div id="deliveryCoverageNotice" class="mt-2" role="status" aria-live="polite"></div>
                         </div>
 
                         <!-- Delivery Notes / Landmarks (Optional) -->
@@ -514,6 +553,65 @@ require_once __DIR__ . '/../../templates/header.php';
         </div>
     </div>
 </div>
+
+<!-- Cart Drawer (slide-out) -->
+<div class="offcanvas offcanvas-end cart-drawer" tabindex="-1" id="cartDrawer" aria-labelledby="cartDrawerLabel">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title fw-bold d-flex align-items-center gap-2" id="cartDrawerLabel">
+            <i class="bi bi-cart3 text-primary"></i>Your Cart
+            <span class="badge rounded-pill bg-primary" id="cartDrawerCount">0</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div id="cartDrawerEmpty" class="text-center text-muted py-5">
+            <i class="bi bi-cart-x fs-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-0">Your cart is empty.</p>
+            <small>Add an LPG cylinder to get started.</small>
+        </div>
+        <div id="cartDrawerItems"></div>
+    </div>
+    <div class="offcanvas-footer border-top p-3" id="cartDrawerFooter">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Subtotal</span>
+            <span class="fw-bold fs-5 text-primary" id="cartDrawerSubtotal">₱0.00</span>
+        </div>
+        <button type="button" class="btn btn-primary w-100 fw-bold" id="btnCartCheckout">
+            <i class="bi bi-bag-check me-1"></i>Proceed to Checkout
+        </button>
+        <button type="button" class="btn btn-link text-danger w-100 btn-sm mt-1 text-decoration-none" id="btnCartClear">
+            <i class="bi bi-trash me-1"></i>Clear Cart
+        </button>
+    </div>
+</div>
+
+<?php
+// Expose the server-rendered cart to the client so the drawer, badge and
+// checkout summary render instantly without an extra round-trip.
+?>
+<script>
+window.LPG_CART = <?= json_encode($cartSummary, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+window.LPG_CART_ENDPOINT = <?= json_encode(url('api/cart.php')) ?>;
+</script>
+
+<?php
+// Expose ONLY the non-sensitive delivery-zone geometry (store pin + radius)
+// to the map script so the drawn circle and the client-side distance check
+// match the server-side validation exactly. No credentials or secrets here.
+?>
+<script>
+window.DeliveryCoverage = {
+    store: { lat: <?= json_encode(DeliveryCoverage::storeLatitude()) ?>, lng: <?= json_encode(DeliveryCoverage::storeLongitude()) ?> },
+    radiusMeters: <?= (int)round(DeliveryCoverage::radiusMeters()) ?>,
+    enforced: <?= DeliveryCoverage::isEnforced() ? 'true' : 'false' ?>,
+    storeLabel: <?= json_encode(defined('APP_NAME') ? APP_NAME : 'Elevate LPG') ?>,
+    messages: {
+        within:  <?= json_encode(DeliveryCoverage::WITHIN_MESSAGE) ?>,
+        outside: <?= json_encode(DeliveryCoverage::OUT_OF_RANGE_MESSAGE) ?>,
+        missing: <?= json_encode(DeliveryCoverage::MISSING_LOCATION_MESSAGE) ?>
+    }
+};
+</script>
 
 <?php
 require_once __DIR__ . '/../../templates/footer.php';

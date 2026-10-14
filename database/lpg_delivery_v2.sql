@@ -35,12 +35,18 @@ CREATE TABLE `users` (
   `address` text NOT NULL,
   `valid_id_path` varchar(500) DEFAULT NULL,
   `status` enum('active','inactive','suspended') NOT NULL DEFAULT 'active',
+  `id_verification_status` enum('pending','approved','rejected') NOT NULL DEFAULT 'approved',
+  `id_rejection_reason` varchar(500) DEFAULT NULL,
+  `id_reviewed_by` int(11) DEFAULT NULL,
+  `id_reviewed_at` datetime DEFAULT NULL,
+  `purge_warned_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   KEY `idx_role` (`role`),
-  KEY `idx_status` (`status`)
+  KEY `idx_status` (`status`),
+  KEY `idx_verification_reviewed` (`id_verification_status`, `id_reviewed_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
@@ -160,6 +166,45 @@ CREATE TABLE `rider_locations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------------------------
+-- Table: order_items (depends on orders, products)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `order_items` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_id` int(11) NOT NULL,
+  `product_id` int(11) DEFAULT NULL,
+  `product_name` varchar(255) NOT NULL,
+  `brand` varchar(255) DEFAULT NULL,
+  `weight` varchar(50) DEFAULT NULL,
+  `unit_price` decimal(10,2) NOT NULL,
+  `quantity` int(10) unsigned NOT NULL,
+  `subtotal` decimal(10,2) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_order_items_order` (`order_id`),
+  KEY `idx_order_items_product` (`product_id`),
+  CONSTRAINT `fk_order_items_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_order_items_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- Table: cart_items (depends on users, products)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `cart_items` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `customer_id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `quantity` int(10) unsigned NOT NULL DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_cart_customer_product` (`customer_id`,`product_id`),
+  KEY `idx_cart_customer` (`customer_id`),
+  KEY `idx_cart_product` (`product_id`),
+  CONSTRAINT `fk_cart_items_customer` FOREIGN KEY (`customer_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_cart_items_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
 -- Table: schema_migrations (migration ledger)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `schema_migrations` (
@@ -198,10 +243,10 @@ CREATE TABLE IF NOT EXISTS `notifications` (
 -- =============================================================================
 
 -- Default accounts (password for all three: "password")
-INSERT INTO `users` (`id`, `full_name`, `email`, `password`, `role`, `phone`, `address`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'Maria Santos', 'admin@lpg.com', '$2y$12$onANxxcbIKMXNxoptyE0WuBdIrXixWqXjjbT1XpVZUkTiki4/UJOG', 'admin', '09289876543', 'Admin HQ, Quezon City', 'active', NOW(), NOW()),
-(2, 'Pedro Reyes', 'rider@lpg.com', '$2y$12$onANxxcbIKMXNxoptyE0WuBdIrXixWqXjjbT1XpVZUkTiki4/UJOG', 'rider', '09351112222', '456 Mabini Ave, Caloocan City', 'active', NOW(), NOW()),
-(3, 'Janister Singson', 'customer@lpg.com', '$2y$12$onANxxcbIKMXNxoptyE0WuBdIrXixWqXjjbT1XpVZUkTiki4/UJOG', 'customer', '09171234567', '123 Rizal St, Caloocan City', 'active', NOW(), NOW());
+INSERT INTO `users` (`id`, `full_name`, `email`, `password`, `role`, `phone`, `address`, `status`, `id_verification_status`, `created_at`, `updated_at`) VALUES
+(1, 'Maria Santos', 'admin@lpg.com', '$2y$12$onANxxcbIKMXNxoptyE0WuBdIrXixWqXjjbT1XpVZUkTiki4/UJOG', 'admin', '09289876543', 'Admin HQ, Quezon City', 'active', 'approved', NOW(), NOW()),
+(2, 'Pedro Reyes', 'rider@lpg.com', '$2y$12$onANxxcbIKMXNxoptyE0WuBdIrXixWqXjjbT1XpVZUkTiki4/UJOG', 'rider', '09351112222', '456 Mabini Ave, Caloocan City', 'active', 'approved', NOW(), NOW()),
+(3, 'Janister Singson', 'customer@lpg.com', '$2y$12$onANxxcbIKMXNxoptyE0WuBdIrXixWqXjjbT1XpVZUkTiki4/UJOG', 'customer', '09171234567', '123 Rizal St, Caloocan City', 'active', 'approved', NOW(), NOW());
 
 -- Product catalog
 INSERT INTO `products` (`id`, `name`, `brand`, `weight`, `price`, `stock`, `image_url`, `status`, `created_at`, `updated_at`) VALUES
@@ -227,6 +272,8 @@ INSERT IGNORE INTO `schema_migrations` (`migration`, `table_name`, `description`
 ('2026-09-30_182935_create_notifications_table.sql', 'notifications', 'In-app notifications for customers, riders and admins across the order lifecycle.'),
 ('2026-09-30_182936_create_chat_messages_table.sql', 'chat_messages', 'Order chat messages between customer and rider'),
 ('2026-09-30_182937_create_rider_locations_table.sql', 'rider_locations', 'Rider GPS location pings while delivering'),
-('2026-09-30_182938_create_password_resets_table.sql', 'password_resets', 'Password reset tokens');
+('2026-09-30_182938_create_password_resets_table.sql', 'password_resets', 'Password reset tokens'),
+('2026-10-14_090000_create_order_items_table.sql', 'order_items', 'Individual line items for an order, so a single order can contain multiple products with their own quantities.'),
+('2026-10-14_090100_create_cart_items_table.sql', 'cart_items', 'Persistent per-customer shopping cart: one row per product with the chosen quantity.');
 
 SET FOREIGN_KEY_CHECKS = 1;

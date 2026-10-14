@@ -5,13 +5,15 @@
  *
  * Builds Philippine-format 80mm thermal receipts as PDF documents.
  *
- * Receipts are generated on demand from a single `orders` row (the schema has
- * no order_items/payments tables — one order is one product plus a quantity),
- * so nothing is persisted to the database.
+ * Receipts are generated on demand from a single `orders` row plus its
+ * `order_items` lines (passed through as $order['items']). Single-item orders
+ * keep the original compact layout; multi-item orders additionally print an
+ * itemised breakdown. Nothing is persisted to the database.
  *
  * The PDF core font set is cp1252/WinAnsi, which has no glyph for the peso
- * sign (U+20B1). Amounts are therefore rendered with the "PHP" prefix via
- * format_php_amount() instead of the "₱" glyph used on screen.
+ * sign (U+20B1). Amounts are therefore rendered as plain, comma-grouped
+ * numbers (matching the branch's BIR-registered invoice) and any "₱" glyph is
+ * stripped by Receipt::clean().
  */
 
 require_once __DIR__ . '/../includes/helpers.php';
@@ -37,6 +39,9 @@ class Receipt {
 
     /** Blank millimetres reserved below the footer before the roll is cut. */
     private const BOTTOM_PADDING_MM = 6.0;
+
+    /** Label column width in millimetres for a left-label/right-amount row. */
+    private const AMOUNT_LABEL_WIDTH_MM = 40.0;
 
     /** Value-added tax rate applied on top of the order subtotal (12%). */
     public const VAT_RATE = 0.12;
@@ -97,16 +102,31 @@ class Receipt {
     ];
 
     /**
-     * Vendor/business identity printed on the receipt header.
+     * Vendor identity and BIR-registered details printed on the receipt header
+     * and footer.
+     *
+     * These values are fixed to the branch's registered identity and do not
+     * vary per order, so they are hardcoded rather than read from the database.
      *
      * @var array<string, string>
      */
     public static array $merchant = [
-        'name'     => 'LPG Delivery System',
-        'tagline'  => 'LPG Retail & Home Delivery',
-        'address'  => 'Manila, Philippines',
-        'contact'  => 'Support via the LPG Delivery System website',
-        'tin'      => 'TIN: 000-000-000-000',
+        'name'                => 'Elevate LPG',
+        'tagline'             => 'LPG Retail & Home Delivery',
+        'address'             => 'Caloocan, Philippines',
+        'membership_validity' => 'October 31, 2026',
+        'branch'              => '1064 - Caloocan 5',
+        'terminal'            => '1',
+        'hotline'             => '09178288968 / 09992270108',
+        'company_name'        => 'JIMAC INCORPORATED',
+        'company_address1'    => 'PENTHOUSE TC PLAZA 40 QUEZON AVE',
+        'company_address2'    => 'QUEZON CITY',
+        'vat_reg_tin'         => 'VAT REG TIN : 002-705-362-000',
+        'brn_accred'          => 'BRN ACCRED : 0390027053422015100423',
+        'company_date_issued' => 'Date Issued: 03/14/2005',
+        'permit_no'           => 'PERMIT NO  : FPD12023-027-0367769-00073',
+        'permit_date_issued'  => 'Date Issued: 05/12/23',
+        'effectivity_date'    => 'Effectivity Date: 05/25/23',
     ];
 
     /**
@@ -130,16 +150,29 @@ class Receipt {
         $unitPrice = (float)($order['unit_price'] ?? 0);
         $totalAmount = (float)($order['total_amount'] ?? 0);
         $deliveryFee = 0.0;
-        $vatAmount = round($totalAmount * self::VAT_RATE, 2);
-        $grandTotal = round($totalAmount + $vatAmount + $deliveryFee, 2);
+
+        // `total_amount` is the VAT-inclusive gross the customer pays, matching
+        // how the reports split VAT via sales_vat_split(). The receipt shows the
+        // net subtotal, the 12% output VAT, and the gross total.
+        $vatSplit = sales_vat_split($totalAmount);
+        $netSales = $vatSplit['net'];
+        $vatAmount = $vatSplit['vat'];
+        $grandTotal = round($totalAmount + $deliveryFee, 2);
 
         $productName = self::clean((string)($order['product_name'] ?? 'LPG Cylinder'));
         $productBrand = self::clean((string)($order['product_brand'] ?? ''));
         $productWeight = self::clean((string)($order['product_weight'] ?? ''));
 
+        $items = self::normalizeItems($order);
+
         return [
             'order_id'            => $orderId,
             'receipt_no'          => order_receipt_number($orderId),
+            'invoice_no'          => order_receipt_number($orderId),
+            'trans_date'          => format_ph_datetime($order['created_at'] ?? null, 'm/d/Y H:i'),
+            'branch'              => self::$merchant['branch'],
+            'terminal'            => self::$merchant['terminal'],
+            'membership_validity' => self::$merchant['membership_validity'],
 
             'customer_name'       => self::titleCaseName(self::clean((string)($order['customer_name'] ?? 'Walk-in Customer'))),
             'customer_email'      => self::clean((string)($order['customer_email'] ?? '')),
@@ -149,6 +182,9 @@ class Receipt {
             'product_brand'       => $productBrand,
             'product_weight'      => $productWeight,
             'product_variant'     => trim(implode(' ', array_filter([$productBrand, $productWeight]))),
+
+            'items'               => $items,
+            'has_itemized'        => count($items) > 1,
 
             'quantity'            => $quantity,
             'unit_price'          => $unitPrice,
@@ -162,8 +198,14 @@ class Receipt {
 
             'unit_price_text'     => format_php_amount($unitPrice),
             'total_amount_text'   => format_php_amount($totalAmount),
-            'subtotal_text'       => format_php_amount($totalAmount),
+            'subtotal_text'       => format_php_amount($netSales),
+            'subtotal_plain_text' => number_format($netSales, 2),
+            'vat_12_text'         => number_format($vatAmount, 2),
+            'total_amount_plain_text' => number_format($totalAmount, 2),
+            'vat_sales_text'      => number_format($netSales, 2),
             'vat_amount_text'     => number_format($vatAmount, 2),
+            'vat_exempt_text'     => '0.00',
+            'zero_rated_text'     => '0.00',
             'grand_total_text'    => 'PHP ' . number_format($grandTotal, 2),
 
             'status'              => $status,
@@ -205,13 +247,59 @@ class Receipt {
     }
 
     /**
+     * Normalize an order's line items for receipt display.
+     *
+     * Uses $order['items'] (from Order::findById()) when present, otherwise
+     * synthesizes the single legacy line from the order's own columns so older
+     * or seed orders still render.
+     *
+     * @param array $order
+     * @return array<int, array<string, mixed>>
+     */
+    public static function normalizeItems(array $order): array {
+        $raw = $order['items'] ?? null;
+
+        if (!is_array($raw) || empty($raw)) {
+            $raw = [[
+                'product_name' => $order['product_name'] ?? 'LPG Cylinder',
+                'brand'        => $order['product_brand'] ?? '',
+                'weight'       => $order['product_weight'] ?? '',
+                'unit_price'   => (float)($order['unit_price'] ?? 0),
+                'quantity'     => max(1, (int)($order['quantity'] ?? 1)),
+                'subtotal'     => (float)($order['total_amount'] ?? 0),
+            ]];
+        }
+
+        $items = [];
+        foreach ($raw as $item) {
+            $qty = max(1, (int)($item['quantity'] ?? 1));
+            $unit = (float)($item['unit_price'] ?? 0);
+            $subtotal = (float)($item['subtotal'] ?? round($unit * $qty, 2));
+
+            $brand = self::clean((string)($item['brand'] ?? ''));
+            $weight = self::clean((string)($item['weight'] ?? ''));
+
+            $items[] = [
+                'name'            => self::clean((string)($item['product_name'] ?? 'LPG Cylinder')),
+                'variant'         => trim(implode(' ', array_filter([$brand, $weight]))),
+                'quantity'        => $qty,
+                'unit_price'      => $unit,
+                'subtotal'        => $subtotal,
+                'unit_price_plain'=> number_format($unit, 2),
+                'subtotal_plain'  => number_format($subtotal, 2),
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
      * Compute the fulfillment progress rows for an order status.
      *
      * @param string $status
      * @return array<int, array{label: string, state: string}>
      */
-    public static function buildProgress(string $status): array {
-        $steps = array_keys(self::PROGRESS_STEPS);
+    public static function buildProgress(string $status): array {        $steps = array_keys(self::PROGRESS_STEPS);
         $currentIndex = array_search($status, $steps, true);
         if ($currentIndex === false) {
             $currentIndex = 0;
@@ -266,7 +354,7 @@ class Receipt {
     private static function draw(array $data, float $pageHeightMm): FPDF {
         // Small unit = millimetres, portrait, custom page height.
         $pdf = new FPDF('P', 'mm', [self::PAGE_WIDTH_MM, $pageHeightMm]);
-        $pdf->SetCreator('LPG Delivery System');
+        $pdf->SetCreator('Elevate LPG');
         $pdf->SetAuthor(self::$merchant['name']);
         $pdf->SetTitle("Sale's Invoice " . $data['receipt_no']);
         $pdf->SetSubject('Order #' . $data['order_id']);
@@ -279,13 +367,14 @@ class Receipt {
         $pdf->AddPage();
 
         self::drawHeader($pdf, $data);
-        self::drawOrderMeta($pdf, $data);
-        self::drawItems($pdf, $data);
+        self::drawInvoiceMeta($pdf, $data);
+        if (!empty($data['has_itemized'])) {
+            self::drawItems($pdf, $data);
+        }
         self::drawTotals($pdf, $data);
-        self::drawPayment($pdf, $data);
-        self::drawDelivery($pdf, $data);
-        self::drawProgress($pdf, $data);
-        self::drawFooter($pdf, $data);
+        self::drawVatBreakdown($pdf, $data);
+        self::drawHotline($pdf, $data);
+        self::drawCompanyFooter($pdf, $data);
 
         return $pdf;
     }
@@ -301,7 +390,7 @@ class Receipt {
     }
 
     /**
-     * Draw the merchant letterhead and receipt title.
+     * Draw the merchant letterhead and membership validity line.
      *
      * @param FPDF $pdf
      * @param array $data
@@ -311,39 +400,37 @@ class Receipt {
         $w = self::CONTENT_WIDTH_MM;
 
         $pdf->SetFont('Helvetica', 'B', 13);
-        $pdf->Cell($w, 5.5, strtoupper(self::$merchant['name']), 0, 1, 'C');
+        $pdf->Cell($w, 5.5, self::$merchant['name'], 0, 1, 'C');
 
-        $pdf->SetFont('Helvetica', '', 7.5);
+        $pdf->SetFont('Helvetica', '', 8);
         $pdf->Cell($w, 3.6, self::$merchant['tagline'], 0, 1, 'C');
         $pdf->Cell($w, 3.6, self::$merchant['address'], 0, 1, 'C');
-        $pdf->Cell($w, 3.6, self::$merchant['contact'], 0, 1, 'C');
 
-        $pdf->Ln(0.5);
-        $pdf->SetFont('Helvetica', '', 7.5);
-        $pdf->Cell($w, 3.6, self::$merchant['tin'], 0, 1, 'C');
-        $pdf->SetFont('Helvetica', 'B', 10.5);
-        $pdf->Cell($w, 5.5, "SALE'S INVOICE", 0, 1, 'C');
+        $pdf->Ln(1.2);
         self::rule($pdf);
     }
 
     /**
-     * Draw the receipt number, timestamps, and customer identity block.
+     * Draw the invoice reference, branch/terminal, customer, rider, and date.
      *
      * @param FPDF $pdf
      * @param array $data
      * @return void
      */
-    private static function drawOrderMeta(FPDF $pdf, array $data): void {
-        self::metaRow($pdf, 'Receipt No.', $data['receipt_no'], 22, true);
-        self::metaRow($pdf, 'Order No.', '#' . $data['order_id']);
-        self::metaRow($pdf, 'Date', $data['placed_at']);
-        self::metaRow($pdf, 'Customer', $data['customer_name']);
+    private static function drawInvoiceMeta(FPDF $pdf, array $data): void {
+        self::metaLine($pdf, 'Invoice: ' . $data['invoice_no']);
+        self::metaLine($pdf, 'Order No.: ' . $data['order_id']);
+        self::metaLine($pdf, 'Branch: ' . $data['branch']);
+        self::metaLine($pdf, 'Terminal: ' . $data['terminal']);
+        self::metaLine($pdf, 'Customer Name: ' . $data['customer_name']);
+        self::metaLine($pdf, 'Rider Name: ' . ($data['rider_name'] !== '' ? $data['rider_name'] : 'N/A'));
+        self::metaLine($pdf, 'Trans Date: ' . $data['trans_date']);
 
         self::rule($pdf);
     }
 
     /**
-     * Draw the purchased item, its variant, and the line computation.
+     * Draw the itemised breakdown for a multi-item order.
      *
      * @param FPDF $pdf
      * @param array $data
@@ -352,28 +439,23 @@ class Receipt {
     private static function drawItems(FPDF $pdf, array $data): void {
         $w = self::CONTENT_WIDTH_MM;
 
-        $pdf->SetFont('Helvetica', 'B', 9);
-        $pdf->MultiCell($w, 4.6, $data['product_name'], 0, 'L');
+        $pdf->SetFont('Helvetica', 'B', 8.5);
+        $pdf->Cell($w, 4.4, 'ITEMS', 0, 1, 'L');
 
-        if ($data['product_variant'] !== '') {
-            $pdf->SetFont('Helvetica', '', 7.5);
-            $pdf->Cell($w, 3.8, 'Variant: ' . $data['product_variant'], 0, 1, 'L');
+        foreach ($data['items'] as $item) {
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $line = $item['name'] . ($item['variant'] !== '' ? ' (' . $item['variant'] . ')' : '');
+            $pdf->MultiCell($w, 4.2, $line, 0, 'L');
+
+            self::amountRow($pdf, $item['quantity'] . ' x ' . $item['unit_price_plain'], $item['subtotal_plain'], $w);
         }
 
-        // "2 x 1,650.00" on the left, "= 3,300.00" right-aligned.
-        $pdf->SetFont('Helvetica', '', 9);
-        $line = $data['quantity'] . ' x ' . number_format((float)$data['unit_price'], 2);
-        $result = '= ' . number_format((float)$data['total_amount'], 2);
-
-        $pdf->Cell($w, 4.4, $line, 0, 0, 'L');
-        $pdf->Cell($w, 4.4, $result, 0, 1, 'R');
-
-        $pdf->Ln(0.5);
+        $pdf->Ln(1.2);
         self::rule($pdf);
     }
 
     /**
-     * Draw the subtotal, delivery fee, and grand total.
+     * Draw the transaction summary: net subtotal, 12% VAT, and gross total.
      *
      * @param FPDF $pdf
      * @param array $data
@@ -383,151 +465,117 @@ class Receipt {
         $w = self::CONTENT_WIDTH_MM;
 
         $pdf->SetFont('Helvetica', '', 9);
-        $pdf->Cell($w, 4.4, 'Subtotal', 0, 0, 'L');
-        $pdf->Cell($w, 4.4, number_format((float)$data['total_amount'], 2), 0, 1, 'R');
+        self::amountRow($pdf, 'Subtotal', $data['subtotal_plain_text'], $w);
+        self::amountRow($pdf, 'VAT 12%', $data['vat_12_text'], $w);
 
-        $pdf->Cell($w, 4.4, 'VAT 12%', 0, 0, 'L');
-        $pdf->Cell($w, 4.4, $data['vat_amount_text'], 0, 1, 'R');
+        $pdf->Ln(3);
 
-        $pdf->Cell($w, 4.4, 'DELIVERY', 0, 0, 'L');
-        $pdf->Cell($w, 4.4, number_format((float)$data['delivery_fee'], 2), 0, 1, 'R');
-
-        // Highlighted grand total band.
-        $pdf->SetFillColor(240, 246, 245);
         $pdf->SetFont('Helvetica', 'B', 10);
-        $pdf->Cell($w, 6.5, 'TOTAL AMOUNT', 0, 0, 'L', true);
-        $pdf->Cell($w, 6.5, $data['grand_total_text'], 0, 1, 'R', true);
+        self::amountRow($pdf, 'TOTAL AMOUNT', $data['total_amount_plain_text'], $w);
 
         $pdf->Ln(0.5);
         self::rule($pdf);
     }
 
     /**
-     * Draw the payment method, settlement state, and any refund information.
+     * Draw the BIR VAT breakdown: VATable sales, output VAT, exempt, zero-rated.
      *
      * @param FPDF $pdf
      * @param array $data
      * @return void
      */
-    private static function drawPayment(FPDF $pdf, array $data): void {
-        // 23mm is the narrowest label column that still fits the widest label
-        // ("Payment Method", 22.67mm at 8.5pt), leaving 39mm for values.
-        $labelWidth = 23;
-
-        self::metaRow($pdf, 'Payment Method', $data['payment_method_label'], $labelWidth);
-
-        if ($data['is_gcash']) {
-            self::metaRow($pdf, 'Payment Status', $data['payment_status_label'], $labelWidth);
-            if ($data['payment_reference'] !== '') {
-                self::metaRow($pdf, 'GCash Ref', $data['payment_reference'], $labelWidth);
-            }
-            if ($data['payment_id'] !== '') {
-                self::metaRow($pdf, 'PayMongo ID', $data['payment_id'], $labelWidth);
-            }
-            if ($data['is_paid'] && $data['paid_at'] !== 'N/A') {
-                self::metaRow($pdf, 'Paid On', $data['paid_at'], $labelWidth);
-            }
-        } else {
-            self::metaRow($pdf, 'Balance Due', $data['grand_total_text'], $labelWidth);
-            self::metaRow($pdf, 'Payable On', 'Delivery / Cash on Delivery', $labelWidth);
-        }
-
-        if ($data['refund_status_label'] !== '') {
-            self::metaRow($pdf, 'Refund', $data['refund_status_label'], $labelWidth);
-            if ($data['refund_reason'] !== '') {
-                self::metaRow($pdf, 'Refund Reason', $data['refund_reason'], $labelWidth);
-            }
-            if ($data['refunded_at'] !== 'N/A') {
-                self::metaRow($pdf, 'Refunded On', $data['refunded_at'], $labelWidth);
-            }
-        }
-
-        if ($data['is_cancelled']) {
-            self::metaRow($pdf, 'Cancel Reason', $data['cancel_reason'] !== '' ? $data['cancel_reason'] : 'Not specified', $labelWidth);
-        }
-
-        self::rule($pdf);
-    }
-
-    /**
-     * Draw the delivery address, contact number, and special notes.
-     *
-     * @param FPDF $pdf
-     * @param array $data
-     * @return void
-     */
-    private static function drawDelivery(FPDF $pdf, array $data): void {
+    private static function drawVatBreakdown(FPDF $pdf, array $data): void {
         $w = self::CONTENT_WIDTH_MM;
-
-        $pdf->SetFont('Helvetica', 'B', 9);
-        $pdf->Cell($w, 4.4, 'DELIVER TO', 0, 1, 'L');
 
         $pdf->SetFont('Helvetica', '', 9);
-        if ($data['delivery_address'] !== '') {
-            $pdf->MultiCell($w, 4.2, $data['delivery_address'], 0, 'L');
-        }
-        if ($data['customer_phone'] !== '') {
-            $pdf->Cell($w, 4.2, 'Contact: ' . $data['customer_phone'], 0, 1, 'L');
-        }
-        if ($data['notes'] !== '') {
-            $pdf->Ln(0.5);
-            $pdf->SetFont('Helvetica', 'B', 8);
-            $pdf->Cell($w, 3.8, 'Special Instructions:', 0, 1, 'L');
-            $pdf->SetFont('Helvetica', '', 8);
-            $pdf->MultiCell($w, 3.8, $data['notes'], 0, 'L');
-        }
+        self::amountRow($pdf, '(V)VAT Sales', $data['vat_sales_text'], $w);
+        self::amountRow($pdf, 'VAT Amount', $data['vat_amount_text'], $w);
+        self::amountRow($pdf, '(E)VAT-Exempt', $data['vat_exempt_text'], $w);
+        self::amountRow($pdf, '(Z)Zero-Rated', $data['zero_rated_text'], $w);
 
-        if ($data['rider_name'] !== '') {
-            $pdf->Ln(0.5);
-            $pdf->SetFont('Helvetica', '', 8);
-            $pdf->Cell($w, 3.8, 'Assigned Rider: ' . $data['rider_name'], 0, 1, 'L');
-        }
-
-        $pdf->Ln(0.5);
         self::rule($pdf);
     }
 
     /**
-     * Draw the delivery timestamp for fulfilled orders.
+     * Draw the delivery hotline inside an asterisk border.
      *
      * @param FPDF $pdf
      * @param array $data
      * @return void
      */
-    private static function drawProgress(FPDF $pdf, array $data): void {
-        if ($data['delivered_at'] === 'N/A') {
-            return;
-        }
-
+    private static function drawHotline(FPDF $pdf, array $data): void {
         $w = self::CONTENT_WIDTH_MM;
-        $pdf->SetFont('Helvetica', '', 8);
-        $pdf->Cell($w, 3.9, 'Delivered On: ' . $data['delivered_at'], 0, 1, 'L');
 
-        $pdf->Ln(0.5);
-        self::rule($pdf);
+        $pdf->SetFont('Helvetica', '', 8);
+        $starWidth = $pdf->GetStringWidth('*') ?: 1.3;
+        $stars = str_repeat('*', max(1, (int)floor($w / $starWidth)));
+
+        $pdf->Ln(1.2);
+        $pdf->Cell($w, 4, $stars, 0, 1, 'C');
+        $pdf->SetFont('Helvetica', 'B', 8.5);
+        $pdf->Cell($w, 4.2, 'FOR DELIVERY CALL/TXT', 0, 1, 'C');
+        $pdf->SetFont('Helvetica', 'B', 9);
+        $pdf->Cell($w, 4.2, self::$merchant['hotline'], 0, 1, 'C');
+        $pdf->SetFont('Helvetica', '', 8);
+        $pdf->Cell($w, 4, $stars, 0, 1, 'C');
+
+        $pdf->Ln(1.2);
     }
 
     /**
-     * Draw the closing message and the machine-verifiable footer.
+     * Draw the BIR-registered company identity and permit details.
      *
      * @param FPDF $pdf
      * @param array $data
      * @return void
      */
-    private static function drawFooter(FPDF $pdf, array $data): void {
+    private static function drawCompanyFooter(FPDF $pdf, array $data): void {
         $w = self::CONTENT_WIDTH_MM;
 
         $pdf->SetFont('Helvetica', 'B', 9);
-        $pdf->Cell($w, 5, 'Salamat po! Thank you.', 0, 1, 'C');
-
+        $pdf->Cell($w, 4.4, self::$merchant['company_name'], 0, 1, 'C');
         $pdf->SetFont('Helvetica', '', 7.5);
-        $pdf->Cell($w, 4, 'Please keep this receipt for your records.', 0, 1, 'C');
-        $pdf->Cell($w, 4, 'All prices are in Philippine Pesos (PHP).', 0, 1, 'C');
-        $pdf->Cell($w, 4, 'Issued ' . date('F j, Y g:i A') . ' PHT', 0, 1, 'C');
+        $pdf->Cell($w, 3.8, self::$merchant['company_address1'], 0, 1, 'C');
+        $pdf->Cell($w, 3.8, self::$merchant['company_address2'], 0, 1, 'C');
 
-        $pdf->Ln(1);
-        $pdf->SetFont('Helvetica', 'B', 8);
-        $pdf->Cell($w, 5, $data['receipt_no'], 0, 1, 'C');
+        $pdf->Ln(1.2);
+        $pdf->SetFont('Helvetica', '', 7.5);
+        $pdf->Cell($w, 3.8, self::$merchant['vat_reg_tin'], 0, 1, 'L');
+        $pdf->Cell($w, 3.8, self::$merchant['brn_accred'], 0, 1, 'L');
+        $pdf->Cell($w, 3.8, self::$merchant['company_date_issued'], 0, 1, 'L');
+        $pdf->Cell($w, 3.8, self::$merchant['permit_no'], 0, 1, 'L');
+        $pdf->Cell($w, 3.8, self::$merchant['permit_date_issued'], 0, 1, 'L');
+        $pdf->Cell($w, 3.8, self::$merchant['effectivity_date'], 0, 1, 'L');
+    }
+
+    /**
+     * Draw a single left-aligned "Label: value" line, wrapping long values.
+     *
+     * @param FPDF $pdf
+     * @param string $text
+     * @return void
+     */
+    private static function metaLine(FPDF $pdf, string $text): void {
+        $pdf->SetFont('Helvetica', '', 8.5);
+        $pdf->MultiCell(self::CONTENT_WIDTH_MM, 4.2, $text, 0, 'L');
+    }
+
+    /**
+     * Draw a left-aligned label with a right-aligned amount.
+     *
+     * @param FPDF $pdf
+     * @param string $label
+     * @param string $value
+     * @param float $w Row width in millimetres
+     * @return void
+     */
+    private static function amountRow(FPDF $pdf, string $label, string $value, float $w): void {
+        // The two cells must share the roll width: the label is left-aligned in
+        // the first column and the amount right-aligned in the remainder. Using
+        // the full width for both would push the amount off the 80mm page.
+        $labelWidth = self::AMOUNT_LABEL_WIDTH_MM;
+        $pdf->Cell($labelWidth, 4.4, $label, 0, 0, 'L');
+        $pdf->Cell($w - $labelWidth, 4.4, $value, 0, 1, 'R');
     }
 
     /**
@@ -556,35 +604,6 @@ class Receipt {
         $pdf->SetDrawColor(0, 0, 0);
         $pdf->SetLineWidth(0.2);
         $pdf->Ln(1.4);
-    }
-
-    /**
-     * Draw a "label : value" row, wrapping the value when it is too long.
-     *
-     * @param FPDF $pdf
-     * @param string $label
-     * @param string $value
-     * @param float $labelWidth
-     * @param bool $emphasis Whether to render both label and value in bold
-     * @return void
-     */
-    private static function metaRow(FPDF $pdf, string $label, string $value, float $labelWidth = 22, bool $emphasis = false): void {
-        $valueWidth = self::CONTENT_WIDTH_MM - $labelWidth;
-        $lineHeight = 4.2;
-        $startY = $pdf->GetY();
-
-        $pdf->SetFont('Helvetica', $emphasis ? 'B' : '', 8.5);
-        $pdf->Cell($labelWidth, $lineHeight, $label, 0, 0, 'L');
-
-        $pdf->SetFont('Helvetica', $emphasis ? 'B' : '', 8.5);
-        $pdf->MultiCell($valueWidth, $lineHeight, $value === '' ? 'N/A' : $value, 0, 'L');
-
-        // The label Cell does not advance Y, so a value that fits on one line
-        // leaves Y exactly one line-height down; reset defensively so an
-        // unusually tight font metric cannot overlap the next row.
-        if ($pdf->GetY() < $startY + $lineHeight) {
-            $pdf->SetY($startY + $lineHeight);
-        }
     }
 
     /**

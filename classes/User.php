@@ -83,6 +83,10 @@ class User {
         $address = trim($data['address'] ?? '');
         $validIdPath = $data['valid_id_path'] ?? null;
         $status = $data['status'] ?? 'active';
+        // Self-registered customers are explicitly created as 'pending'; every
+        // other caller (admin provisioning, seed/script creation, tests) defaults
+        // to 'approved' so ID verification never blocks accounts it doesn't own.
+        $idVerificationStatus = $data['id_verification_status'] ?? 'approved';
 
         if (empty($fullName) || empty($email) || empty($rawPassword) || empty($phone) || empty($address)) {
             throw new InvalidArgumentException("Required fields: full_name, email, password, phone, and address are mandatory.");
@@ -96,6 +100,11 @@ class User {
         $validStatuses = ['active', 'inactive', 'suspended'];
         if (!in_array($status, $validStatuses, true)) {
             throw new InvalidArgumentException("Invalid status '{$status}'. Allowed statuses: " . implode(', ', $validStatuses));
+        }
+
+        $validVerificationStatuses = ['pending', 'approved', 'rejected'];
+        if (!in_array($idVerificationStatus, $validVerificationStatuses, true)) {
+            throw new InvalidArgumentException("Invalid ID verification status '{$idVerificationStatus}'. Allowed: " . implode(', ', $validVerificationStatuses));
         }
 
         if ($this->emailExists($email)) {
@@ -112,9 +121,10 @@ class User {
 
         $stmt = $this->db->prepare("
             INSERT INTO users (
-                full_name, email, password, role, phone, address, valid_id_path, status, created_at, updated_at
+                full_name, email, password, role, phone, address, valid_id_path, status,
+                id_verification_status, created_at, updated_at
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()
             )
         ");
 
@@ -126,7 +136,8 @@ class User {
             $phone,
             $address,
             $validIdPath,
-            $status
+            $status,
+            $idVerificationStatus
         ]);
 
         return (int)$this->db->lastInsertId();
@@ -212,6 +223,307 @@ class User {
 
         $stmt = $this->db->prepare("UPDATE users SET status = ?, updated_at = NOW() WHERE id = ?");
         return $stmt->execute([$status, $userId]);
+    }
+
+    /**
+     * Approve a user's uploaded government ID.
+     *
+     * Clears any previous rejection reason and records who reviewed it.
+     *
+     * @param int $userId
+     * @param int|null $adminId Reviewing administrator's user ID
+     * @return bool
+     */
+    public function approveId(int $userId, ?int $adminId = null): bool {
+        $stmt = $this->db->prepare("
+            UPDATE users
+               SET id_verification_status = 'approved',
+                   id_rejection_reason = NULL,
+                   id_reviewed_by = ?,
+                   id_reviewed_at = NOW(),
+                   updated_at = NOW()
+             WHERE id = ?
+        ");
+        return $stmt->execute([$adminId, $userId]);
+    }
+
+    /**
+     * Reject a user's uploaded government ID, recording the reason.
+     *
+     * @param int $userId
+     * @param string $reason Human-readable reason shown to the applicant
+     * @param int|null $adminId Reviewing administrator's user ID
+     * @return bool
+     * @throws InvalidArgumentException
+     */
+    public function rejectId(int $userId, string $reason, ?int $adminId = null): bool {
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new InvalidArgumentException('A rejection reason is required.');
+        }
+        if (mb_strlen($reason) > 500) {
+            $reason = mb_substr($reason, 0, 500);
+        }
+
+        $stmt = $this->db->prepare("
+            UPDATE users
+               SET id_verification_status = 'rejected',
+                   id_rejection_reason = ?,
+                   id_reviewed_by = ?,
+                   id_reviewed_at = NOW(),
+                   purge_warned_at = NULL,
+                   updated_at = NOW()
+             WHERE id = ?
+        ");
+        return $stmt->execute([$reason, $adminId, $userId]);
+    }
+
+    /**
+     * Submit (or re-submit) a government ID for review.
+     *
+     * Resets the verification state to 'pending' and clears any prior decision
+     * so a rejected applicant can upload a corrected document.
+     *
+     * @param int $userId
+     * @param string $validIdPath Relative path to the stored ID document
+     * @return bool
+     */
+    public function submitId(int $userId, string $validIdPath): bool {
+        $stmt = $this->db->prepare("
+            UPDATE users
+               SET valid_id_path = ?,
+                   id_verification_status = 'pending',
+                   id_rejection_reason = NULL,
+                   id_reviewed_by = NULL,
+                   id_reviewed_at = NULL,
+                   purge_warned_at = NULL,
+                   updated_at = NOW()
+             WHERE id = ?
+        ");
+        return $stmt->execute([$validIdPath, $userId]);
+    }
+
+    /**
+     * Find rejected customers whose grace period has expired and are therefore
+     * eligible for automatic purge.
+     *
+     * A customer qualifies when their government ID is still 'rejected', the
+     * rejection is at least $graceHours old, and they have no order history.
+     * Re-submitting an ID resets the status to 'pending' and clears
+     * id_reviewed_at, so an applicant who complies is dropped from this set
+     * automatically. Customers with orders are excluded so the ON DELETE
+     * CASCADE can never destroy order/receipt data.
+     *
+     * @param int $graceHours Hours after rejection before purge (default from config)
+     * @return array List of ['id' => int, 'valid_id_path' => ?string]
+     */
+    public function getExpiredRejections(int $graceHours = 0): array {
+        $graceHours = $graceHours > 0 ? (int)$graceHours : (defined('ID_REJECTION_GRACE_HOURS') ? (int)ID_REJECTION_GRACE_HOURS : 24);
+
+        $stmt = $this->db->prepare("
+            SELECT u.id, u.valid_id_path
+              FROM users u
+             WHERE u.role = 'customer'
+               AND u.id_verification_status = 'rejected'
+               AND u.id_reviewed_at IS NOT NULL
+               AND u.id_reviewed_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)
+               AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = u.id)
+             ORDER BY u.id ASC
+        ");
+        $stmt->execute([$graceHours]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Permanently delete customers whose rejected ID was never resubmitted
+     * within the grace window.
+     *
+     * Each candidate is re-validated as part of the DELETE so a concurrent
+     * re-submission or a late order cannot be raced into deletion. The stored
+     * government ID file is only removed once the row is confirmed deleted.
+     *
+     * @param int  $graceHours     Hours after rejection before purge
+     * @param bool $deleteIdFiles  Also remove the uploaded ID document from disk
+     * @return array Summary: ['purged' => int, 'files_deleted' => int, 'skipped_with_orders' => int, 'ids' => int[]]
+     */
+    public function purgeExpiredRejections(int $graceHours = 0, bool $deleteIdFiles = true): array {
+        $graceHours = $graceHours > 0 ? (int)$graceHours : (defined('ID_REJECTION_GRACE_HOURS') ? (int)ID_REJECTION_GRACE_HOURS : 24);
+
+        $summary = [
+            'purged' => 0,
+            'files_deleted' => 0,
+            'skipped_with_orders' => 0,
+            'ids' => [],
+        ];
+
+        // Report rejected applicants who are past the window but protected by
+        // order history, so a caller can surface them for manual review.
+        $skippedStmt = $this->db->prepare("
+            SELECT COUNT(*)
+              FROM users u
+             WHERE u.role = 'customer'
+               AND u.id_verification_status = 'rejected'
+               AND u.id_reviewed_at IS NOT NULL
+               AND u.id_reviewed_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)
+               AND EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = u.id)
+        ");
+        $skippedStmt->execute([$graceHours]);
+        $summary['skipped_with_orders'] = (int)$skippedStmt->fetchColumn();
+
+        // Row-safe re-check at delete time. NOT EXISTS on `orders` keeps any
+        // customer with history out of reach of the cascade.
+        $deleteStmt = $this->db->prepare("
+            DELETE FROM users
+             WHERE id = ?
+               AND role = 'customer'
+               AND id_verification_status = 'rejected'
+               AND id_reviewed_at IS NOT NULL
+               AND id_reviewed_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)
+               AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = users.id)
+        ");
+
+        foreach ($this->getExpiredRejections($graceHours) as $candidate) {
+            $userId = (int)$candidate['id'];
+            if ($userId <= 0) {
+                continue;
+            }
+
+            $deleteStmt->execute([$userId, $graceHours]);
+            if ($deleteStmt->rowCount() !== 1) {
+                // Resubmitted, ordered, or already gone between SELECT and now.
+                continue;
+            }
+
+            $summary['purged']++;
+            $summary['ids'][] = $userId;
+
+            if ($deleteIdFiles && $this->deleteStoredIdFile($candidate['valid_id_path'] ?? null)) {
+                $summary['files_deleted']++;
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Find rejected customers who are nearing the end of their grace window and
+     * have not yet been warned. Sending is gated by purge_warned_at so each
+     * applicant is reminded at most once per rejection.
+     *
+     * @param int $graceHours Hours after rejection before purge
+     * @param int $leadHours  Send the reminder when this many hours remain
+     * @return array
+     */
+    public function getRejectionsDueForReminder(int $graceHours = 0, int $leadHours = 0): array {
+        $graceHours = $graceHours > 0 ? (int)$graceHours : (defined('ID_REJECTION_GRACE_HOURS') ? (int)ID_REJECTION_GRACE_HOURS : 24);
+        $leadHours = $leadHours > 0 ? (int)$leadHours : (defined('ID_REJECTION_REMINDER_LEAD_HOURS') ? (int)ID_REJECTION_REMINDER_LEAD_HOURS : 4);
+
+        // Reminder fires once the elapsed time reaches (grace - lead) but before
+        // the grace window closes; the purge sweep handles the latter.
+        $remindAfterHours = max(0, $graceHours - $leadHours);
+
+        $stmt = $this->db->prepare("
+            SELECT u.id, u.full_name, u.email, u.id_reviewed_at
+              FROM users u
+             WHERE u.role = 'customer'
+               AND u.id_verification_status = 'rejected'
+               AND u.purge_warned_at IS NULL
+               AND u.id_reviewed_at IS NOT NULL
+               AND u.id_reviewed_at <= DATE_SUB(NOW(), INTERVAL ? HOUR)
+               AND u.id_reviewed_at > DATE_SUB(NOW(), INTERVAL ? HOUR)
+               AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = u.id)
+             ORDER BY u.id ASC
+        ");
+        $stmt->execute([$remindAfterHours, $graceHours]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Mark a rejected applicant as having received the pending-purge reminder.
+     *
+     * The conditional WHERE makes the claim atomic: only the caller that
+     * actually flips the NULL to a timestamp (rowCount === 1) should send the
+     * notification, so concurrent sweeps cannot double-send.
+     *
+     * @param int $userId
+     * @return bool True when this call claimed the reminder
+     */
+    public function markPurgeWarned(int $userId): bool {
+        $stmt = $this->db->prepare("
+            UPDATE users
+               SET purge_warned_at = NOW()
+             WHERE id = ? AND purge_warned_at IS NULL
+        ");
+        $stmt->execute([$userId]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Safely delete a stored ID document from disk.
+     *
+     * Confines deletion to the uploads/ directory and rejects path traversal,
+     * so a corrupted database value can never remove an arbitrary file.
+     *
+     * @param string|null $relativePath Stored path, e.g. uploads/ids/id_ab12.png
+     * @return bool True when a file was actually removed
+     */
+    private function deleteStoredIdFile(?string $relativePath): bool {
+        $relativePath = trim((string)$relativePath);
+        if ($relativePath === '') {
+            return false;
+        }
+
+        $projectRoot = dirname(__DIR__);
+        $uploadsRoot = realpath($projectRoot . '/uploads');
+        if ($uploadsRoot === false) {
+            return false;
+        }
+
+        $absolute = realpath($projectRoot . '/' . ltrim($relativePath, '/\\'));
+        if ($absolute === false) {
+            return false;
+        }
+
+        $uploadsRoot = rtrim($uploadsRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (strncmp($absolute, $uploadsRoot, strlen($uploadsRoot)) !== 0) {
+            return false;
+        }
+
+        return is_file($absolute) && @unlink($absolute);
+    }
+
+    /**
+     * Count self-registered customer accounts still awaiting ID verification.
+     *
+     * @return int
+     */
+    public function countPendingVerifications(): int {
+        $stmt = $this->db->query("SELECT COUNT(*) FROM users WHERE role = 'customer' AND id_verification_status = 'pending'");
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Retrieve users by their ID verification status.
+     *
+     * @param string $status pending|approved|rejected
+     * @param string|null $role Optional role filter (e.g. 'customer')
+     * @return array
+     * @throws InvalidArgumentException
+     */
+    public function getByVerificationStatus(string $status, ?string $role = null): array {
+        $valid = ['pending', 'approved', 'rejected'];
+        if (!in_array($status, $valid, true)) {
+            throw new InvalidArgumentException("Invalid verification status '{$status}'.");
+        }
+
+        if ($role !== null) {
+            $stmt = $this->db->prepare("SELECT * FROM users WHERE id_verification_status = ? AND role = ? ORDER BY id DESC");
+            $stmt->execute([$status, $role]);
+        } else {
+            $stmt = $this->db->prepare("SELECT * FROM users WHERE id_verification_status = ? ORDER BY id DESC");
+            $stmt->execute([$status]);
+        }
+        return $stmt->fetchAll();
     }
 
     /**
