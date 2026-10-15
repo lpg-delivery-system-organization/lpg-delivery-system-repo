@@ -218,6 +218,7 @@ if (!$testCustomer2) {
 $ordersApi = __DIR__ . '/../api/orders.php';
 $productsApi = __DIR__ . '/../api/products.php';
 $usersApi = __DIR__ . '/../api/users.php';
+$proofApi = __DIR__ . '/../api/delivery-proof.php';
 $htaccessApi = __DIR__ . '/../api/.htaccess';
 
 // =========================================================================
@@ -1196,6 +1197,223 @@ it('Missing or unsupported action returns HTTP 400', function () use ($ordersApi
     ]);
 
     assert_equals(400, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+});
+
+// =========================================================================
+// Group 10: Proof-of-Delivery API (api/delivery-proof.php)
+// =========================================================================
+echo "\nGroup 10: Proof-of-Delivery API (api/delivery-proof.php)\n";
+
+// Seed an order already progressed to out_for_delivery with a given rider.
+function seed_proof_order($orderModel, $productModel, int $riderId, int $customerId): int {
+    $products = $productModel->getActive();
+    $orderId = $orderModel->place([
+        'customer_id'      => $customerId,
+        'product_id'       => $products[0]['id'],
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Proof API Test Address',
+        'contact_phone'    => '09171112233',
+        'status'           => 'approved'
+    ]);
+    $orderModel->assignRider($orderId, $riderId, 'picked_up');
+    $orderModel->updateStatus($orderId, 'out_for_delivery', $riderId);
+    return (int)$orderId;
+}
+
+function make_test_png_upload(): array {
+    $pngData = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    $tmpFile = tempnam(sys_get_temp_dir(), 'lpg_proof_api_');
+    file_put_contents($tmpFile, $pngData);
+    return [
+        'file' => [
+            'name' => 'proof.png',
+            'type' => 'image/png',
+            'tmp_name' => $tmpFile,
+            'error' => UPLOAD_ERR_OK,
+            'size' => strlen($pngData)
+        ],
+        'tmp' => $tmpFile
+    ];
+}
+
+it('api/delivery-proof.php passes syntax linting', function () use ($proofApi) {
+    exec('php -l ' . escapeshellarg($proofApi) . ' 2>&1', $output, $code);
+    assert_equals(0, $code, 'delivery-proof.php syntax error: ' . implode("\n", $output));
+});
+
+it('api/delivery-proof.php blocks unauthenticated requests with HTTP 401', function () use ($proofApi) {
+    reset_api_env();
+    $res = call_endpoint($proofApi, ['order_id' => 1]);
+    assert_equals(401, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+    assert_contains('Authentication required', $res['data']['message'] ?? '');
+});
+
+it('api/delivery-proof.php rejects non-rider roles with HTTP 403', function () use ($proofApi, $testCustomer) {
+    reset_api_env();
+    login_user($testCustomer);
+    $token = csrf_token();
+    $res = call_endpoint($proofApi, ['order_id' => 1, 'csrf_token' => $token]);
+    assert_equals(403, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+});
+
+it('api/delivery-proof.php rejects admin role with HTTP 403', function () use ($proofApi, $testAdmin) {
+    reset_api_env();
+    login_user($testAdmin);
+    $token = csrf_token();
+    $res = call_endpoint($proofApi, ['order_id' => 1, 'csrf_token' => $token]);
+    assert_equals(403, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+});
+
+it('api/delivery-proof.php enforces CSRF token with HTTP 403', function () use ($proofApi, $testRider) {
+    reset_api_env();
+    login_user($testRider);
+    $res = call_endpoint($proofApi, ['order_id' => 1, 'csrf_token' => 'invalid_token']);
+    assert_equals(403, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+    assert_contains('CSRF', $res['data']['message'] ?? '');
+});
+
+it('api/delivery-proof.php requires a photo with HTTP 400', function () use ($proofApi, $testRider, $testCustomer, $orderModel, $productModel) {
+    reset_api_env();
+    $orderId = seed_proof_order($orderModel, $productModel, (int)$testRider['id'], (int)$testCustomer['id']);
+
+    login_user($testRider);
+    $token = csrf_token();
+
+    // $_FILES intentionally empty
+    $res = call_endpoint($proofApi, ['order_id' => $orderId, 'csrf_token' => $token]);
+
+    assert_equals(400, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+    assert_contains('photo is required', $res['data']['message'] ?? '');
+
+    $db = Database::connect();
+    $db->exec("DELETE FROM orders WHERE id = " . (int)$orderId);
+});
+
+it('api/delivery-proof.php rejects an order not assigned to the rider with HTTP 403', function () use ($proofApi, $testRider, $testRider2, $testCustomer, $orderModel, $productModel) {
+    reset_api_env();
+    $orderId = seed_proof_order($orderModel, $productModel, (int)$testRider2['id'], (int)$testCustomer['id']);
+
+    login_user($testRider);
+    $token = csrf_token();
+
+    $res = call_endpoint($proofApi, ['order_id' => $orderId, 'csrf_token' => $token]);
+
+    assert_equals(403, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+    assert_contains('not assigned', $res['data']['message'] ?? '');
+
+    $db = Database::connect();
+    $db->exec("DELETE FROM orders WHERE id = " . (int)$orderId);
+});
+
+it('api/delivery-proof.php rejects an order that is not out_for_delivery with HTTP 400', function () use ($proofApi, $testRider, $testCustomer, $orderModel, $productModel) {
+    reset_api_env();
+    $products = $productModel->getActive();
+    $orderId = $orderModel->place([
+        'customer_id'      => $testCustomer['id'],
+        'product_id'       => $products[0]['id'],
+        'quantity'         => 1,
+        'payment_method'   => 'cod',
+        'delivery_address' => 'Proof API Wrong State',
+        'contact_phone'    => '09171112233',
+        'status'           => 'approved'
+    ]);
+    $orderModel->assignRider($orderId, (int)$testRider['id'], 'picked_up');
+
+    login_user($testRider);
+    $token = csrf_token();
+
+    $res = call_endpoint($proofApi, ['order_id' => $orderId, 'csrf_token' => $token]);
+
+    assert_equals(400, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+    assert_contains('out-for-delivery', $res['data']['message'] ?? '');
+
+    $db = Database::connect();
+    $db->exec("DELETE FROM orders WHERE id = " . (int)$orderId);
+});
+
+it('api/delivery-proof.php rejects a non-image upload with HTTP 400', function () use ($proofApi, $testRider, $testCustomer, $orderModel, $productModel) {
+    reset_api_env();
+    $orderId = seed_proof_order($orderModel, $productModel, (int)$testRider['id'], (int)$testCustomer['id']);
+
+    $tmpFile = tempnam(sys_get_temp_dir(), 'lpg_proof_txt_');
+    file_put_contents($tmpFile, 'not an image');
+
+    login_user($testRider);
+    $token = csrf_token();
+
+    $_FILES['proof_photo'] = [
+        'name' => 'fake.png',
+        'type' => 'image/png',
+        'tmp_name' => $tmpFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => filesize($tmpFile)
+    ];
+
+    $res = call_endpoint($proofApi, ['order_id' => $orderId, 'csrf_token' => $token]);
+
+    assert_equals(400, $res['code']);
+    assert_false($res['data']['success'] ?? true);
+    @unlink($tmpFile);
+
+    $db = Database::connect();
+    $db->exec("DELETE FROM orders WHERE id = " . (int)$orderId);
+});
+
+it('api/delivery-proof.php stores the photo, completes the delivery and records proof columns', function () use ($proofApi, $testRider, $testCustomer, $orderModel, $productModel) {
+    reset_api_env();
+    $orderId = seed_proof_order($orderModel, $productModel, (int)$testRider['id'], (int)$testCustomer['id']);
+
+    $upload = make_test_png_upload();
+
+    login_user($testRider);
+    $token = csrf_token();
+
+    $_FILES['proof_photo'] = $upload['file'];
+
+    $res = call_endpoint($proofApi, [
+        'order_id'      => $orderId,
+        'csrf_token'    => $token,
+        'delivery_note' => 'Handed to customer at the door'
+    ]);
+
+    assert_equals(200, $res['code']);
+    assert_true($res['data']['success'] ?? false);
+    assert_equals($orderId, (int)($res['data']['data']['order_id'] ?? 0));
+
+    $row = $orderModel->findById($orderId);
+    assert_equals('delivered', $row['status']);
+    assert_not_empty($row['delivery_proof_path']);
+    assert_contains('uploads/proofs/proof_', $row['delivery_proof_path']);
+    assert_not_empty($row['delivery_proof_at']);
+    assert_equals('Handed to customer at the door', $row['delivery_note']);
+
+    $abs = dirname(__DIR__) . '/' . $row['delivery_proof_path'];
+    assert_true(is_file($abs), 'Stored proof file must exist on disk');
+
+    // Cleanup
+    @unlink($abs);
+    @unlink($upload['tmp']);
+    $db = Database::connect();
+    $db->exec("DELETE FROM orders WHERE id = " . (int)$orderId);
+});
+
+it('api/delivery-proof.php returns HTTP 404 for a missing order', function () use ($proofApi, $testRider) {
+    reset_api_env();
+    login_user($testRider);
+    $token = csrf_token();
+
+    $res = call_endpoint($proofApi, ['order_id' => 99999999, 'csrf_token' => $token]);
+
+    assert_equals(404, $res['code']);
     assert_false($res['data']['success'] ?? true);
 });
 

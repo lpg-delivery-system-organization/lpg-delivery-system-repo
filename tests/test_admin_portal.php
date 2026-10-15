@@ -429,6 +429,19 @@ it('Order sales report aggregates delivered orders only, inside the selected ran
     assert_equals('2026-06-15', $daily[1]['key']);
     assert_equals('Jun 15, 2026', $daily[1]['label']);
 
+    // Hourly series zero-fills every hour of a single-day window.
+    $hourly = $orderModel->getSalesReportSeries('2026-06-15', '2026-06-15', 'hourly');
+    assert_equals(24, count($hourly), 'A single-day window must yield 24 hourly buckets');
+    assert_equals('2026-06-15 00', $hourly[0]['key']);
+    assert_equals('12 AM', $hourly[0]['label']);
+    assert_equals('2026-06-15 10', $hourly[10]['key']);
+    assert_equals('10 AM', $hourly[10]['label']);
+    assert_true($hourly[10]['orders'] >= 1, 'The 10:00 delivery must land in the 10 AM bucket');
+    assert_equals('2026-06-15 13', $hourly[13]['key']);
+    assert_equals('1 PM', $hourly[13]['label']);
+    assert_equals('2026-06-15 23', $hourly[23]['key']);
+    assert_equals('11 PM', $hourly[23]['label']);
+
     // Non-delivered orders never count as sales.
     $pendingId = $orderModel->place([
         'customer_id'      => $customerId,

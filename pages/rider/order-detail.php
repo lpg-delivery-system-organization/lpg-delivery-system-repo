@@ -107,7 +107,7 @@ $isReady = ($status === 'ready_for_delivery');
 $isPickedUp = ($status === 'picked_up');
 $isOutForDelivery = ($status === 'out_for_delivery');
 $isDelivered = ($status === 'delivered');
-$isCod = (($order['payment_method'] ?? 'COD') === 'COD');
+$isCod = (strtolower((string)($order['payment_method'] ?? 'cod')) === 'cod');
 
 $page_title = 'Delivery #' . $orderId . ' Details';
 $current_page = 'deliveries';
@@ -202,11 +202,6 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <span class="text-muted extra-small text-uppercase fw-semibold d-block">Customer Name</span>
                             <strong class="text-dark fs-6"><?= e($order['customer_name'] ?? 'Customer') ?></strong>
                         </div>
-                        <?php if (!empty($order['contact_phone'])): ?>
-                            <a href="tel:<?= e($order['contact_phone']) ?>" class="btn btn-primary px-3 fw-semibold">
-                                <i class="bi bi-telephone-fill me-1"></i>Call Customer
-                            </a>
-                        <?php endif; ?>
                     </div>
 
                     <div class="mb-3">
@@ -309,6 +304,23 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             </div>
                         </div>
                     <?php endif; ?>
+
+                    <?php if ($isDelivered && !empty($order['delivery_proof_path'])): ?>
+                        <div class="mb-0 p-3 border rounded-3">
+                            <label class="text-muted extra-small text-uppercase fw-semibold d-block mb-2">
+                                <i class="bi bi-camera-fill me-1"></i>Proof of Delivery
+                            </label>
+                            <a href="<?= e(url('pages/rider/view_proof.php?order_id=' . (int)$orderId)) ?>" target="_blank" rel="noopener" class="d-block">
+                                <img src="<?= e(url('pages/rider/view_proof.php?order_id=' . (int)$orderId)) ?>" alt="Proof of delivery" class="img-fluid rounded border" style="max-height: 220px; object-fit: contain;">
+                            </a>
+                            <?php if (!empty($order['delivery_proof_at'])): ?>
+                                <div class="extra-small text-muted mt-2"><i class="bi bi-clock me-1"></i>Uploaded <?= e(format_date($order['delivery_proof_at'])) ?></div>
+                            <?php endif; ?>
+                            <?php if (!empty($order['delivery_note'])): ?>
+                                <div class="small text-dark mt-1"><i class="bi bi-chat-left-text me-1 text-muted"></i><?= e($order['delivery_note']) ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Footer Status Progression Action -->
@@ -352,17 +364,12 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <i class="bi bi-truck me-1"></i>Mark Out for Delivery
                         </button>
                     <?php elseif ($isOutForDelivery): ?>
-                        <button type="button" class="btn btn-success w-100 py-2 fw-bold shadow-sm btn-rider-action"
-                                data-action="update_status"
-                                data-status="delivered"
+                        <button type="button" class="btn btn-success w-100 py-2 fw-bold shadow-sm btn-open-proof-modal"
                                 data-order-id="<?= $orderId ?>"
-                                data-csrf="<?= csrf_token() ?>"
-                                data-confirm-title="Complete Delivery #<?= $orderId ?>"
-                                data-confirm-msg="<?= $isCod ? 'Confirm that you have collected ₱' . number_format($order['total_amount'] ?? 0, 2) . ' cash and handed over the cylinder?' : 'Confirm that the LPG cylinder has been successfully handed over to the customer?' ?>"
-                                data-confirm-icon="bi-check-circle-fill"
-                                data-confirm-color="text-success"
-                                data-confirm-btn="btn-success">
-                            <i class="bi bi-check-circle-fill me-1"></i>Confirm Delivery Completed
+                                data-customer="<?= e($order['customer_name'] ?? 'Customer') ?>"
+                                data-amount="<?= e(format_currency($order['total_amount'] ?? 0)) ?>"
+                                data-payment="<?= $isCod ? 'COD' : 'GCASH' ?>">
+                            <i class="bi bi-camera-fill me-1"></i>Confirm Delivery with Photo
                         </button>
                     <?php elseif ($isDelivered): ?>
                         <div class="alert alert-success border-0 mb-0 text-center fw-semibold py-2">
@@ -406,5 +413,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
         </div>
     </div>
 </div>
+
+<?php require_once __DIR__ . '/../../templates/components/delivery-proof-modal.php'; ?>
 
 <?php require_once __DIR__ . '/../../templates/footer.php'; ?>

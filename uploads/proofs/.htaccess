@@ -1,0 +1,17 @@
+# LPG Delivery System v2
+# Proof-of-delivery photos show the customer's item/address, so unlike
+# uploads/products and uploads/avatars this directory deliberately does NOT
+# grant public access - it inherits "deny all" from uploads/.htaccess.
+# Files are streamed only through the role-scoped view_proof.php proxies.
+#
+# Defense-in-depth: never execute scripts stored in this directory.
+
+<FilesMatch "\.(?i:php|phtml|php3|php4|php5|php7|phps|phar|cgi|pl|py|asp|aspx|sh)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

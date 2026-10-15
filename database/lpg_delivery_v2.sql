@@ -99,6 +99,9 @@ CREATE TABLE `orders` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `delivered_at` timestamp NULL DEFAULT NULL,
+  `delivery_proof_path` varchar(255) DEFAULT NULL,
+  `delivery_proof_at` datetime DEFAULT NULL,
+  `delivery_note` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_orders_product` (`product_id`),
   KEY `idx_customer` (`customer_id`),
@@ -346,6 +349,7 @@ INSERT IGNORE INTO `schema_migrations` (`migration`, `table_name`, `description`
 ('2026-09-30_182937_create_rider_locations_table.sql', 'rider_locations', 'Rider GPS location pings while delivering'),
 ('2026-09-30_182938_create_password_resets_table.sql', 'password_resets', 'Password reset tokens'),
 ('2026-10-14_090000_create_order_items_table.sql', 'order_items', 'Individual line items for an order, so a single order can contain multiple products with their own quantities.'),
-('2026-10-14_090100_create_cart_items_table.sql', 'cart_items', 'Persistent per-customer shopping cart: one row per product with the chosen quantity.');
+('2026-10-14_090100_create_cart_items_table.sql', 'cart_items', 'Persistent per-customer shopping cart: one row per product with the chosen quantity.'),
+('2026-10-16_033906_alter_orders_table.sql', 'orders', 'Add proof-of-delivery photo path, timestamp, and rider note to orders.');
 
 SET FOREIGN_KEY_CHECKS = 1;

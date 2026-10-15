@@ -877,6 +877,135 @@ it('delete_old_product_image deletes only files under uploads/products', functio
 @rmdir($testProductUploadDir);
 
 // =========================================================================
+// Group 8: Proof-of-Delivery Upload (validate_delivery_proof_upload)
+// =========================================================================
+echo "\nGroup 8: Proof-of-Delivery Upload (validate_delivery_proof_upload)\n";
+
+$testProofUploadDir = sys_get_temp_dir() . '/lpg_test_proof_uploads_' . bin2hex(random_bytes(6));
+if (!is_dir($testProofUploadDir)) {
+    mkdir($testProofUploadDir, 0755, true);
+}
+
+it('validate_delivery_proof_upload accepts a valid PNG and stores a proof_* filename', function () use ($testProofUploadDir) {
+    $pngData = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    $tmpFile = tempnam(sys_get_temp_dir(), 'lpg_proof_png_');
+    file_put_contents($tmpFile, $pngData);
+
+    $mockUpload = [
+        'name' => 'delivery.png',
+        'type' => 'image/png',
+        'tmp_name' => $tmpFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => strlen($pngData)
+    ];
+
+    $result = validate_delivery_proof_upload($mockUpload, $testProofUploadDir);
+
+    assert_true($result['success'], 'Valid PNG proof photo should be accepted');
+    assert_true(str_starts_with($result['filename'], 'proof_'), 'Filename should start with proof_');
+    assert_true(str_ends_with($result['filename'], '.png'), 'Filename should end with .png');
+    assert_equals('image/png', $result['mime_type']);
+    assert_true(file_exists($result['filepath']), 'Saved proof photo must exist on disk');
+    assert_equals('uploads/proofs/' . $result['filename'], $result['relative_path']);
+
+    @unlink($tmpFile);
+    @unlink($result['filepath']);
+});
+
+it('validate_delivery_proof_upload accepts a valid JPEG image file', function () use ($testProofUploadDir) {
+    $jpegData = base64_decode('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigD//2Q==');
+    $tmpFile = tempnam(sys_get_temp_dir(), 'lpg_proof_jpg_');
+    file_put_contents($tmpFile, $jpegData);
+
+    $mockUpload = [
+        'name' => 'delivery.jpg',
+        'type' => 'image/jpeg',
+        'tmp_name' => $tmpFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => strlen($jpegData)
+    ];
+
+    $result = validate_delivery_proof_upload($mockUpload, $testProofUploadDir);
+
+    assert_true($result['success'], 'Valid JPEG proof photo should be accepted');
+    assert_true(str_starts_with($result['filename'], 'proof_'), 'Filename should start with proof_');
+    assert_equals('image/jpeg', $result['mime_type']);
+
+    @unlink($tmpFile);
+    @unlink($result['filepath']);
+});
+
+it('validate_delivery_proof_upload rejects a non-image file', function () use ($testProofUploadDir) {
+    $txtFile = tempnam(sys_get_temp_dir(), 'lpg_proof_txt_');
+    file_put_contents($txtFile, 'plain text, not a photo');
+
+    $mockUpload = [
+        'name' => 'evil.png',
+        'type' => 'image/png',
+        'tmp_name' => $txtFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => filesize($txtFile)
+    ];
+
+    $result = validate_delivery_proof_upload($mockUpload, $testProofUploadDir);
+
+    assert_false($result['success'], 'Non-image file must be rejected');
+    assert_not_empty($result['error']);
+
+    @unlink($txtFile);
+});
+
+it('validate_delivery_proof_upload rejects PDFs and oversized files', function () use ($testProofUploadDir) {
+    $pdfData = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n%%EOF\n";
+    $pdfFile = tempnam(sys_get_temp_dir(), 'lpg_proof_pdf_');
+    file_put_contents($pdfFile, $pdfData);
+    $pdfUpload = [
+        'name' => 'proof.pdf',
+        'type' => 'application/pdf',
+        'tmp_name' => $pdfFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => strlen($pdfData)
+    ];
+    $pdfResult = validate_delivery_proof_upload($pdfUpload, $testProofUploadDir);
+    assert_false($pdfResult['success'], 'PDF must be rejected for proof photos');
+    @unlink($pdfFile);
+
+    $hugeFile = tempnam(sys_get_temp_dir(), 'lpg_proof_huge_');
+    file_put_contents($hugeFile, 'x');
+    $hugeUpload = [
+        'name' => 'huge.png',
+        'type' => 'image/png',
+        'tmp_name' => $hugeFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => 6 * 1024 * 1024
+    ];
+    $hugeResult = validate_delivery_proof_upload($hugeUpload, $testProofUploadDir);
+    assert_false($hugeResult['success'], 'Oversized proof photo must be rejected');
+    @unlink($hugeFile);
+});
+
+it('delete_old_delivery_proof deletes only files under uploads/proofs', function () {
+    $rel = 'uploads/proofs/proof_' . bin2hex(random_bytes(8)) . '.jpg';
+    $abs = dirname(__DIR__) . '/' . $rel;
+    @mkdir(dirname($abs), 0755, true);
+    file_put_contents($abs, 'temp');
+    assert_true(is_file($abs), 'test fixture should exist');
+
+    delete_old_delivery_proof($rel);
+    assert_true(!is_file($abs), 'stored proof photo should be deleted');
+
+    $protected = dirname(__DIR__) . '/config/app.php';
+    delete_old_delivery_proof('config/app.php');
+    assert_true(is_file($protected), 'files outside uploads/proofs must not be touched');
+
+    delete_old_delivery_proof('uploads/proofs/../../config/app.php');
+    assert_true(is_file($protected), 'traversal paths must be ignored');
+});
+
+// Clean up proof test directory
+@rmdir($testProofUploadDir);
+
+// =========================================================================
 // Test Summary
 // =========================================================================
 echo "\n====================================================\n";

@@ -216,7 +216,8 @@ it('rider.js exists and contains core rider portal interaction handlers', functi
     $jsPath = __DIR__ . '/../assets/js/rider.js';
     assert_true(file_exists($jsPath), 'rider.js file must exist');
     $content = file_get_contents($jsPath);
-    assert_contains('btn-open-deliver-modal', $content);
+    assert_contains('btn-open-proof-modal', $content);
+    assert_contains('initDeliveryProofModal', $content);
     assert_contains('btn-copy-address', $content);
     assert_contains('form-claim-delivery', $content);
     assert_contains('rider-filter-btn', $content);
@@ -292,7 +293,9 @@ it('deliveries.php renders metrics, filter tabs, tel: links, and assigned delive
     assert_contains('COD Cash to Collect', $html);
     assert_contains('rider-filter-btn', $html);
     assert_contains('Available Orders', $html);
-    assert_contains('confirmDeliverModal', $html);
+    assert_contains('deliveryProofModal', $html);
+    assert_contains('deliveryProofForm', $html);
+    assert_contains('name="proof_photo"', $html);
 });
 
 it('deliveries.php blocks status updates when CSRF token is invalid', function () use ($testRider) {

@@ -833,6 +833,45 @@ class Order {
     }
 
     /**
+     * Store the proof-of-delivery photo path and optional rider note on an
+     * order together with the moment the proof was captured.
+     *
+     * This only writes the proof metadata; the caller is responsible for the
+     * subsequent delivered transition via updateStatus(). It is kept separate
+     * so a captured photo can be recorded and rolled back independently if the
+     * status transition later fails.
+     *
+     * @param int         $orderId
+     * @param string      $relativePath e.g. uploads/proofs/proof_xxx.jpg
+     * @param string|null $note         Optional rider note
+     * @return bool
+     */
+    public function setDeliveryProof(int $orderId, string $relativePath, ?string $note = null): bool {
+        $stmt = $this->db->prepare("
+            UPDATE orders
+            SET delivery_proof_path = ?, delivery_note = ?, delivery_proof_at = NOW(), updated_at = NOW()
+            WHERE id = ?
+        ");
+        return $stmt->execute([$relativePath, $note, $orderId]);
+    }
+
+    /**
+     * Clear the proof-of-delivery metadata (used to roll back a captured photo
+     * when the delivered transition fails afterwards).
+     *
+     * @param int $orderId
+     * @return bool
+     */
+    public function clearDeliveryProof(int $orderId): bool {
+        $stmt = $this->db->prepare("
+            UPDATE orders
+            SET delivery_proof_path = NULL, delivery_note = NULL, delivery_proof_at = NULL, updated_at = NOW()
+            WHERE id = ?
+        ");
+        return $stmt->execute([$orderId]);
+    }
+
+    /**
      * Update customer-facing details of an order (walk-in editing support).
      * Updates contact_phone and delivery_address on the order, refreshes
      * drop-off coordinates via geocode fallback, and syncs the customer's
@@ -1304,6 +1343,7 @@ class Order {
      * these fixed patterns here, so the GROUP BY expression is always static.
      */
     private const SALES_BUCKET_FORMATS = [
+        'hourly'  => '%Y-%m-%d %H',
         'daily'   => '%Y-%m-%d',
         'monthly' => '%Y-%m',
         'yearly'  => '%Y',
@@ -1376,7 +1416,7 @@ class Order {
      *
      * @param string $from   Start date inclusive, Y-m-d
      * @param string $to     End date inclusive, Y-m-d
-     * @param string $bucket One of 'daily', 'monthly', 'yearly'
+     * @param string $bucket One of 'hourly', 'daily', 'monthly', 'yearly'
      * @return array<int, array{key: string, label: string, orders: int, units: int, revenue: float}>
      */
     public function getSalesReportSeries(string $from, string $to, string $bucket = 'daily'): array {
@@ -1449,10 +1489,14 @@ class Order {
      * Human-readable label for a sales report bucket key.
      *
      * @param string $key    Bucket key produced by DATE_FORMAT
-     * @param string $bucket One of 'daily', 'monthly', 'yearly'
+     * @param string $bucket One of 'hourly', 'daily', 'monthly', 'yearly'
      * @return string
      */
     private static function salesBucketLabel(string $key, string $bucket): string {
+        if ($bucket === 'hourly') {
+            $ts = strtotime($key . ':00:00');
+            return $ts ? date('g A', $ts) : $key;
+        }
         if ($bucket === 'daily') {
             $ts = strtotime($key);
             return $ts ? date('M j, Y', $ts) : $key;
@@ -1474,7 +1518,7 @@ class Order {
      * @param array<string, array> $series Sparse series keyed by bucket key
      * @param string $from   Start date, Y-m-d
      * @param string $to     End date, Y-m-d
-     * @param string $bucket One of 'daily', 'monthly', 'yearly'
+     * @param string $bucket One of 'hourly', 'daily', 'monthly', 'yearly'
      * @return array<int, array>
      */
     private static function fillSalesBuckets(array $series, string $from, string $to, string $bucket): array {
@@ -1484,7 +1528,15 @@ class Order {
             return array_values($series);
         }
 
-        if ($bucket === 'daily') {
+        // $end is midnight of the closing day. Hourly buckets must reach the
+        // final hour of that day (23:00), so widen the loop limit accordingly.
+        $limit = $end;
+
+        if ($bucket === 'hourly') {
+            $format = 'Y-m-d H';
+            $cursor = (clone $start)->setTime(0, 0, 0);
+            $limit  = (clone $end)->setTime(23, 0, 0);
+        } elseif ($bucket === 'daily') {
             $format = 'Y-m-d';
             $cursor = clone $start;
         } elseif ($bucket === 'monthly') {
@@ -1498,7 +1550,7 @@ class Order {
         $filled = [];
         $guard = 0;
 
-        while ($cursor <= $end && $guard < 800) {
+        while ($cursor <= $limit && $guard < 800) {
             $guard++;
             $key = $cursor->format($format);
             $filled[$key] = $series[$key] ?? [
@@ -1509,7 +1561,9 @@ class Order {
                 'revenue' => 0.0,
             ];
 
-            if ($bucket === 'daily') {
+            if ($bucket === 'hourly') {
+                $cursor = (clone $cursor)->modify('+1 hour');
+            } elseif ($bucket === 'daily') {
                 $cursor = (clone $cursor)->modify('+1 day');
             } elseif ($bucket === 'monthly') {
                 $cursor = (clone $cursor)->modify('+1 month');

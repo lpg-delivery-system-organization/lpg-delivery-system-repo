@@ -376,8 +376,15 @@ if (($_GET['export'] ?? '') === 'xlsx') {
 // ── Sales Report Data (for the dashboard section) ────────────────────────────
 $reportSummary = $orderModel->getSalesReportSummary($reportFrom, $reportTo);
 // The breakdown is always one level finer than the report type: monthly reports
-// break down by day, yearly reports by month (Jan–Dec).
-$reportSeriesBucket = $reportType === 'yearly' ? 'monthly' : 'daily';
+// break down by day, yearly reports by month (Jan–Dec), and single-day daily
+// reports break down by hour. A multi-day daily range (deep link) stays daily
+// so the hourly series can never explode past the bucket guard.
+$reportSeriesBucket = 'daily';
+if ($reportType === 'yearly') {
+    $reportSeriesBucket = 'monthly';
+} elseif ($reportType === 'daily' && $reportFrom === $reportTo) {
+    $reportSeriesBucket = 'hourly';
+}
 $reportSeries  = $orderModel->getSalesReportSeries($reportFrom, $reportTo, $reportSeriesBucket);
 $reportRows    = $orderModel->getSalesReportRows($reportFrom, $reportTo);
 $reportHasData = $reportSummary['orders'] > 0;

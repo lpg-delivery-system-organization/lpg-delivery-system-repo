@@ -1,0 +1,109 @@
+<?php
+/**
+ * Customer Proof-of-Delivery Proxy Viewer
+ * LPG Delivery System v2
+ *
+ * Securely streams the proof-of-delivery photo for one of the logged-in
+ * customer's own orders. Proof files live in the private uploads/proofs/
+ * directory (blocked from direct web access) and are served here with
+ * ownership checks and path-traversal mitigation.
+ */
+
+require_once __DIR__ . '/../../includes/helpers.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/middleware.php';
+require_once __DIR__ . '/../../classes/Database.php';
+require_once __DIR__ . '/../../classes/Order.php';
+
+require_role('customer');
+
+$db = Database::connect();
+$orderModel = new Order($db);
+
+$orderId = (int)($_GET['order_id'] ?? $_GET['id'] ?? 0);
+
+if ($orderId <= 0) {
+    if (!empty($GLOBALS['TEST_MODE'])) {
+        $GLOBALS['LAST_HTTP_CODE'] = 400;
+        return;
+    }
+    http_response_code(400);
+    die('Invalid order ID specified.');
+}
+
+$order = $orderModel->findById($orderId);
+
+if (!$order || empty($order['delivery_proof_path'])) {
+    if (!empty($GLOBALS['TEST_MODE'])) {
+        $GLOBALS['LAST_HTTP_CODE'] = 404;
+        return;
+    }
+    http_response_code(404);
+    die('Proof of delivery not found for this order.');
+}
+
+// Ownership check: customers may only view proofs for their own orders.
+if ((int)$order['customer_id'] !== (int)current_user_id()) {
+    if (!empty($GLOBALS['TEST_MODE'])) {
+        $GLOBALS['LAST_HTTP_CODE'] = 403;
+        return;
+    }
+    http_response_code(403);
+    die('You do not have permission to view this proof of delivery.');
+}
+
+$relativePath = ltrim($order['delivery_proof_path'], '/\\');
+
+// Only ever serve files from the private proofs directory.
+if (!str_starts_with($relativePath, 'uploads/proofs/')) {
+    if (!empty($GLOBALS['TEST_MODE'])) {
+        $GLOBALS['LAST_HTTP_CODE'] = 403;
+        return;
+    }
+    http_response_code(403);
+    die('Requested proof file is outside the permitted directory.');
+}
+
+$baseUploadDir = defined('UPLOAD_PATH') ? realpath(UPLOAD_PATH) : realpath(dirname(__DIR__, 2) . '/uploads');
+if (!$baseUploadDir) {
+    $baseUploadDir = dirname(__DIR__, 2) . '/uploads';
+}
+
+$fullPath = dirname(__DIR__, 2) . '/' . $relativePath;
+$realPath = realpath($fullPath);
+
+// Security Check: Path Traversal Protection
+if (!$realPath || !file_exists($realPath) || !str_starts_with($realPath, $baseUploadDir)) {
+    if (!empty($GLOBALS['TEST_MODE'])) {
+        $GLOBALS['LAST_HTTP_CODE'] = 404;
+        return;
+    }
+    http_response_code(404);
+    die('Requested proof file is missing or path is unauthorized.');
+}
+
+$finfo = finfo_open(FILEINFO_MIME_TYPE);
+$mimeType = $finfo ? finfo_file($finfo, $realPath) : 'application/octet-stream';
+if ($finfo) {
+    finfo_close($finfo);
+}
+
+if (!empty($GLOBALS['TEST_MODE'])) {
+    $GLOBALS['LAST_HTTP_CODE'] = 200;
+    $GLOBALS['LAST_SERVED_FILE'] = [
+        'path'      => $realPath,
+        'mime_type' => $mimeType,
+        'size'      => filesize($realPath),
+        'order_id'  => $orderId
+    ];
+    return;
+}
+
+header('Content-Type: ' . $mimeType);
+header('Content-Length: ' . filesize($realPath));
+header('Content-Disposition: inline; filename="' . basename($realPath) . '"');
+header('Cache-Control: private, max-age=3600');
+header('X-Content-Type-Options: nosniff');
+
+readfile($realPath);
+exit;

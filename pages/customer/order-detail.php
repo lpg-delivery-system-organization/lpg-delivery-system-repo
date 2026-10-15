@@ -361,8 +361,8 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                     </div>
                                     <span><?= e($order['rider_name']) ?></span>
                                     <?php if (!empty($order['rider_phone'])): ?>
-                                        <a href="tel:<?= e($order['rider_phone']) ?>" class="btn btn-sm btn-outline-primary py-0 px-2 ms-auto">
-                                            <i class="bi bi-telephone-fill me-1"></i>Call
+                                        <a href="tel:<?= e($order['rider_phone']) ?>" class="text-decoration-none fw-medium text-muted ms-auto">
+                                            <i class="bi bi-telephone me-1"></i><?= e($order['rider_phone']) ?>
                                         </a>
                                     <?php endif; ?>
                                 </div>
@@ -451,6 +451,24 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             </a>
                         </div>
                     </div>
+
+                    <?php if ($isDelivered && !empty($order['delivery_proof_path'])): ?>
+                        <!-- Proof of Delivery photo (private, served via proxy) -->
+                        <div class="p-3 rounded-3 border mt-3">
+                            <span class="text-muted extra-small text-uppercase fw-semibold d-block mb-2">
+                                <i class="bi bi-camera-fill me-1"></i>Proof of Delivery
+                            </span>
+                            <a href="<?= e(url('pages/customer/view_proof.php?order_id=' . (int)$orderId)) ?>" target="_blank" rel="noopener" class="d-block">
+                                <img src="<?= e(url('pages/customer/view_proof.php?order_id=' . (int)$orderId)) ?>" alt="Proof of delivery" class="img-fluid rounded border" style="max-height: 240px; object-fit: contain;">
+                            </a>
+                            <?php if (!empty($order['delivery_proof_at'])): ?>
+                                <div class="extra-small text-muted mt-2"><i class="bi bi-clock me-1"></i>Delivered <?= e(format_date($order['delivery_proof_at'], 'M d, Y h:i A')) ?></div>
+                            <?php endif; ?>
+                            <?php if (!empty($order['delivery_note'])): ?>
+                                <div class="small text-dark mt-1"><i class="bi bi-chat-left-text me-1 text-muted"></i><?= e($order['delivery_note']) ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
 </div>
 

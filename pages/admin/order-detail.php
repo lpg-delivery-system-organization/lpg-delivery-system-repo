@@ -399,6 +399,23 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                         </div>
                     </div>
 
+                    <?php if (!empty($order['delivery_proof_path'])): ?>
+                        <div class="mb-3">
+                            <label class="text-muted extra-small text-uppercase fw-semibold d-block mb-2">
+                                <i class="bi bi-camera-fill me-1"></i>Proof of Delivery
+                            </label>
+                            <a href="<?= e(url('pages/admin/view_proof.php?order_id=' . (int)$orderId)) ?>" target="_blank" rel="noopener" class="d-block">
+                                <img src="<?= e(url('pages/admin/view_proof.php?order_id=' . (int)$orderId)) ?>" alt="Proof of delivery" class="img-fluid rounded border" style="max-height: 240px; object-fit: contain;">
+                            </a>
+                            <?php if (!empty($order['delivery_proof_at'])): ?>
+                                <div class="extra-small text-muted mt-2"><i class="bi bi-clock me-1"></i>Uploaded <?= e(format_date($order['delivery_proof_at'], 'M d, Y h:i A')) ?></div>
+                            <?php endif; ?>
+                            <?php if (!empty($order['delivery_note'])): ?>
+                                <div class="small text-dark mt-1"><i class="bi bi-chat-left-text me-1 text-muted"></i><?= e($order['delivery_note']) ?></div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+
                     <?php if ($isCancelled): ?>
                         <div class="alert alert-danger p-2 small mb-0">
                             <strong>Cancelled:</strong> <?= e($order['cancel_reason'] ?? 'No reason') ?>

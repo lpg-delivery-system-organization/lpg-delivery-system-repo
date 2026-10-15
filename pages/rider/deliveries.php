@@ -385,11 +385,6 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                 <div class="p-3 bg-light rounded-3 border">
                                     <div class="fw-bold fs-6 text-dark mb-1 d-flex align-items-center justify-content-between">
                                         <span><?= e($customerName) ?></span>
-                                        <?php if ($contactPhone): ?>
-                                            <a href="tel:<?= e($contactPhone) ?>" class="btn btn-outline-primary btn-sm py-0 px-2 fw-semibold" title="Call Customer">
-                                                <i class="bi bi-telephone-fill me-1"></i>Call
-                                            </a>
-                                        <?php endif; ?>
                                     </div>
 
                                     <!-- Phone Number -->
@@ -545,20 +540,28 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             <!-- If Out for Delivery: Button "Mark Delivered" -->
                             <?php if ($isOutForDelivery): ?>
                                 <button type="button" 
-                                        class="btn btn-success px-4 fw-semibold shadow-sm btn-open-deliver-modal"
+                                        class="btn btn-success px-4 fw-semibold shadow-sm btn-open-proof-modal"
                                         data-order-id="<?= $orderId ?>"
                                         data-customer="<?= e($customerName) ?>"
                                         data-amount="<?= e(format_currency($totalAmount)) ?>"
                                         data-payment="<?= e($paymentMethod) ?>">
-                                    <i class="bi bi-check-circle-fill me-1"></i>Mark Delivered
+                                    <i class="bi bi-camera-fill me-1"></i>Complete with Photo
                                 </button>
                             <?php endif; ?>
 
                             <!-- If Delivered: Status indication -->
                             <?php if ($isDelivered): ?>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6">
-                                    <i class="bi bi-check2-all me-1"></i>Delivery Completed
-                                </span>
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6">
+                                        <i class="bi bi-check2-all me-1"></i>Delivery Completed
+                                    </span>
+                                    <?php if (!empty($delivery['delivery_proof_path'])): ?>
+                                        <a href="<?= e(url('pages/rider/view_proof.php?order_id=' . (int)$orderId)) ?>" target="_blank" rel="noopener"
+                                           class="btn btn-sm btn-outline-success fw-semibold">
+                                            <i class="bi bi-camera-fill me-1"></i>View Proof
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -574,59 +577,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
     <?php endif; ?>
 </div>
 
-<!-- Confirm Delivery Modal -->
-<div class="modal fade" id="confirmDeliverModal" tabindex="-1" aria-labelledby="confirmDeliverModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <form action="<?= url('pages/rider/deliveries.php') ?>" method="POST" id="confirmDeliverForm">
-                <?= csrf_input() ?>
-                <input type="hidden" name="action" value="update_status">
-                <input type="hidden" name="order_id" id="deliverModalOrderId" value="0">
-                <input type="hidden" name="status" value="delivered">
-
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title fw-bold" id="confirmDeliverModalLabel">
-                        <i class="bi bi-check-circle-fill me-2"></i>Confirm Order Delivery
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <p class="mb-3">Are you sure you want to mark <strong id="deliverModalOrderNumber" class="text-primary">Order</strong> as delivered to <strong id="deliverModalCustomerName">Customer</strong>?</p>
-
-                    <!-- COD Collection Warning in Modal -->
-                    <div id="deliverModalCodAlert" class="p-3 bg-warning-subtle border border-warning rounded mb-3 d-none">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-cash-stack fs-3 text-warning-emphasis"></i>
-                            <div>
-                                <strong class="d-block text-dark">Collect Cash Payment:</strong>
-                                <span class="fs-5 fw-bold text-danger" id="deliverModalCollectAmount">₱0.00</span>
-                                <div class="extra-small text-muted">Confirm that the customer has handed over full cash payment.</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="deliverModalGcashAlert" class="p-3 bg-primary-subtle border border-primary rounded mb-3 d-none">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-shield-check fs-3 text-primary"></i>
-                            <div>
-                                <strong class="d-block text-dark">GCash Payment Verified</strong>
-                                <div class="extra-small text-muted">Customer has prepaid online. No cash collection required.</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <p class="text-muted extra-small mb-0">This will complete the delivery lifecycle and record the completion timestamp.</p>
-                </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success px-4 fw-semibold" id="btnSubmitConfirmDeliver">
-                        <i class="bi bi-check2 me-1"></i>Yes, Confirm Delivered
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<?php require_once __DIR__ . '/../../templates/components/delivery-proof-modal.php'; ?>
 
 <?php
 require_once __DIR__ . '/../../templates/footer.php';

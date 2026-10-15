@@ -227,7 +227,7 @@ it("orders table has correct columns and foreign keys", function() {
     $stmt = $pdo->query("DESCRIBE `orders`");
     $cols = array_column($stmt->fetchAll(), 'Field');
 
-    $expectedCols = ['id', 'customer_id', 'product_id', 'rider_id', 'quantity', 'unit_price', 'total_amount', 'payment_method', 'status', 'delivery_address', 'contact_phone', 'notes', 'created_at', 'updated_at', 'delivered_at'];
+    $expectedCols = ['id', 'customer_id', 'product_id', 'rider_id', 'quantity', 'unit_price', 'total_amount', 'payment_method', 'status', 'delivery_address', 'contact_phone', 'notes', 'created_at', 'updated_at', 'delivered_at', 'delivery_proof_path', 'delivery_proof_at', 'delivery_note'];
     foreach ($expectedCols as $col) {
         assert_true(in_array($col, $cols), "orders column '{$col}' must exist");
     }

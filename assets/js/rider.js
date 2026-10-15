@@ -132,50 +132,8 @@
             }
         });
 
-        // Open Confirm Delivery Modal via AJAX
-        $(document).on('click', '.btn-open-deliver-modal', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const $btn = $(this);
-            const orderId = $btn.data('order-id');
-            const customer = $btn.data('customer') || 'Customer';
-            const amount = $btn.data('amount') || '₱0.00';
-            const payment = ($btn.data('payment') || 'COD').toUpperCase();
-            const csrfToken = $('meta[name="csrf-token"]').attr('content') || '';
-
-            const confirmMsg = payment === 'COD' 
-                ? 'Please confirm you collected <strong>' + amount + ' cash</strong> from ' + customer + ' and delivered the cylinder.'
-                : 'Confirm that Order #' + orderId + ' has been handed over to ' + customer + '.';
-
-            window.confirmAction({
-                title: 'Confirm Delivery #' + orderId,
-                message: confirmMsg,
-                icon: 'bi-check-circle-fill',
-                iconBg: 'bg-success-subtle',
-                iconColor: 'text-success',
-                confirmText: 'Yes, Confirm Delivered',
-                confirmClass: 'btn-success',
-                onConfirm: function (closeModal) {
-                    window.ajaxAction({
-                        url: window.location.href,
-                        data: {
-                            action: 'update_status',
-                            status: 'delivered',
-                            order_id: orderId,
-                            csrf_token: csrfToken
-                        },
-                        onSuccess: function (res) {
-                            closeModal();
-                            window.showToast('Delivery #' + orderId + ' marked as delivered!', 'success');
-                            setTimeout(function () { window.location.reload(); }, 600);
-                        },
-                        onError: function () {
-                            closeModal();
-                        }
-                    });
-                }
-            });
-        });
+        // Completing a delivery now goes through the mandatory proof-of-delivery
+        // photo modal - see initDeliveryProofModal() (.btn-open-proof-modal).
 
         // Pick up / Out for delivery AJAX progression
         $(document).on('submit', '.rider-delivery-card form', function (e) {
@@ -700,6 +658,164 @@
     }
 
     // =========================================================================
+    // 3.5 Proof-of-Delivery Photo Modal (rider order-detail.php + deliveries.php)
+    // =========================================================================
+    function initDeliveryProofModal() {
+        const modalEl = document.getElementById('deliveryProofModal');
+        if (!modalEl) return;
+
+        const formEl = document.getElementById('deliveryProofForm');
+        const fileInput = document.getElementById('proofPhotoInput');
+        const previewImg = document.getElementById('proofPreview');
+        const previewWrap = document.getElementById('proofPreviewWrap');
+        const submitBtn = document.getElementById('btnSubmitDeliveryProof');
+        const retakeBtn = document.getElementById('proofRetake');
+        const orderIdInput = document.getElementById('proofOrderId');
+        const orderLabel = document.getElementById('proofOrderLabel');
+        const codAlert = document.getElementById('proofCodAlert');
+        const codAmount = document.getElementById('proofCodAmount');
+
+        const bsModal = (window.bootstrap && bootstrap.Modal)
+            ? bootstrap.Modal.getOrCreateInstance(modalEl)
+            : null;
+
+        const submitDefaultHtml = '<i class="bi bi-check-circle-fill me-1"></i>Complete Delivery';
+        let previewUrl = null;
+        let submitting = false;
+
+        function clearPreview() {
+            if (previewUrl) {
+                URL.revokeObjectURL(previewUrl);
+                previewUrl = null;
+            }
+            if (previewWrap) previewWrap.classList.add('d-none');
+            if (previewImg) previewImg.removeAttribute('src');
+        }
+
+        function resetForm() {
+            if (formEl) formEl.reset();
+            clearPreview();
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = submitDefaultHtml;
+            }
+            if (codAlert) codAlert.classList.add('d-none');
+            submitting = false;
+        }
+
+        $(document).on('click', '.btn-open-proof-modal', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const $btn = $(this);
+            const orderId = $btn.data('order-id') || '';
+            const amount = $btn.data('amount') || '';
+            const payment = String($btn.data('payment') || 'COD').toUpperCase();
+
+            resetForm();
+            if (orderIdInput) orderIdInput.value = orderId;
+            if (orderLabel) orderLabel.textContent = orderId ? ('for Order #' + orderId) : '';
+
+            if (payment === 'COD' && amount && codAlert && codAmount) {
+                codAmount.textContent = amount;
+                codAlert.classList.remove('d-none');
+            }
+
+            if (bsModal) bsModal.show();
+        });
+
+        if (fileInput) {
+            fileInput.addEventListener('change', function () {
+                const file = fileInput.files && fileInput.files[0];
+                clearPreview();
+
+                if (!file) {
+                    if (submitBtn) submitBtn.disabled = true;
+                    return;
+                }
+
+                if (!/^image\//.test(file.type)) {
+                    if (window.showToast) window.showToast('Please choose an image file (JPG, PNG or WebP).', 'danger');
+                    fileInput.value = '';
+                    if (submitBtn) submitBtn.disabled = true;
+                    return;
+                }
+
+                previewUrl = URL.createObjectURL(file);
+                if (previewImg) previewImg.src = previewUrl;
+                if (previewWrap) previewWrap.classList.remove('d-none');
+                if (submitBtn) submitBtn.disabled = false;
+            });
+        }
+
+        if (retakeBtn) {
+            retakeBtn.addEventListener('click', function () {
+                if (fileInput) fileInput.value = '';
+                clearPreview();
+                if (submitBtn) submitBtn.disabled = true;
+                if (fileInput) fileInput.focus();
+            });
+        }
+
+        if (formEl) {
+            formEl.addEventListener('submit', function (e) {
+                e.preventDefault();
+                if (submitting) return;
+
+                const file = fileInput && fileInput.files && fileInput.files[0];
+                if (!file) {
+                    if (window.showToast) window.showToast('Please attach the delivery photo first.', 'warning');
+                    return;
+                }
+
+                submitting = true;
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Completing...';
+                }
+
+                const baseUrl = ($('meta[name="base-url"]').attr('content') || '').replace(/\/+$/, '');
+
+                $.ajax({
+                    url: baseUrl + '/api/delivery-proof.php',
+                    method: 'POST',
+                    data: new FormData(formEl),
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json'
+                }).done(function (res) {
+                    if (res && res.success) {
+                        if (bsModal) bsModal.hide();
+                        if (window.showToast) window.showToast(res.message || 'Delivery completed.', 'success');
+                        setTimeout(function () { window.location.reload(); }, 700);
+                    } else {
+                        submitting = false;
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = submitDefaultHtml;
+                        }
+                        if (window.showToast) window.showToast((res && res.message) || 'Could not complete the delivery.', 'danger');
+                    }
+                }).fail(function (xhr) {
+                    submitting = false;
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = submitDefaultHtml;
+                    }
+                    let msg = 'Could not complete the delivery. Please try again.';
+                    try {
+                        const res = xhr.responseJSON || JSON.parse(xhr.responseText);
+                        if (res && res.message) msg = res.message;
+                    } catch (err) { /* keep default */ }
+                    if (window.showToast) window.showToast(msg, 'danger');
+                });
+            });
+        }
+
+        $(modalEl).on('hidden.bs.modal', resetForm);
+    }
+
+    // =========================================================================
     // 4. Global Copy Address Handler
     // =========================================================================
     function initCopyAddressHandler() {
@@ -730,6 +846,7 @@
     $(function () {
         [initDeliveriesInteractivity, initAvailableInteractivity, initProfileInteractivity,
          initAvatarUploadInteractivity,
+         initDeliveryProofModal,
          initCopyAddressHandler,
          function () { if (window.AppMaps) AppMaps.initPinLocationMaps(); },
          function () { if (window.AppChat) AppChat.initPanel({ emptyStateHint: 'Start the conversation with the customer', peerRole: 'customer' }); }
