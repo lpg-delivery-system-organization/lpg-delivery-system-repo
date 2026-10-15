@@ -356,7 +356,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <p class="text-muted small mb-0">Customer orders will appear here once submitted.</p>
                 </div>
             <?php else: ?>
-                <div class="table-responsive d-none d-md-block">
+                <div class="table-responsive sales-report-table-scroll sales-report-tx-scroll d-none d-md-block">
                     <table class="table table-hover align-middle mb-0" id="adminOrdersTable">
                         <thead class="table-light">
                             <tr>

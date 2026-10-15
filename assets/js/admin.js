@@ -864,7 +864,7 @@
     // =========================================================================
     // 5. Sales Report Generator (dashboard.php)
     //    Renders the Chart.js trend chart from the JSON payload embedded by
-    //    the page, keeps the CSV export link in sync with the filter form,
+    //    the page, keeps the XLSX export link in sync with the filter form,
     //    and drives the report type / date preset controls.
     // =========================================================================
     function initSalesReport() {
@@ -880,67 +880,85 @@
 
         const $typeInput = $('#salesReportTypeInput');
 
+        // Only one period picker is rendered, chosen by the report type.
+        function activePicker() {
+            return $('#salesReportDate, #salesReportMonth, #salesReportYear').first();
+        }
+
         // ── Report type toggle (Daily / Monthly / Yearly) ────────────────
+        // Each type has its own picker, so switching type reloads the page to
+        // render the matching day/month/year control.
         $('.sales-report-type-btn').on('click', function () {
-            const $btn = $(this);
-            $typeInput.val($btn.data('type') || 'daily');
-            $('.sales-report-type-btn')
-                .removeClass('active btn-primary')
-                .addClass('btn-outline-secondary');
-            $btn.addClass('active btn-primary').removeClass('btn-outline-secondary');
+            const type = $(this).data('type') || 'daily';
+            if (type === ($typeInput.val() || 'daily')) {
+                return;
+            }
+            $typeInput.val(type);
+            // Drop the previous type's date range so the server falls back to the
+            // new type's default period instead of reusing a stale window.
+            $('#salesDateFrom, #salesDateTo').remove();
+            $('#salesReportForm').trigger('submit');
         });
 
-        // ── Keep the From/To range coherent ──────────────────────────────
-        $('#salesDateFrom').on('change', function () {
-            $('#salesDateTo').attr('min', this.value || null);
-        });
-        $('#salesDateTo').on('change', function () {
-            $('#salesDateFrom').attr('max', this.value || null);
-        });
-
-        // ── Quick date presets ───────────────────────────────────────────
+        // ── Quick period presets (per report type) ───────────────────────
         function pad(n) { return String(n).padStart(2, '0'); }
         function fmtDate(d) {
             return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+        }
+        function fmtMonth(d) {
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1);
         }
 
         $('.sales-report-preset').on('click', function () {
             const preset = $(this).data('preset');
             const today = new Date();
-            let from = new Date(today);
+            const type = $typeInput.val() || 'daily';
 
-            if (preset === 'last7') {
-                from.setDate(today.getDate() - 6);
-            } else if (preset === 'thisMonth') {
-                from = new Date(today.getFullYear(), today.getMonth(), 1);
-            } else if (preset === 'thisYear') {
-                from = new Date(today.getFullYear(), 0, 1);
+            if (type === 'daily') {
+                const d = new Date(today);
+                if (preset === 'yesterday') {
+                    d.setDate(today.getDate() - 1);
+                }
+                $('#salesReportDate').val(fmtDate(d));
+            } else if (type === 'monthly') {
+                const d = new Date(today.getFullYear(), today.getMonth(), 1);
+                if (preset === 'lastMonth') {
+                    d.setMonth(d.getMonth() - 1);
+                }
+                $('#salesReportMonth').val(fmtMonth(d));
+            } else {
+                let year = today.getFullYear();
+                if (preset === 'lastYear') {
+                    year -= 1;
+                }
+                $('#salesReportYear').val(year);
             }
-
-            $('#salesDateFrom').val(fmtDate(from));
-            $('#salesDateTo').val(fmtDate(today));
             $('#salesReportForm').trigger('submit');
         });
 
-        // ── Keep the Export CSV link pointing at the current filters ─────
-        function syncCsvLink() {
-            const $link = $('#salesCsvLink');
+        // ── Keep the Export Excel link pointing at the current filters ───
+        function syncXlsxLink() {
+            const $link = $('#salesXlsxLink');
             const href = $link.attr('href');
             if (!href) return;
             try {
                 const target = new URL(href, window.location.href);
                 target.searchParams.set('report_type', $typeInput.val() || 'daily');
+                const $picker = activePicker();
+                if ($picker.length) {
+                    target.searchParams.set($picker.attr('name'), $picker.val() || '');
+                }
                 target.searchParams.set('date_from', $('#salesDateFrom').val() || '');
                 target.searchParams.set('date_to', $('#salesDateTo').val() || '');
-                target.searchParams.set('export', 'csv');
+                target.searchParams.set('export', 'xlsx');
                 $link.attr('href', target.pathname + target.search);
             } catch (err) {
                 // Keep the server-built href when URL() is unavailable.
             }
         }
 
-        $('#salesReportForm').on('change input', syncCsvLink);
-        syncCsvLink();
+        $('#salesReportForm').on('change input', syncXlsxLink);
+        syncXlsxLink();
 
         // ── Print / Save as PDF ──────────────────────────────────────────
         $('#salesPrintBtn').on('click', function () {

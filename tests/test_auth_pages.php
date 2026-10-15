@@ -413,6 +413,8 @@ it('register form (index.php combined page) renders HTML form with live password
     assert_contains('name="phone"', $html);
     assert_contains('name="address"', $html);
     assert_contains('name="valid_id"', $html);
+    assert_contains('name="camera_valid_id"', $html);
+    assert_equals(1, substr_count($html, 'name="valid_id"'), 'the register form must have a single name="valid_id" field so the camera input cannot clobber the upload');
     assert_contains('name="password"', $html);
     assert_contains('name="confirm_password"', $html);
     assert_contains('rule-length', $html);

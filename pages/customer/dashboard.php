@@ -220,7 +220,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                             </a>
                         </div>
                     <?php else: ?>
-                        <div class="table-responsive">
+                        <div class="table-responsive sales-report-table-scroll sales-report-tx-scroll">
                             <table class="table table-hover align-middle mb-0">
                                 <thead>
                                     <tr>

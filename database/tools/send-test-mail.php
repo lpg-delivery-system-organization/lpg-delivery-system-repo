@@ -30,7 +30,7 @@ require_once __DIR__ . '/../../includes/helpers.php';
 require_once __DIR__ . '/../../classes/Mailer.php';
 
 $recipient = null;
-$subject = 'LPG Delivery System - SMTP test';
+$subject = 'Elevate LPG - SMTP test';
 $debug = false;
 
 foreach (array_slice($argv, 1) as $arg) {

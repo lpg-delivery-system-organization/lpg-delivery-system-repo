@@ -11,6 +11,6 @@ return [
     'username' => 'noreply@lpgdeliverysystem.com',
     'password' => '',
     'from_email' => 'noreply@lpgdeliverysystem.com',
-    'from_name' => 'LPG Delivery System',
+    'from_name' => 'Elevate LPG',
     'mock_mode' => true, // Fallback/mock mode for test and local development environments
 ];

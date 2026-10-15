@@ -137,6 +137,9 @@ $activeRiders = array_values(array_filter($allRiders, function ($r) {
 
 $allowedTransitions = Order::TRANSITIONS[$status] ?? [];
 
+// VAT breakdown of the VAT-inclusive total (12% Philippine VAT).
+$orderSplit = sales_vat_split((float)($order['total_amount'] ?? 0));
+
 $page_title = 'Order #' . $orderId . ' Control';
 $current_page = 'orders';
 $page_js = 'admin.js';
@@ -323,6 +326,22 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div class="d-flex justify-content-between py-3">
                         <span class="fw-bold text-dark fs-6">Total Amount:</span>
                         <span class="fw-bold text-primary fs-5"><?= e(format_currency($order['total_amount'] ?? 0)) ?></span>
+                    </div>
+
+                    <div class="p-3 bg-light rounded-3 border mb-3">
+                        <div class="text-muted extra-small text-uppercase fw-semibold mb-2">VAT Breakdown</div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted small">GROSS SALES (VAT-INCLUSIVE):</span>
+                            <span class="fw-semibold text-dark small"><?= e(format_currency($orderSplit['gross'])) ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted small">OUTPUT VAT:</span>
+                            <span class="fw-semibold text-dark small"><?= e(format_currency($orderSplit['vat'])) ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted small">NET SALES (VAT-EXCLUSIVE):</span>
+                            <span class="fw-semibold text-dark small"><?= e(format_currency($orderSplit['net'])) ?></span>
+                        </div>
                     </div>
 
                     <div class="p-2 rounded text-center <?= $isGcash ? 'bg-primary-subtle text-primary border border-primary' : 'bg-success-subtle text-success border border-success' ?>">

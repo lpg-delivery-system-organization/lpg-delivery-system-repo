@@ -122,8 +122,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['auth_action'] ?? '') === '
     }
 
     $validIdPath = null;
-    if (isset($_FILES['valid_id']) && $_FILES['valid_id']['error'] !== UPLOAD_ERR_NO_FILE) {
-        $uploadResult = validate_id_upload($_FILES['valid_id']);
+    // The register form exposes two file inputs: #validId (Upload tab) and the
+    // hidden #cameraFileInput (Photo tab, captured frame). They use distinct
+    // field names so a duplicate "valid_id" no longer clobbers the real upload.
+    // Prefer whichever field actually carried a file; the other is empty.
+    $idFile = null;
+    foreach (['valid_id', 'camera_valid_id'] as $idField) {
+        if (isset($_FILES[$idField]) && ($_FILES[$idField]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+            $idFile = $_FILES[$idField];
+            break;
+        }
+    }
+
+    if ($idFile !== null) {
+        $uploadResult = validate_id_upload($idFile);
         if (!$uploadResult['success']) {
             $errors[] = 'ID upload failed: ' . $uploadResult['error'];
         } else {
@@ -630,7 +642,6 @@ $flashIcon = $flashIcons[$flashType];
 
         <div class="auth-showcase-stats">
             <div class="stat"><b>11kg–50kg</b><small>Cylinder sizes</small></div>
-            <div class="stat"><b>24/7</b><small>Ordering</small></div>
             <div class="stat"><b>100%</b><small>Genuine LPG</small></div>
         </div>
     </aside>
@@ -844,7 +855,7 @@ $flashIcon = $flashIcons[$flashType];
                                         </div>
                                     </div>
                                 </div>
-                                <input type="file" id="cameraFileInput" name="valid_id" class="d-none" accept="image/jpeg,image/png,image/webp">
+                                <input type="file" id="cameraFileInput" name="camera_valid_id" class="d-none" accept="image/jpeg,image/png,image/webp">
                             </div>
 
                             <!-- Password -->

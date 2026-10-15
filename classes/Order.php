@@ -1431,7 +1431,8 @@ class Order {
             SELECT o.id, o.quantity, o.unit_price, o.total_amount,
                    o.payment_method, o.payment_status, o.delivered_at,
                    c.full_name AS customer_name,
-                   p.name      AS product_name
+                   p.name      AS product_name,
+                   p.weight    AS product_weight
             FROM orders o
             JOIN users c    ON o.customer_id = c.id
             JOIN products p ON o.product_id = p.id

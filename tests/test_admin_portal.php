@@ -314,7 +314,6 @@ it('dashboard.php renders stat cards, recent orders table, low stock alerts, and
     assert_contains('Recent Orders', $html);
     assert_contains('Inventory Stock Alerts', $html);
     assert_contains('Management Hub', $html);
-    assert_contains('Dispatch Orders', $html);
 });
 
 it('dashboard.php renders the sales report generator, filters, chart data, and export controls', function () use ($testAdmin) {
@@ -333,11 +332,16 @@ it('dashboard.php renders the sales report generator, filters, chart data, and e
     assert_contains('sales-report-preset', $html);
     assert_contains('id="salesTrendChart"', $html);
     assert_contains('id="salesChartData"', $html);
-    assert_contains('id="salesCsvLink"', $html);
-    assert_contains('export=csv', $html);
+    assert_contains('id="salesXlsxLink"', $html);
+    assert_contains('export=xlsx', $html);
     assert_contains('id="salesPrintBtn"', $html);
     assert_contains('Breakdown by Period', $html);
     assert_contains('Transaction Detail', $html);
+    assert_contains('INVOICE NO.', $html);
+    assert_contains('ORDER NO.', $html);
+    assert_contains('GROSS SALES (VAT-INCLUSIVE)', $html);
+    assert_contains('OUTPUT VAT', $html);
+    assert_contains('NET SALES (VAT-EXCLUSIVE)', $html);
     assert_contains('Total Revenue', $html);
     assert_contains('Avg Order Value', $html);
 });
@@ -443,62 +447,179 @@ it('Order sales report aggregates delivered orders only, inside the selected ran
     $db->prepare("DELETE FROM orders WHERE id IN (?, ?)")->execute([$orderId, $pendingId]);
 });
 
-it('dashboard.php streams the sales report as a CSV download when export=csv', function () use ($testAdmin) {
+it('dashboard.php streams the Daily sales report as an XLSX remittance form when export=xlsx', function () use ($testAdmin) {
     reset_admin_env();
-    unset($GLOBALS['LAST_CSV']);
+    unset($GLOBALS['LAST_XLSX']);
     login_user($testAdmin);
 
     $_GET = [
-        'report_type' => 'monthly',
-        'date_from'   => '2026-06-01',
-        'date_to'     => '2026-06-30',
-        'export'      => 'csv',
+        'report_type' => 'daily',
+        'date_from'   => '2026-06-15',
+        'date_to'     => '2026-06-15',
+        'export'      => 'xlsx',
     ];
 
     $html = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
 
-    assert_equals('', $html, 'CSV export must not render the dashboard HTML');
-    assert_true(isset($GLOBALS['LAST_CSV']), 'CSV payload must be recorded in test mode');
-    assert_equals('sales-report_monthly_2026-06-01_2026-06-30.csv', $GLOBALS['LAST_CSV']['filename']);
-    assert_true($GLOBALS['LAST_CSV']['size'] > 0);
+    assert_equals('', $html, 'XLSX export must not render the dashboard HTML');
+    assert_true(isset($GLOBALS['LAST_XLSX']), 'XLSX payload must be recorded in test mode');
+    assert_equals('sales-report_daily_2026-06-15_2026-06-15.xlsx', $GLOBALS['LAST_XLSX']['filename']);
+    assert_true($GLOBALS['LAST_XLSX']['size'] > 0);
 
-    $csv = $GLOBALS['LAST_CSV']['csv'];
-    assert_contains('Sales Report', $csv);
-    assert_contains('Monthly Report', $csv);
-    assert_contains('2026-06-01 to 2026-06-30', $csv);
-    assert_contains('Delivered orders only', $csv);
-    assert_contains('Summary', $csv);
-    assert_contains('Total Revenue (PHP)', $csv);
-    assert_contains('Breakdown by Period', $csv);
-    assert_contains('Transactions', $csv);
-    assert_contains('Order #', $csv);
+    // Unpack the workbook and read back the worksheet + content type parts.
+    $tmp = tempnam(sys_get_temp_dir(), 'xlsx_test');
+    file_put_contents($tmp, $GLOBALS['LAST_XLSX']['xlsx']);
+    $zip = new ZipArchive();
+    assert_equals(true, $zip->open($tmp) === true, 'XLSX payload must be a valid zip archive');
 
-    // 12% VAT breakdown columns (BIR Form 2550Q: 12% of the VAT-exclusive base).
-    assert_contains('VAT: 12% output VAT extracted from VAT-inclusive sales (BIR Form 2550Q)', $csv);
-    assert_contains('Add: 12% Output VAT (PHP)', $csv);
-    assert_contains('Sales, VAT-exclusive (PHP)', $csv);
-    assert_contains('Gross Sales (PHP)', $csv);
-    assert_contains('VAT 12% (PHP)', $csv);
-    assert_contains('Unit Price (PHP)', $csv);
+    $contentTypes = (string)$zip->getFromName('[Content_Types].xml');
+    $sheet        = (string)$zip->getFromName('xl/worksheets/sheet1.xml');
+    $strings      = (string)$zip->getFromName('xl/sharedStrings.xml');
+    $styles       = (string)$zip->getFromName('xl/styles.xml');
+    $zip->close();
+    @unlink($tmp);
+
+    assert_contains('spreadsheetml.sheet.main+xml', $contentTypes);
+
+    // Static form labels live in the shared string table; injected values are
+    // written inline into the worksheet, so inspect both parts together.
+    $form = $sheet . $strings;
+
+    assert_contains('DAILY SALES AND REMITTANCE REPORT', $sheet);
+    assert_contains('BRANCH: CALOOCAN', $sheet);
+    assert_contains('DATE: ', $sheet);
+    assert_contains('Jun 15, 2026', $sheet);
+    assert_contains('INVOICE NO.', $form);
+    assert_contains('ORDER NO.', $form);
+    assert_contains('CUSTOMER', $form);
+    assert_contains('CYLINDER SIZES', $form);
+    assert_contains('2.7 KG', $form);
+    assert_contains('50 KG', $form);
+    assert_contains('GROSS SALES (VAT-INCLUSIVE)', $sheet);
+    assert_contains('OUTPUT VAT', $sheet);
+    assert_contains('NET SALES (VAT-EXCLUSIVE)', $sheet);
+    assert_not_contains('GROSS AMOUNT', $sheet);
+    assert_not_contains('VAT AMOUNT', $sheet);
+    assert_not_contains('NET AMOUNT', $sheet);
+    assert_contains('TOTAL CYLINDER', $form);
+    assert_contains('TOTAL KG', $form);
+    assert_contains('TOTAL QTY:', $sheet);
+    assert_contains('TOTAL GROSS SALES:', $sheet);
+    assert_contains('TOTAL OUTPUT VAT:', $sheet);
+    assert_contains('TOTAL NET SALES:', $sheet);
+    assert_true(strpos($form, 'DAILY AVE') === false, 'The retired DAILY AVE row must be gone');
+    assert_contains('SUMMARY OF SALES', $form);
+    assert_contains('REGULAR', $form);
+    assert_contains('CONTENT', $form);
+    assert_contains('PREPARED BY:', $form);
+    assert_contains('<mergeCell ref="B6:P6"/>', $sheet);
+    assert_contains('<mergeCell ref="M7:N8"/>', $sheet);
+
+    // Money cells carry a real numeric peso number format.
+    assert_contains('numFmtId="164"', $styles);
+    assert_contains('#,##0.00', $styles);
+    assert_contains('applyNumberFormat="1"', $styles);
+    assert_equals('₱0.00', format_currency(0));
 });
 
-it('sales report CSV export is restricted to administrators', function () use ($testCustomer) {
+it('dashboard.php streams the Monthly report as a per-day XLSX breakdown', function () use ($testAdmin) {
     reset_admin_env();
-    unset($GLOBALS['LAST_CSV']);
+    unset($GLOBALS['LAST_XLSX']);
+    login_user($testAdmin);
+
+    $_GET = [
+        'report_type'  => 'monthly',
+        'report_month' => '2026-06',
+        'export'       => 'xlsx',
+    ];
+
+    $html = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+    assert_equals('', $html, 'XLSX export must not render the dashboard HTML');
+    assert_equals('sales-report_monthly_2026-06-01_2026-06-30.xlsx', $GLOBALS['LAST_XLSX']['filename']);
+
+    $tmp = tempnam(sys_get_temp_dir(), 'xlsx_test');
+    file_put_contents($tmp, $GLOBALS['LAST_XLSX']['xlsx']);
+    $zip = new ZipArchive();
+    assert_equals(true, $zip->open($tmp) === true, 'Monthly XLSX must be a valid zip archive');
+    $contentTypes = (string)$zip->getFromName('[Content_Types].xml');
+    $sheet        = (string)$zip->getFromName('xl/worksheets/sheet1.xml');
+    $styles       = (string)$zip->getFromName('xl/styles.xml');
+    $zip->close();
+    @unlink($tmp);
+
+    assert_contains('spreadsheetml.sheet.main+xml', $contentTypes);
+    assert_contains('MONTHLY SALES AND REMITTANCE REPORT', $sheet);
+    assert_contains('BRANCH: CALOOCAN', $sheet);
+    assert_contains('PERIOD: June 2026', $sheet);
+    assert_contains('DATE', $sheet);
+    assert_contains('ORDERS', $sheet);
+    assert_contains('QTY', $sheet);
+    assert_contains('GROSS SALES (VAT-INCLUSIVE)', $sheet);
+    assert_contains('OUTPUT VAT', $sheet);
+    assert_contains('NET SALES (VAT-EXCLUSIVE)', $sheet);
+    assert_contains('Jun 1, 2026', $sheet);
+    assert_contains('Jun 30, 2026', $sheet);
+    assert_contains('TOTAL', $sheet);
+    assert_contains('SUMMARY OF SALES', $sheet);
+    assert_contains('2.7 KG', $sheet);
+    assert_contains('50 KG', $sheet);
+    assert_contains('<mergeCell ref="A1:F1"/>', $sheet);
+    // Money cells use the currency number format.
+    assert_contains('numFmtId="164"', $styles);
+});
+
+it('dashboard.php streams the Yearly report as a per-month XLSX breakdown (Jan-Dec)', function () use ($testAdmin) {
+    reset_admin_env();
+    unset($GLOBALS['LAST_XLSX']);
+    login_user($testAdmin);
+
+    $_GET = [
+        'report_type' => 'yearly',
+        'report_year' => '2026',
+        'export'      => 'xlsx',
+    ];
+
+    $html = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+    assert_equals('', $html, 'XLSX export must not render the dashboard HTML');
+    assert_equals('sales-report_yearly_2026-01-01_2026-12-31.xlsx', $GLOBALS['LAST_XLSX']['filename']);
+
+    $tmp = tempnam(sys_get_temp_dir(), 'xlsx_test');
+    file_put_contents($tmp, $GLOBALS['LAST_XLSX']['xlsx']);
+    $zip = new ZipArchive();
+    assert_equals(true, $zip->open($tmp) === true, 'Yearly XLSX must be a valid zip archive');
+    $sheet = (string)$zip->getFromName('xl/worksheets/sheet1.xml');
+    $zip->close();
+    @unlink($tmp);
+
+    assert_contains('YEARLY SALES AND REMITTANCE REPORT', $sheet);
+    assert_contains('PERIOD: 2026', $sheet);
+    assert_contains('MONTH', $sheet);
+    foreach (['January', 'February', 'March', 'April', 'May', 'June', 'July',
+              'August', 'September', 'October', 'November', 'December'] as $month) {
+        assert_contains($month, $sheet, 'Yearly breakdown must list ' . $month);
+    }
+    assert_contains('TOTAL', $sheet);
+    assert_contains('SUMMARY OF SALES', $sheet);
+});
+
+it('sales report XLSX export is restricted to administrators', function () use ($testCustomer) {
+    reset_admin_env();
+    unset($GLOBALS['LAST_XLSX']);
     login_user($testCustomer);
 
-    $_GET = ['export' => 'csv'];
+    $_GET = ['export' => 'xlsx'];
 
     render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
 
-    assert_true(!isset($GLOBALS['LAST_CSV']), 'Customers must never receive the sales CSV');
+    assert_true(!isset($GLOBALS['LAST_XLSX']), 'Customers must never receive the sales workbook');
 });
 
-it('dashboard.php print view includes document header, VAT columns, totals rows, and signatures', function () use ($testAdmin, $orderModel, $productModel, $db, $customerId) {
+it('dashboard.php print view renders the Daily Sales and Remittance form (matches the Excel export)', function () use ($testAdmin, $orderModel, $productModel, $db, $customerId) {
     reset_admin_env();
     login_user($testAdmin);
 
-    // Seed one delivered June order so the row-level assertions are deterministic.
+    // Seed one delivered order on a unique day so the row-level assertions are
+    // deterministic and it always lands inside the 20-row remittance window.
     $products = $productModel->getActive();
     $prod = $products[0];
     $orderId = $orderModel->place([
@@ -516,47 +637,117 @@ it('dashboard.php print view includes document header, VAT columns, totals rows,
     $txSplit = sales_vat_split((float)$order['total_amount']);
 
     $_GET = [
-        'report_type' => 'monthly',
-        'date_from'   => '2026-06-01',
-        'date_to'     => '2026-06-30',
+        'report_type' => 'daily',
+        'date_from'   => '2026-06-15',
+        'date_to'     => '2026-06-15',
     ];
     $html = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
 
-    // Print-only document furniture.
+    // Print-only remittance form, mirroring the Excel export template.
     assert_contains('sales-print-only', $html);
-    assert_contains('sales-print-doc', $html);
-    assert_contains('SALES REPORT', $html);
-    assert_contains('Summary of Sales', $html);
-    assert_contains('Sales (VAT-exclusive)', $html);
-    assert_contains('Add: 12% Output VAT', $html);
-    assert_contains('Gross Sales (VAT-inclusive)', $html);
-    assert_contains('sales-print-sign', $html);
-    assert_contains('Prepared by:', $html);
-    assert_contains('Checked by:', $html);
+    assert_contains('sales-remittance', $html);
+    assert_contains('DAILY SALES AND REMITTANCE REPORT', $html);
+    assert_contains('BRANCH: CALOOCAN', $html);
+    assert_contains('DATE: ', $html);
+    assert_contains('INVOICE NO.', $html);
+    assert_contains('ORDER NO.', $html);
+    assert_contains('CUSTOMER', $html);
+    assert_contains('CYLINDER SIZES', $html);
+    assert_contains('2.7 KG', $html);
+    assert_contains('5 KG', $html);
+    assert_contains('11 KG', $html);
+    assert_contains('22 KG', $html);
+    assert_contains('50 KG', $html);
+    assert_contains('GROSS SALES (VAT-INCLUSIVE)', $html);
+    assert_contains('OUTPUT VAT', $html);
+    assert_contains('NET SALES (VAT-EXCLUSIVE)', $html);
+    assert_contains('TOTAL CYLINDER', $html);
+    assert_contains('TOTAL KG', $html);
+    assert_contains('SUMMARY OF SALES', $html);
+    assert_contains('CONTENT', $html);
+    assert_contains('PREPARED BY:', $html);
 
-    // Report tables carry the VAT breakdown columns.
-    assert_contains('Gross Sales', $html);
-    assert_contains('VAT (12%)', $html);
-    assert_contains('Net Sales', $html);
-    assert_contains('Unit Price', $html);
-    assert_contains('<th class="ps-4">Order #</th>', $html);
-
-    // Totals footers on both tables.
-    assert_contains('sales-report-totals', $html);
-    assert_contains('>TOTAL<', $html);
+    // The interactive generator (filters, cards, chart, tables) never prints.
+    assert_contains('sales-screen-only', $html);
 
     // The seeded order renders with its ORD- receipt number and its VAT amount.
     assert_contains(order_receipt_number($orderId), $html);
     assert_contains(format_currency($txSplit['vat']), $html);
     assert_contains(format_currency($txSplit['net']), $html);
 
-    // Portrait / Excel-grid print stylesheet.
+    // The on-screen tables separate the invoice from the raw order number and
+    // use the BIR VAT column names.
+    $screen = substr($html, strpos($html, 'sales-screen-only'));
+    assert_contains('INVOICE NO.', $screen);
+    assert_contains('ORDER NO.', $screen);
+    assert_contains('#' . $orderId, $screen);
+    assert_contains('GROSS SALES (VAT-INCLUSIVE)', $screen);
+    assert_contains('OUTPUT VAT', $screen);
+    assert_contains('NET SALES (VAT-EXCLUSIVE)', $screen);
+
+    // Long-bond paper + the Excel-style collapsed grid.
     $css = file_get_contents(__DIR__ . '/../assets/css/app.css');
-    assert_contains('size: portrait', $css);
+    assert_contains('size: 215.9mm 330.2mm', $css);
     assert_contains('.sales-print-only { display: none !important; }', $css);
     assert_contains('border-collapse: collapse !important;', $css);
+    assert_contains('.sales-screen-only {', $css);
 
     $db->prepare("DELETE FROM orders WHERE id = ?")->execute([$orderId]);
+});
+
+it('dashboard.php heads the remittance form and picker per report type (daily/monthly/yearly)', function () use ($testAdmin) {
+    $cases = [
+        'daily'   => ['title' => 'DAILY SALES AND REMITTANCE REPORT',   'label' => 'DATE:',   'picker' => 'name="report_date"'],
+        'monthly' => ['title' => 'MONTHLY SALES AND REMITTANCE REPORT', 'label' => 'PERIOD:', 'picker' => 'name="report_month"'],
+        'yearly'  => ['title' => 'YEARLY SALES AND REMITTANCE REPORT',  'label' => 'PERIOD:', 'picker' => 'name="report_year"'],
+    ];
+
+    foreach ($cases as $type => $expected) {
+        reset_admin_env();
+        login_user($testAdmin);
+        $_GET = ['report_type' => $type];
+
+        $html = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+
+        assert_contains($expected['title'], $html, $type . ' report title');
+        assert_contains($expected['label'], $html, $type . ' period label');
+        assert_contains($expected['picker'], $html, $type . ' picker');
+    }
+
+    $_GET = [];
+});
+
+it('dashboard.php prints a monthly/yearly period breakdown with cylinder summary', function () use ($testAdmin) {
+    // Monthly: per-day DATE column, TOTAL row, and the SUMMARY OF SALES block.
+    reset_admin_env();
+    login_user($testAdmin);
+    $_GET = ['report_type' => 'monthly', 'report_month' => '2026-06'];
+    $monthly = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+
+    assert_contains('sales-print-only', $monthly);
+    assert_contains('MONTHLY SALES AND REMITTANCE REPORT', $monthly);
+    assert_contains('PERIOD: June 2026', $monthly);
+    assert_contains('>DATE<', $monthly);
+    assert_contains('SUMMARY OF SALES', $monthly);
+    assert_contains('PREPARED BY:', $monthly);
+    // The daily cylinder-column grid must not leak into the monthly form.
+    assert_true(strpos($monthly, 'CYLINDER SIZES') === false, 'Monthly form must not use the daily column grid');
+    assert_true(strpos($monthly, 'TOTAL CYLINDER') === false, 'Monthly form must not use the daily cylinder footer');
+
+    // Yearly: per-month MONTH column and full month names Jan-Dec.
+    reset_admin_env();
+    login_user($testAdmin);
+    $_GET = ['report_type' => 'yearly', 'report_year' => '2026'];
+    $yearly = render_admin_page(__DIR__ . '/../pages/admin/dashboard.php');
+
+    assert_contains('YEARLY SALES AND REMITTANCE REPORT', $yearly);
+    assert_contains('PERIOD: 2026', $yearly);
+    assert_contains('>MONTH<', $yearly);
+    assert_contains('January', $yearly);
+    assert_contains('December', $yearly);
+    assert_contains('SUMMARY OF SALES', $yearly);
+
+    $_GET = [];
 });
 
 it('sales_vat_split() extracts 12% VAT from VAT-inclusive gross amounts', function () {

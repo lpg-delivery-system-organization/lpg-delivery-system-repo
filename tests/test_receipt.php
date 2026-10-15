@@ -1115,6 +1115,15 @@ it('admin order-detail.php keeps its markup balanced and offers a receipt', func
     assert_balanced_markup($html, 'admin order-detail');
     assert_contains('admin/receipt.php?id=' . $orderId, $html);
     assert_contains('Download Receipt PDF', $html);
+
+    // Product & Pricing card carries the VAT breakdown of the VAT-inclusive total.
+    $order = $orderModel->findById($orderId);
+    $split = sales_vat_split((float)$order['total_amount']);
+    assert_contains('GROSS SALES (VAT-INCLUSIVE)', $html);
+    assert_contains('OUTPUT VAT', $html);
+    assert_contains('NET SALES (VAT-EXCLUSIVE)', $html);
+    assert_contains(format_currency($split['vat']), $html);
+    assert_contains(format_currency($split['net']), $html);
 });
 
 echo "\n====================================================\n";

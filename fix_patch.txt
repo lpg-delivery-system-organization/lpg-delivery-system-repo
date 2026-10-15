@@ -1,0 +1,7 @@
+﻿.sales-report-table-scroll .table td.text-end,
+.sales-report-table-scroll .table th.text-end {
+    white-space: nowrap;
+}
+.sales-report-table-scroll .table td.text-truncate {
+    max-width: clamp(160px, 40vw, 240px);
+}
