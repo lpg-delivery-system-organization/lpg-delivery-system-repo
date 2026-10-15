@@ -277,8 +277,10 @@
     // 1.1 Real GPS Moving Map for Rider (Leaflet + Geolocation API + Broadcasting)
     // =========================================================================
     let riderGpsWatchId = null;
-    let riderBroadcastInterval = null;
+    let riderBroadcastHeartbeatId = null;
     let riderIsBroadcasting = false;
+    let riderLastFix = null;
+    let riderLastPostAt = 0;
 
     function initRiderRealGpsMap() {
         if (typeof window.L === 'undefined' || typeof window.AppMaps === 'undefined') return;
@@ -295,13 +297,19 @@
         const $broadcastBtn = $('#btnToggleBroadcast');
         const $broadcastStatus = $('#broadcastStatus');
         const csrfToken = $('meta[name="csrf-token"]').attr('content') || '';
+        const baseUrl = $('meta[name="base-url"]').attr('content') || '';
+        const maxAccuracyM = (function () {
+            const el = document.querySelector('meta[name="location-max-accuracy"]');
+            const v = el ? parseInt(el.getAttribute('content'), 10) : NaN;
+            return isNaN(v) ? 100 : v;
+        })();
 
         const canBroadcast = (orderStatus === 'picked_up' || orderStatus === 'out_for_delivery');
 
-        // Exact saved drop-off pin; simulated coords only for legacy orders
+        // Exact saved drop-off pin; simulated destination only for legacy orders.
         const dest = AppMaps.resolveDestination($mapEl.data('lat'), $mapEl.data('lng'));
         const customerCoord = dest || AppMaps.riderLegacyDest(orderId);
-        let currentRiderCoord = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.riderLegacyRider(orderId);
+        let currentRiderCoord = null;
 
         const map = AppMaps.createMap('riderDetailMap', {
             zoomControl: true
@@ -311,32 +319,66 @@
             .addTo(map)
             .bindPopup('<strong>📍 Drop-off: ' + AppMaps.escapeHtml(customerName) + '</strong><br>' + AppMaps.escapeHtml(customerAddress));
 
-        const riderMarker = L.marker(currentRiderCoord, { icon: AppMaps.icons.rider(40, '🛵') })
+        // Rider marker stays hidden until the first real GPS fix arrives.
+        const riderMarker = L.marker(customerCoord, { icon: AppMaps.icons.rider(40, '🛵') })
             .addTo(map)
             .bindPopup('<strong>🛵 You (Rider)</strong><br>Live GPS Position')
-            .openPopup();
+            .setOpacity(0);
 
-        const routeLine = L.polyline([currentRiderCoord, customerCoord], {
+        const routeLine = L.polyline([customerCoord, customerCoord], {
             color: '#0d9488',
             weight: 5,
             opacity: 0.85,
             dashArray: '8, 8',
             lineCap: 'round'
-        }).addTo(map);
+        }).addTo(map).setStyle({ opacity: 0 });
 
-        const bounds = L.latLngBounds([currentRiderCoord, customerCoord]);
-        map.fitBounds(bounds, { padding: [50, 50] });
+        let accuracyCircle = null;
 
         $('#btnCenterGps').on('click', function (e) {
             e.preventDefault();
+            if (!currentRiderCoord) return;
             map.setView(currentRiderCoord, 16);
             riderMarker.openPopup();
         });
 
+        function renderAccuracy(lat, lng, accuracy) {
+            const radius = (accuracy == null || isNaN(accuracy) || accuracy <= 0) ? 0 : accuracy;
+            if (!accuracyCircle) {
+                accuracyCircle = L.circle([lat, lng], {
+                    radius: Math.max(radius, 1),
+                    color: '#0d9488',
+                    weight: 1,
+                    fillColor: '#14b8a6',
+                    fillOpacity: 0.18,
+                    opacity: 0.7,
+                    interactive: false
+                }).addTo(map);
+            } else {
+                accuracyCircle.setLatLng([lat, lng]);
+                accuracyCircle.setRadius(Math.max(radius, 1));
+            }
+            accuracyCircle.setStyle({
+                opacity: radius > 0 ? 0.7 : 0,
+                fillOpacity: radius > 0 ? 0.18 : 0
+            });
+            return radius;
+        }
+
+        /** Human-readable precision summary for the GPS status line. */
+        function describeFix(lat, lng, accuracy) {
+            const radius = (accuracy == null || isNaN(accuracy)) ? null : Math.round(accuracy);
+            if (radius === null) return 'accurate';
+            if (radius > 1000) return 'approximate (&asymp;' + (radius / 1000).toFixed(1) + ' km) &mdash; use a phone with GPS';
+            if (radius > maxAccuracyM) return 'signal weak (&asymp;' + radius + ' m)';
+            return 'accurate (&asymp;' + radius + ' m)';
+        }
+
         function updateRiderPosition(lat, lng, accuracy) {
             currentRiderCoord = [lat, lng];
-            riderMarker.setLatLng(currentRiderCoord);
-            routeLine.setLatLngs([currentRiderCoord, customerCoord]);
+            riderMarker.setLatLng(currentRiderCoord).setOpacity(1);
+            routeLine.setLatLngs([currentRiderCoord, customerCoord]).setStyle({ opacity: 0.85 });
+            renderAccuracy(lat, lng, accuracy);
             updateRiderRoute();
         }
 
@@ -357,11 +399,13 @@
                 }
             });
         }
-        updateRiderRoute();
 
         function postLocationToServer(lat, lng, accuracy) {
             if (!riderIsBroadcasting) return;
-            const baseUrl = $('meta[name="base-url"]').attr('content') || '';
+            // Throttle: at most one stored fix every 4 seconds.
+            const now = Date.now();
+            if (now - riderLastPostAt < 4000) return;
+            riderLastPostAt = now;
             $.ajax({
                 url: baseUrl + 'api/location.php',
                 type: 'POST',
@@ -377,6 +421,31 @@
             });
         }
 
+        /** Single source of truth for every GPS fix on this page. */
+        function onFix(pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const accuracy = pos.coords.accuracy;
+            riderLastFix = { lat: lat, lng: lng, accuracy: accuracy };
+
+            updateRiderPosition(lat, lng, accuracy);
+            postLocationToServer(lat, lng, accuracy);
+
+            if (riderIsBroadcasting) {
+                $gpsStatus.html('<span class="text-success"><i class="bi bi-broadcast me-1"></i>Sharing live location &mdash; '
+                    + describeFix(lat, lng, accuracy) + '</span>');
+            } else {
+                $gpsStatus.html('<span class="text-success"><i class="bi bi-geo-fill me-1"></i>GPS fix &mdash; '
+                    + describeFix(lat, lng, accuracy) + '</span>');
+            }
+        }
+
+        function onGpsError(err) {
+            const msg = (err && err.message) ? err.message : 'unavailable';
+            $gpsStatus.html('<span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>GPS unavailable: '
+                + AppMaps.escapeHtml(msg) + '. Enable location access for live tracking.</span>');
+        }
+
         function startBroadcasting() {
             if (riderIsBroadcasting) return;
             riderIsBroadcasting = true;
@@ -389,41 +458,28 @@
                 $broadcastStatus.html('<span class="badge bg-success"><i class="bi bi-broadcast me-1"></i>Live GPS Broadcasting Active</span>');
             }
 
-            if (navigator.geolocation) {
-                riderGpsWatchId = navigator.geolocation.watchPosition(
-                    function (pos) {
-                        const lat = pos.coords.latitude;
-                        const lng = pos.coords.longitude;
-                        const accuracy = pos.coords.accuracy;
-                        updateRiderPosition(lat, lng, accuracy);
-                        postLocationToServer(lat, lng, accuracy);
-                        $gpsStatus.html('<span class="text-success"><i class="bi bi-geo-fill me-1"></i>Live GPS Active (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')</span>');
-                    },
-                    function (err) {
-                        $gpsStatus.html('<span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>GPS error: ' + err.message + '</span>');
-                    },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                );
+            // Send the current fix immediately...
+            if (riderLastFix) {
+                riderLastPostAt = 0;
+                postLocationToServer(riderLastFix.lat, riderLastFix.lng, riderLastFix.accuracy);
             }
 
-            riderBroadcastInterval = setInterval(function () {
-                if (navigator.geolocation && riderIsBroadcasting) {
-                    navigator.geolocation.getCurrentPosition(function (pos) {
-                        postLocationToServer(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-                    }, function () {}, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
-                }
-            }, 5000);
+            // ...then a light heartbeat so the customer still sees you when stationary.
+            if (riderBroadcastHeartbeatId === null) {
+                riderBroadcastHeartbeatId = setInterval(function () {
+                    if (riderIsBroadcasting && riderLastFix) {
+                        riderLastPostAt = 0;
+                        postLocationToServer(riderLastFix.lat, riderLastFix.lng, riderLastFix.accuracy);
+                    }
+                }, 10000);
+            }
         }
 
         function stopBroadcasting() {
             riderIsBroadcasting = false;
-            if (riderGpsWatchId !== null && navigator.geolocation) {
-                navigator.geolocation.clearWatch(riderGpsWatchId);
-                riderGpsWatchId = null;
-            }
-            if (riderBroadcastInterval) {
-                clearInterval(riderBroadcastInterval);
-                riderBroadcastInterval = null;
+            if (riderBroadcastHeartbeatId) {
+                clearInterval(riderBroadcastHeartbeatId);
+                riderBroadcastHeartbeatId = null;
             }
             if ($broadcastBtn.length) {
                 $broadcastBtn.removeClass('btn-danger').addClass('btn-outline-success')
@@ -432,7 +488,11 @@
             if ($broadcastStatus.length) {
                 $broadcastStatus.html('<span class="badge bg-secondary"><i class="bi bi-pause-circle me-1"></i>Broadcasting Paused</span>');
             }
-            $gpsStatus.html('<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Broadcasting stopped</span>');
+            if (riderLastFix) {
+                $gpsStatus.html('<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Broadcasting paused &mdash; GPS still active locally</span>');
+            } else {
+                $gpsStatus.html('<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Broadcasting stopped</span>');
+            }
         }
 
         if ($broadcastBtn.length && canBroadcast) {
@@ -446,35 +506,19 @@
             });
         }
 
-        if (canBroadcast && navigator.geolocation) {
-            navigator.geolocation.watchPosition(
-                function (pos) {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-                    currentRiderCoord = [lat, lng];
-                    riderMarker.setLatLng(currentRiderCoord);
-                    routeLine.setLatLngs([currentRiderCoord, customerCoord]);
-                    if (!riderIsBroadcasting) {
-                        $gpsStatus.html('<span class="text-success"><i class="bi bi-geo-fill me-1"></i>GPS Acquired (' + lat.toFixed(4) + ', ' + lng.toFixed(4) + ')</span>');
-                    }
-                },
-                function () {
-                    $gpsStatus.html('<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Simulated GPS (Location permission unavailable)</span>');
-                    setInterval(function () {
-                        const latDiff = customerCoord[0] - currentRiderCoord[0];
-                        const lngDiff = customerCoord[1] - currentRiderCoord[1];
-                        if (Math.abs(latDiff) > 0.0002 || Math.abs(lngDiff) > 0.0002) {
-                            currentRiderCoord[0] += latDiff * 0.03;
-                            currentRiderCoord[1] += lngDiff * 0.03;
-                            riderMarker.setLatLng(currentRiderCoord);
-                            routeLine.setLatLngs([currentRiderCoord, customerCoord]);
-                        }
-                    }, 2000);
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        } else if (!canBroadcast) {
-            $gpsStatus.html('<span class="text-muted">Location broadcasting available once order is picked up.</span>');
+        // Exactly one geolocation watch powers the whole page. When broadcasting
+        // is off it still updates the rider's own marker (private preview).
+        if (navigator.geolocation) {
+            riderGpsWatchId = navigator.geolocation.watchPosition(onFix, onGpsError, {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            });
+            if (!canBroadcast) {
+                $gpsStatus.html('<span class="text-muted"><i class="bi bi-hourglass-split me-1"></i>GPS ready &mdash; location sharing unlocks once the order is picked up.</span>');
+            }
+        } else {
+            $gpsStatus.html('<span class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Geolocation is not supported by this browser.</span>');
         }
     }
 

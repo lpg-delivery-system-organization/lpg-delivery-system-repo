@@ -495,7 +495,6 @@
 
             const dest = AppMaps.resolveDestination($mapEl.data('lat'), $mapEl.data('lng'));
             const customerCoord = dest || AppMaps.legacyDest(orderId);
-            const riderStart = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.legacyRider(orderId);
 
             const map = AppMaps.createMap(mapContainerId, {
                 zoomControl: true,
@@ -506,19 +505,18 @@
                 .addTo(map)
                 .bindPopup('<strong>📍 Delivery Address</strong><br>' + AppMaps.escapeHtml(address));
 
-            const riderMarker = L.marker(riderStart, { icon: AppMaps.icons.rider(36, '🚴') })
+            // Marker starts at the destination and is hidden by the tracking
+            // engine until the rider's first real GPS fix arrives.
+            const riderMarker = L.marker(customerCoord, { icon: AppMaps.icons.rider(36, '🚴') })
                 .addTo(map)
-                .bindPopup('<strong>🚴 ' + AppMaps.escapeHtml(riderName) + '</strong><br>En route with LPG')
-                .openPopup();
+                .bindPopup('<strong>🚴 ' + AppMaps.escapeHtml(riderName) + '</strong><br>En route with LPG');
 
-            const routeLine = L.polyline([riderStart, customerCoord], {
+            const routeLine = L.polyline([customerCoord, customerCoord], {
                 color: '#0d9488',
                 weight: 4,
                 opacity: 0.85,
                 dashArray: '8, 8'
             }).addTo(map);
-
-            map.fitBounds(L.latLngBounds([riderStart, customerCoord]), { padding: [40, 40] });
 
             const $statusText = $('#detailMapStatus_' + orderId);
 
@@ -526,14 +524,11 @@
                 map: map,
                 orderId: orderId,
                 customerCoord: customerCoord,
-                riderStart: riderStart,
                 riderMarker: riderMarker,
                 routeLine: routeLine,
                 riderName: riderName,
                 pollMs: 4000,
                 initialPollDelayMs: 500,
-                simulateTickMs: 1200,
-                simulateStep: 0.045,
                 fitPadding: [40, 40],
                 statusEl: $statusText,
                 texts: {
@@ -578,10 +573,9 @@
             const customerAddress = $mapEl.data('customer-address') || 'Delivery Address';
             const orderStatus = ($mapEl.data('status') || '').toLowerCase();
 
-            // Exact saved drop-off pin; simulated coords only for legacy orders
+            // Exact saved drop-off pin; simulated destination only for legacy orders
             const dest = AppMaps.resolveDestination($mapEl.data('lat'), $mapEl.data('lng'));
             const customerCoord = dest || AppMaps.legacyDest(orderId);
-            const riderStart = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.legacyRider(orderId);
 
             // If already picked up or out for delivery, set initial map view
             const map = AppMaps.createMap(mapContainerId, {
@@ -593,13 +587,13 @@
                 .addTo(map)
                 .bindPopup('<strong>📍 Delivery Destination</strong><br>' + AppMaps.escapeHtml(customerAddress));
 
-            const riderMarker = L.marker(riderStart, { icon: AppMaps.icons.rider(36, '🚴') })
+            // Hidden until the rider's first real GPS fix arrives.
+            const riderMarker = L.marker(customerCoord, { icon: AppMaps.icons.rider(36, '🚴') })
                 .addTo(map)
-                .bindPopup('<strong>🚴 ' + AppMaps.escapeHtml(riderName) + '</strong><br>En route with your LPG cylinder')
-                .openPopup();
+                .bindPopup('<strong>🚴 ' + AppMaps.escapeHtml(riderName) + '</strong><br>En route with your LPG cylinder');
 
             // Route Polyline
-            const routeLine = L.polyline([riderStart, customerCoord], {
+            const routeLine = L.polyline([customerCoord, customerCoord], {
                 color: '#0d9488',
                 weight: 4,
                 opacity: 0.85,
@@ -607,23 +601,17 @@
                 lineCap: 'round'
             }).addTo(map);
 
-            // Fit bounds nicely
-            map.fitBounds(L.latLngBounds([riderStart, customerCoord]), { padding: [40, 40] });
-
             activeMapInstances[orderId] = map;
 
             AppMaps.startLiveTracking({
                 map: map,
                 orderId: orderId,
                 customerCoord: customerCoord,
-                riderStart: riderStart,
                 riderMarker: riderMarker,
                 routeLine: routeLine,
                 riderName: riderName,
                 pollMs: 5000,
                 initialPollDelayMs: 800,
-                simulateTickMs: 1200,
-                simulateStep: 0.045,
                 fitPadding: [40, 40],
                 statusEl: $statusText
             });
@@ -674,7 +662,7 @@
             $('#modalRiderName').text('Assigned Rider: ' + riderName);
             $('#modalDeliveryAddress').text('Destination: ' + customerAddress);
             $('#modalStatusBadge').text(statusLabel);
-            $('#modalEtaText').text('🚴 ' + riderName + ' is en route...');
+            $('#modalEtaText').text("Waiting for rider's live GPS...");
 
             const modalEl = document.getElementById('liveTrackingMapModal');
             if (modalEl && window.bootstrap && window.bootstrap.Modal) {
@@ -703,7 +691,6 @@
 
                 const dest = AppMaps.resolveDestination(btnLat, btnLng);
                 const customerCoord = dest || AppMaps.legacyDest(orderId);
-                const riderStart = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.legacyRider(orderId);
 
                 modalMapInstance = AppMaps.createMap('modal-live-map', {
                     zoomControl: true
@@ -713,12 +700,12 @@
                     .addTo(modalMapInstance)
                     .bindPopup('<strong>📍 Delivery Destination</strong><br>' + AppMaps.escapeHtml(customerAddress));
 
-                const riderMarker = L.marker(riderStart, { icon: AppMaps.icons.rider(40, '🚴') })
+                // Hidden until the rider's first real GPS fix arrives.
+                const riderMarker = L.marker(customerCoord, { icon: AppMaps.icons.rider(40, '🚴') })
                     .addTo(modalMapInstance)
-                    .bindPopup('<strong>🚴 ' + AppMaps.escapeHtml(riderName) + '</strong><br>LPG Cylinder En Route')
-                    .openPopup();
+                    .bindPopup('<strong>🚴 ' + AppMaps.escapeHtml(riderName) + '</strong><br>LPG Cylinder En Route');
 
-                const routeLine = L.polyline([riderStart, customerCoord], {
+                const routeLine = L.polyline([customerCoord, customerCoord], {
                     color: '#0d9488',
                     weight: 5,
                     opacity: 0.85,
@@ -726,25 +713,22 @@
                     lineCap: 'round'
                 }).addTo(modalMapInstance);
 
-                modalMapInstance.fitBounds(L.latLngBounds([riderStart, customerCoord]), { padding: [50, 50] });
                 modalMapInstance.invalidateSize();
 
                 modalTrackingHandle = AppMaps.startLiveTracking({
                     map: modalMapInstance,
                     orderId: orderId,
                     customerCoord: customerCoord,
-                    riderStart: riderStart,
                     riderMarker: riderMarker,
                     routeLine: routeLine,
                     riderName: riderName,
                     pollMs: 4000,
                     initialPollDelayMs: 300,
-                    simulateTickMs: 1000,
-                    simulateStep: 0.05,
                     fitPadding: [50, 50],
                     texts: {
-                        enroute: function (name, pct) {
-                            return '<i class="bi bi-bicycle me-1"></i>' + AppMaps.escapeHtml(name) + ' is moving closer (' + pct + '% arrived)';
+                        enroute: function (name, pct, remainingMeters) {
+                            return '<i class="bi bi-bicycle me-1"></i>' + AppMaps.escapeHtml(name)
+                                + ' is ' + AppMaps.formatDistance(remainingMeters || 0) + ' from your address';
                         },
                         arrivedPopup: function (name) {
                             return '<strong>✅ Rider has arrived!</strong><br>' + AppMaps.escapeHtml(name) + ' is at your doorstep.';

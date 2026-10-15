@@ -38,6 +38,8 @@ if ($loggedIn) {
     <meta name="csrf-token" content="<?= csrf_token() ?>">
     <meta name="base-url" content="<?= url('/') ?>">
     <meta name="base-url-from-meta" content="<?= BASE_URL ?>">
+    <meta name="location-max-accuracy" content="<?= (int) LOCATION_MAX_ACCURACY_M ?>">
+    <meta name="location-stale-seconds" content="<?= (int) LOCATION_STALE_AFTER_S ?>">
     <?php if ($loggedIn): ?>
     <meta name="user-id" content="<?= current_user_id() ?>">
     <?php endif; ?>

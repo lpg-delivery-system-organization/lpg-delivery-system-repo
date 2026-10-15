@@ -515,6 +515,24 @@ it('api/chat.php send notifies the customer peer when a rider messages', functio
     assert_contains('pages/customer/order-detail.php?id=' . $oid, $found[0]['link']);
 });
 
+it('ChatMessage::send() stores a timezone-correct created_at', function () use ($db, $chatModel, $productId, $customerId) {
+    $oid = create_test_order($db, $customerId, $productId, 'picked_up', null);
+
+    $before = strtotime(date('Y-m-d H:i:s'));
+    $id = $chatModel->send($oid, $customerId, 'Timezone check message');
+    $after = strtotime(date('Y-m-d H:i:s'));
+
+    assert_true($id > 0, 'send() must return the inserted message id');
+
+    $messages = $chatModel->getByOrder($oid);
+    $found = array_values(array_filter($messages, fn($m) => (int)$m['id'] === $id));
+    assert_equals(1, count($found), 'Sent message must be retrievable');
+
+    $createdTs = strtotime($found[0]['created_at']);
+    assert_true($createdTs !== false, 'created_at must be a valid, non-empty timestamp');
+    assert_true($createdTs >= $before - 2 && $createdTs <= $after + 2, 'created_at must reflect the current application time');
+});
+
 // =========================================================================
 // Group 5: Full transaction fan-out
 // =========================================================================

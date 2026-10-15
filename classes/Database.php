@@ -75,6 +75,19 @@ class Database {
             $options[PDO::ATTR_EMULATE_PREPARES] = false;
 
             self::$instance = new PDO($dsn, $username, $password, $options);
+
+            // Pin the MySQL session timezone to the application timezone so that
+            // NOW(), current_timestamp() and DATE_SUB() agree with PHP on any
+            // host. Without this, the session inherits the server's own timezone
+            // (often UTC), shifting every stored/compared timestamp.
+            $timezoneName = defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Asia/Singapore';
+            try {
+                $timezoneOffset = (new DateTimeImmutable('now', new DateTimeZone($timezoneName)))->format('P');
+                self::$instance->exec('SET time_zone = ' . self::$instance->quote($timezoneOffset));
+            } catch (Throwable $e) {
+                // Non-fatal: keep the server's default timezone if the offset
+                // cannot be resolved or applied (e.g. restricted privileges).
+            }
         }
 
         return self::$instance;

@@ -767,6 +767,116 @@ it('validate_id_upload handles UPLOAD_ERR_NO_FILE and other error codes', functi
 @rmdir($testUploadDir);
 
 // =========================================================================
+// Group 7: Product Image Upload (validate_product_image_upload)
+// =========================================================================
+echo "\nGroup 7: Product Image Upload (validate_product_image_upload)\n";
+
+$testProductUploadDir = sys_get_temp_dir() . '/lpg_test_product_uploads_' . bin2hex(random_bytes(6));
+if (!is_dir($testProductUploadDir)) {
+    mkdir($testProductUploadDir, 0755, true);
+}
+
+it('validate_product_image_upload accepts a valid PNG and stores a product_* filename', function () use ($testProductUploadDir) {
+    $pngData = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    $tmpFile = tempnam(sys_get_temp_dir(), 'lpg_prod_png_');
+    file_put_contents($tmpFile, $pngData);
+
+    $mockUpload = [
+        'name' => 'catalog.png',
+        'type' => 'image/png',
+        'tmp_name' => $tmpFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => strlen($pngData)
+    ];
+
+    $result = validate_product_image_upload($mockUpload, $testProductUploadDir);
+
+    assert_true($result['success'], 'Valid PNG product image should be accepted');
+    assert_true(str_starts_with($result['filename'], 'product_'), 'Filename should start with product_');
+    assert_true(str_ends_with($result['filename'], '.png'), 'Filename should end with .png');
+    assert_equals('image/png', $result['mime_type']);
+    assert_true(file_exists($result['filepath']), 'Saved product image must exist on disk');
+    assert_equals('uploads/products/' . $result['filename'], $result['relative_path']);
+
+    @unlink($tmpFile);
+    @unlink($result['filepath']);
+});
+
+it('validate_product_image_upload rejects a non-image file', function () use ($testProductUploadDir) {
+    $txtFile = tempnam(sys_get_temp_dir(), 'lpg_prod_txt_');
+    file_put_contents($txtFile, 'plain text, not an image');
+
+    $mockUpload = [
+        'name' => 'evil.png',
+        'type' => 'image/png',
+        'tmp_name' => $txtFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => filesize($txtFile)
+    ];
+
+    $result = validate_product_image_upload($mockUpload, $testProductUploadDir);
+
+    assert_false($result['success'], 'Non-image file must be rejected');
+    assert_not_empty($result['error']);
+
+    @unlink($txtFile);
+});
+
+it('validate_product_image_upload rejects PDFs and oversized files', function () use ($testProductUploadDir) {
+    // PDF not allowed for product images
+    $pdfData = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n%%EOF\n";
+    $pdfFile = tempnam(sys_get_temp_dir(), 'lpg_prod_pdf_');
+    file_put_contents($pdfFile, $pdfData);
+    $pdfUpload = [
+        'name' => 'doc.pdf',
+        'type' => 'application/pdf',
+        'tmp_name' => $pdfFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => strlen($pdfData)
+    ];
+    $pdfResult = validate_product_image_upload($pdfUpload, $testProductUploadDir);
+    assert_false($pdfResult['success'], 'PDF must be rejected for product images');
+    @unlink($pdfFile);
+
+    // Oversized (6 MB) declared size
+    $hugeFile = tempnam(sys_get_temp_dir(), 'lpg_prod_huge_');
+    file_put_contents($hugeFile, 'x');
+    $hugeUpload = [
+        'name' => 'huge.png',
+        'type' => 'image/png',
+        'tmp_name' => $hugeFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => 6 * 1024 * 1024
+    ];
+    $hugeResult = validate_product_image_upload($hugeUpload, $testProductUploadDir);
+    assert_false($hugeResult['success'], 'Oversized product image must be rejected');
+    @unlink($hugeFile);
+});
+
+it('delete_old_product_image deletes only files under uploads/products', function () {
+    // Positive: a real file inside uploads/products is removed.
+    $rel = 'uploads/products/product_' . bin2hex(random_bytes(8)) . '.png';
+    $abs = dirname(__DIR__) . '/' . $rel;
+    @mkdir(dirname($abs), 0755, true);
+    file_put_contents($abs, 'temp');
+    assert_true(is_file($abs), 'test fixture should exist');
+
+    delete_old_product_image($rel);
+    assert_true(!is_file($abs), 'uploaded product image should be deleted');
+
+    // Negative: paths outside uploads/products (and traversal) must be ignored.
+    $protected = dirname(__DIR__) . '/config/app.php';
+    delete_old_product_image('config/app.php');
+    assert_true(is_file($protected), 'files outside uploads/products must not be touched');
+
+    delete_old_product_image('uploads/products/../avatars/../products/../../config/app.php');
+    assert_true(is_file($protected), 'traversal paths must be ignored');
+});
+
+// Clean up product test directory
+@rmdir($testProductUploadDir);
+
+// =========================================================================
 // Test Summary
 // =========================================================================
 echo "\n====================================================\n";

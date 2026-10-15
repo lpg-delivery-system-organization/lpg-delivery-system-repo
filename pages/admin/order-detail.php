@@ -436,7 +436,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                              data-rider-name="<?= e($order['rider_name'] ?? 'Delivery Rider') ?>"></div>
                         <div class="small text-muted">
                             <span class="fw-semibold text-primary"><i class="bi bi-geo-alt-fill me-1"></i>Status:</span>
-                            <span id="adminMapStatusText">Acquiring rider GPS signal...</span>
+                            <span id="adminMapStatusText">Waiting for rider's live GPS&hellip;</span>
                         </div>
                     </div>
                 </div>

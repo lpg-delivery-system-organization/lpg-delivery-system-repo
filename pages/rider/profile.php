@@ -4,8 +4,7 @@
  * LPG Delivery System v2
  *
  * View and update personal information, contact phone, residential address,
- * delivery performance statistics, optional valid ID verification document,
- * and account password security.
+ * delivery performance statistics, and account password security.
  */
 
 require_once __DIR__ . '/../../includes/helpers.php';
@@ -68,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // 1. Profile Details Update (full name, phone, address, optional valid_id)
+    // 1. Profile Details Update (full name, phone, address)
     if ($action === 'update_profile') {
         $fullName = sanitize_input($_POST['full_name'] ?? '');
         $phone = sanitize_input($_POST['phone'] ?? '');
@@ -88,16 +87,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $profileErrors[] = 'Home address cannot be empty.';
         }
 
-        $validIdRelativePath = null;
-        if (!empty($_FILES['valid_id']['name']) && $_FILES['valid_id']['error'] !== UPLOAD_ERR_NO_FILE) {
-            $uploadResult = validate_id_upload($_FILES['valid_id']);
-            if (!$uploadResult['success']) {
-                $profileErrors[] = $uploadResult['error'];
-            } else {
-                $validIdRelativePath = $uploadResult['relative_path'];
-            }
-        }
-
         $avatarRelativePath = null;
         if (!empty($_FILES['profile_picture']['name']) && $_FILES['profile_picture']['error'] !== UPLOAD_ERR_NO_FILE) {
             $avatarResult = validate_profile_picture_upload($_FILES['profile_picture']);
@@ -115,10 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'address'   => $address
             ];
 
-            if ($validIdRelativePath !== null) {
-                $updatePayload['valid_id_path'] = $validIdRelativePath;
-            }
-
             if ($avatarRelativePath !== null) {
                 $updatePayload['profile_picture'] = $avatarRelativePath;
             }
@@ -134,9 +119,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['user']['full_name'] = $fullName;
                         $_SESSION['user']['phone'] = $phone;
                         $_SESSION['user']['address'] = $address;
-                        if ($validIdRelativePath !== null) {
-                            $_SESSION['user']['valid_id_path'] = $validIdRelativePath;
-                        }
                         if ($avatarRelativePath !== null) {
                             $_SESSION['user']['profile_picture'] = $avatarRelativePath;
                         }
@@ -350,31 +332,12 @@ require_once __DIR__ . '/../../templates/header.php';
                 </div>
             </div>
 
-            <!-- Valid ID Verification Document Card -->
-            <div class="card border-0 shadow-sm rounded-3">
-                <div class="card-header bg-white py-3 border-bottom">
-                    <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
-                        <i class="bi bi-card-heading text-primary"></i>Driver's License / Valid ID
-                    </h6>
-                </div>
-                <div class="card-body p-3">
-                    <?php if (!empty($rider['valid_id_path'])): ?>
-                        <div class="alert alert-success d-flex align-items-center p-3 mb-0 rounded-3" role="alert">
-                            <i class="bi bi-shield-check fs-4 me-2 text-success flex-shrink-0"></i>
-                            <div>
-                                <strong class="d-block">ID Document On File</strong>
-                                <small class="text-muted">Government ID is verified for rider authentication.</small>
-                            </div>
-                        </div>
-                    <?php else: ?>
-                        <div class="alert alert-warning d-flex align-items-center p-3 mb-0 rounded-3" role="alert">
-                            <i class="bi bi-exclamation-circle fs-4 me-2 text-warning flex-shrink-0"></i>
-                            <div>
-                                <strong class="d-block">No Valid ID Uploaded</strong>
-                                <small class="text-muted">Upload your Driver's License or Government ID below.</small>
-                            </div>
-                        </div>
-                    <?php endif; ?>
+            <!-- Government ID handled by the administrator -->
+            <div class="alert alert-info d-flex align-items-start p-3 mb-0 rounded-3 shadow-sm" role="alert">
+                <i class="bi bi-shield-check fs-4 me-2 text-primary flex-shrink-0"></i>
+                <div>
+                    <strong class="d-block">Government ID Verified</strong>
+                    <small class="text-muted">Your Driver's License / Valid ID is verified and managed by the administrator. Contact the admin if it needs to be updated.</small>
                 </div>
             </div>
         </div>
@@ -449,19 +412,6 @@ require_once __DIR__ . '/../../templates/header.php';
                                            required>
                                 </div>
                                 <div class="form-text extra-small">11-digit Philippine mobile format starting with 09.</div>
-                            </div>
-
-                            <!-- Valid ID Upload -->
-                            <div class="col-md-6">
-                                <label for="valid_id" class="form-label fw-semibold small text-dark">
-                                    Driver's License / Valid ID <span class="text-muted extra-small fw-normal">(JPG/PNG/PDF max 5MB)</span>
-                                </label>
-                                <input type="file" 
-                                       name="valid_id" 
-                                       id="valid_id" 
-                                       class="form-control" 
-                                       accept="image/jpeg,image/png,image/webp,application/pdf">
-                                <div class="form-text extra-small">Upload or update your Driver's License or Government ID.</div>
                             </div>
 
                             <!-- Home Address -->

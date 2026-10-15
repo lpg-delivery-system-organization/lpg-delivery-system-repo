@@ -20,6 +20,25 @@
         });
     }
 
+    // Resolve a project-relative image path into a usable URL
+    function productImageUrl(imagePath) {
+        if (!imagePath) return '';
+        if (/^https?:\/\//i.test(imagePath)) return imagePath;
+        const baseUrl = $('meta[name="base-url"]').attr('content') || '';
+        return baseUrl.replace(/\/$/, '') + '/' + String(imagePath).replace(/^\//, '');
+    }
+
+    // Show (or hide) an image preview thumbnail for a chosen/current product image
+    function setProductImagePreview($img, $wrap, imagePath) {
+        if (imagePath) {
+            $img.attr('src', typeof imagePath === 'string' ? productImageUrl(imagePath) : imagePath);
+            $wrap.removeClass('d-none');
+        } else {
+            $img.attr('src', '');
+            $wrap.addClass('d-none');
+        }
+    }
+
     // Helper to get status badge HTML
     function getStatusBadge(status) {
         const s = (status || '').toLowerCase();
@@ -602,7 +621,10 @@
             $('#editProdWeight').val(weight);
             $('#editProdPrice').val(isNaN(price) ? '' : price.toFixed(2));
             $('#editProdStock').val(stock === undefined ? '' : stock);
-            $('#editProdImage').val(image);
+            $('#editProdImageUrl').val(image);
+            // Reset the file picker and show the current image as a preview.
+            $('#editProdImage').val('');
+            setProductImagePreview($('#editProdImagePreview'), $('#editProdImagePreviewWrap'), image);
             const $statusSel = $('#editProdStatus');
             if ($statusSel.find('option[value="' + status + '"]').length) {
                 $statusSel.val(status);
@@ -616,6 +638,22 @@
             } else {
                 console.error('Edit modal cannot open: modal element or Bootstrap JS missing.');
             }
+        });
+
+        // Live preview for product image file inputs (Add + Edit modals)
+        $(document).on('change', '#addProdImage', function () {
+            const file = this.files && this.files[0];
+            setProductImagePreview($('#addProdImagePreview'), $('#addProdImagePreviewWrap'), file ? URL.createObjectURL(file) : '');
+        });
+
+        $(document).on('change', '#editProdImage', function () {
+            const file = this.files && this.files[0];
+            const currentImage = $('#editProdImageUrl').val();
+            setProductImagePreview(
+                $('#editProdImagePreview'),
+                $('#editProdImagePreviewWrap'),
+                file ? URL.createObjectURL(file) : currentImage
+            );
         });
 
         // URL Query Parameter
@@ -788,8 +826,8 @@
     // =========================================================================
     // 4. Admin Live Rider Tracking Map (order-detail.php)
     //    Uses shared AppMaps engine: polls real rider GPS from
-    //    api/location.php (admin is authorized), with simulated approach
-    //    fallback until the first fix / for legacy orders without pins.
+    //    api/location.php (admin is authorized) and shows an honest waiting
+    //    state until the first fix. No fabricated rider movement.
     // =========================================================================
     function initAdminLiveTrackingMap() {
         if (typeof window.L === 'undefined' || typeof window.AppMaps === 'undefined') return;
@@ -807,7 +845,6 @@
 
         const dest = AppMaps.resolveDestination($mapEl.data('lat'), $mapEl.data('lng'));
         const customerCoord = dest || AppMaps.legacyDest(orderId);
-        const riderStart = dest ? [dest[0] - 0.014, dest[1] - 0.014] : AppMaps.legacyRider(orderId);
 
         const map = AppMaps.createMap('adminLiveMap', {
             zoomControl: true,
@@ -818,12 +855,12 @@
             .addTo(map)
             .bindPopup('<strong>📍 Drop-off: ' + AppMaps.escapeHtml(customerName) + '</strong><br>' + AppMaps.escapeHtml(address));
 
-        const riderMarker = L.marker(riderStart, { icon: AppMaps.icons.rider(40, '🛵') })
+        // Hidden until the rider's first real GPS fix arrives.
+        const riderMarker = L.marker(customerCoord, { icon: AppMaps.icons.rider(40, '🛵') })
             .addTo(map)
-            .bindPopup('<strong>🛵 ' + AppMaps.escapeHtml(riderName) + '</strong><br>Live GPS Position')
-            .openPopup();
+            .bindPopup('<strong>🛵 ' + AppMaps.escapeHtml(riderName) + '</strong><br>Live GPS Position');
 
-        const routeLine = L.polyline([riderStart, customerCoord], {
+        const routeLine = L.polyline([customerCoord, customerCoord], {
             color: '#0d9488',
             weight: 5,
             opacity: 0.85,
@@ -831,22 +868,17 @@
             lineCap: 'round'
         }).addTo(map);
 
-        map.fitBounds(L.latLngBounds([riderStart, customerCoord]), { padding: [40, 40] });
-
         setTimeout(function () { map.invalidateSize(); }, 300);
 
         AppMaps.startLiveTracking({
             map: map,
             orderId: orderId,
             customerCoord: customerCoord,
-            riderStart: riderStart,
             riderMarker: riderMarker,
             routeLine: routeLine,
             riderName: riderName,
             pollMs: 4000,
             initialPollDelayMs: 400,
-            simulateTickMs: 1200,
-            simulateStep: 0.045,
             fitPadding: [40, 40],
             statusEl: $('#adminMapStatusText'),
             texts: {

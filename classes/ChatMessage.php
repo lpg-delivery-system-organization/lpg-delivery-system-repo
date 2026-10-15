@@ -8,7 +8,10 @@
 
 require_once __DIR__ . '/Database.php';
 
-date_default_timezone_set('Asia/Manila');
+if (!defined('APP_TIMEZONE')) {
+    define('APP_TIMEZONE', 'Asia/Singapore');
+}
+date_default_timezone_set(APP_TIMEZONE);
 
 class ChatMessage
 {
@@ -44,7 +47,7 @@ class ChatMessage
 
         $stmt = $this->db->prepare(
             "INSERT INTO chat_messages (order_id, sender_id, message, created_at)
-             VALUES (:order_id, :sender_id, :message, date('Y-m-d H:i:s'))"
+             VALUES (:order_id, :sender_id, :message, NOW())"
         );
         $stmt->execute([
             ':order_id'  => $orderId,

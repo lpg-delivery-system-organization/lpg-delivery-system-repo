@@ -423,9 +423,9 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                              data-rider-name="<?= e($order['rider_name'] ?? 'Delivery Rider') ?>"></div>
                         <div class="d-flex align-items-center justify-content-between small text-muted">
                             <div id="detailMapStatus_<?= $orderId ?>" class="fw-semibold text-primary">
-                                <i class="bi bi-truck me-1"></i>Rider is preparing for dispatch...
+                                <i class="bi bi-hourglass-split me-1"></i>Waiting for rider's live GPS&hellip;
                             </div>
-                            <span class="extra-small">Simulated Real-Time Tracking</span>
+                            <span class="extra-small">Live GPS Tracking</span>
                         </div>
                     </div>
                             </div>

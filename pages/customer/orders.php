@@ -343,8 +343,8 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                          data-status="<?= e($status) ?>">
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mt-2 px-1 extra-small text-muted">
-                                        <span><i class="bi bi-info-circle me-1"></i>Live simulated rider dispatch to <?= e($deliveryAddress) ?></span>
-                                        <span id="map-status-text-<?= $orderId ?>" class="fw-semibold text-primary">🚴 Rider is en route...</span>
+                                        <span><i class="bi bi-info-circle me-1"></i>Live rider GPS tracking to <?= e($deliveryAddress) ?></span>
+                                        <span id="map-status-text-<?= $orderId ?>" class="fw-semibold text-primary">Waiting for rider's live GPS&hellip;</span>
                                     </div>
                                 </div>
                             </div>
@@ -477,7 +477,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     </div>
                     <div class="text-md-end">
                         <span id="modalStatusBadge" class="badge bg-primary fs-6 px-3 py-2">In Transit</span>
-                        <div id="modalEtaText" class="extra-small text-muted mt-1 fw-semibold text-primary">🚴 Rider is en route to your location...</div>
+                        <div id="modalEtaText" class="extra-small text-muted mt-1 fw-semibold text-primary">Waiting for rider's live GPS&hellip;</div>
                     </div>
                 </div>
 
@@ -485,7 +485,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                 <div id="modal-live-map" class="order-live-map" style="width: 100%; position: relative; z-index: 1;"></div>
             </div>
             <div class="modal-footer bg-light py-2 px-3 d-flex justify-content-between align-items-center">
-                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Real-time GPS simulation powered by OpenStreetMap & Leaflet</small>
+                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Live GPS tracking powered by OpenStreetMap &amp; Leaflet</small>
                 <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">Close</button>
             </div>
         </div>

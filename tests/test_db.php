@@ -164,6 +164,23 @@ it("Database singleton enforces PDO exception and fetch mode attributes", functi
     return true;
 });
 
+it("Database connection pins the session timezone to APP_TIMEZONE (UTC+8)", function() {
+    $pdo = Database::connect();
+    $sessionTz = $pdo->query("SELECT @@session.time_zone")->fetchColumn();
+
+    $tzName = defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Asia/Singapore';
+    $tz = new DateTimeZone($tzName);
+    $expected = (new DateTimeImmutable('now', $tz))->format('P');
+
+    assert_equals($expected, $sessionTz, "MySQL session time_zone must match APP_TIMEZONE offset");
+
+    // NOW() must agree with the application clock within a small tolerance.
+    $dbNow = new DateTimeImmutable($pdo->query("SELECT NOW()")->fetchColumn(), $tz);
+    $phpNow = new DateTimeImmutable('now', $tz);
+    assert_true(abs($dbNow->getTimestamp() - $phpNow->getTimestamp()) <= 5, "MySQL NOW() must match the application clock");
+    return true;
+});
+
 // ----------------------------------------------------------
 // 4. Schema & Table Structure Tests
 // ----------------------------------------------------------

@@ -17,16 +17,21 @@ if (!defined('UPLOAD_PATH')) {
 }
 
 /**
- * Philippine Standard Time (UTC+8).
+ * Malaysia / Singapore Standard Time (UTC+8).
  *
- * The application is deployed for Philippine users, so every rendered
- * timestamp (order history, receipts, payment confirmations) must be
- * expressed in PHT regardless of the web server's host timezone.
- * Without this, PHP falls back to the php.ini default (commonly UTC), which
- * silently shifts every displayed time by 8 hours.
+ * The application is deployed for Malaysia/Singapore users, so every rendered
+ * timestamp (order history, receipts, payment confirmations) must be expressed
+ * in this zone regardless of the web server's host timezone. Without this, PHP
+ * falls back to the php.ini default (commonly UTC), which silently shifts every
+ * displayed time by 8 hours.
+ *
+ * The MySQL connection timezone is pinned to the same offset in Database.php so
+ * NOW()/current_timestamp() agree with PHP on any host. Malaysia
+ * (Asia/Kuala_Lumpur) and Singapore (Asia/Singapore) share the identical UTC+8
+ * offset with no DST.
  */
 if (!defined('APP_TIMEZONE')) {
-    define('APP_TIMEZONE', 'Asia/Manila');
+    define('APP_TIMEZONE', 'Asia/Singapore');
 }
 date_default_timezone_set(APP_TIMEZONE);
 
@@ -622,6 +627,191 @@ function delete_old_avatar(?string $relativePath): void {
 
     $normalized = str_replace('\\', '/', ltrim($relativePath, '/'));
     if (!str_starts_with($normalized, 'uploads/avatars/') || strpos($normalized, '..') !== false) {
+        return;
+    }
+
+    $absolutePath = dirname(__DIR__) . '/' . $normalized;
+    if (is_file($absolutePath)) {
+        @unlink($absolutePath);
+    }
+}
+
+/**
+ * Validate and securely store an uploaded product image (image only)
+ *
+ * Mirrors validate_profile_picture_upload() but targets the uploads/products/
+ * directory so catalog images can be uploaded directly by an administrator
+ * instead of pasting an image URL.
+ *
+ * Checks:
+ * - PHP file upload error codes
+ * - Max file size (5MB)
+ * - Strict MIME type inspection with finfo (JPEG, PNG, WebP only)
+ * - Valid image verification via getimagesize()
+ * - Generates a secure randomized hexadecimal filename
+ * - Moves the file into uploads/products/ (or $destinationDir when supplied)
+ *
+ * @param array       $file           Upload file entry from $_FILES['image_file']
+ * @param string|null $destinationDir Optional absolute destination directory
+ * @return array ['success' => bool, 'filename' => string, 'filepath' => string, 'relative_path' => string, 'mime_type' => string, 'size' => int] OR ['success' => false, 'error' => string]
+ */
+function validate_product_image_upload(array $file, ?string $destinationDir = null): array {
+    // 1. Verify expected structure
+    if (!isset($file['error']) || !isset($file['tmp_name']) || !isset($file['size'])) {
+        return [
+            'success' => false,
+            'error' => 'Invalid file upload payload structure.'
+        ];
+    }
+
+    // 2. Check upload error code
+    switch ($file['error']) {
+        case UPLOAD_ERR_OK:
+            break;
+        case UPLOAD_ERR_NO_FILE:
+            return [
+                'success' => false,
+                'error' => 'No file was uploaded. Please select a product image.'
+            ];
+        case UPLOAD_ERR_INI_SIZE:
+        case UPLOAD_ERR_FORM_SIZE:
+            return [
+                'success' => false,
+                'error' => 'Uploaded image exceeds the maximum allowed size limit of 5 MB.'
+            ];
+        case UPLOAD_ERR_PARTIAL:
+            return [
+                'success' => false,
+                'error' => 'The image was only partially uploaded. Please try again.'
+            ];
+        default:
+            return [
+                'success' => false,
+                'error' => 'An unexpected file upload error occurred (code ' . $file['error'] . ').'
+            ];
+    }
+
+    // 3. Check file size (max 5 MB)
+    $maxSize = 5 * 1024 * 1024; // 5 MB
+    if ($file['size'] > $maxSize) {
+        return [
+            'success' => false,
+            'error' => 'Image size (' . round($file['size'] / (1024 * 1024), 2) . ' MB) exceeds the maximum limit of 5 MB.'
+        ];
+    }
+
+    if ($file['size'] <= 0) {
+        return [
+            'success' => false,
+            'error' => 'Uploaded image is empty.'
+        ];
+    }
+
+    // 4. Check temporary file existence and readability
+    if (!file_exists($file['tmp_name']) || !is_readable($file['tmp_name'])) {
+        return [
+            'success' => false,
+            'error' => 'Temporary uploaded file not found or is unreadable.'
+        ];
+    }
+
+    // 5. Strict MIME type verification using finfo (images only)
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    if (!$finfo) {
+        return [
+            'success' => false,
+            'error' => 'Failed to initialize MIME inspection service.'
+        ];
+    }
+
+    $mimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    $allowedMimes = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp'
+    ];
+
+    if (!array_key_exists($mimeType, $allowedMimes)) {
+        return [
+            'success' => false,
+            'error' => 'Invalid image format (' . $mimeType . '). Only JPG, PNG, and WebP images are allowed.'
+        ];
+    }
+
+    // 6. Verify it is a valid image via getimagesize()
+    $imageInfo = @getimagesize($file['tmp_name']);
+    if ($imageInfo === false) {
+        return [
+            'success' => false,
+            'error' => 'The uploaded file is not a valid image.'
+        ];
+    }
+
+    $extension = $allowedMimes[$mimeType];
+
+    // 7. Generate randomized unique filename
+    $randomHex = bin2hex(random_bytes(16));
+    $filename = 'product_' . $randomHex . '.' . $extension;
+
+    // 8. Determine destination directory
+    $targetDir = $destinationDir ?? (defined('UPLOAD_PATH') ? UPLOAD_PATH . '/products' : dirname(__DIR__) . '/uploads/products');
+
+    if (!is_dir($targetDir)) {
+        if (!mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
+            return [
+                'success' => false,
+                'error' => 'Unable to create upload directory.'
+            ];
+        }
+    }
+
+    $destinationPath = rtrim($targetDir, '/') . '/' . $filename;
+
+    // 9. Move uploaded file (or copy if simulated in test mode)
+    $moved = false;
+    if (is_uploaded_file($file['tmp_name'])) {
+        $moved = move_uploaded_file($file['tmp_name'], $destinationPath);
+    } else {
+        $moved = copy($file['tmp_name'], $destinationPath);
+    }
+
+    if (!$moved) {
+        return [
+            'success' => false,
+            'error' => 'Failed to move uploaded file to destination.'
+        ];
+    }
+
+    @chmod($destinationPath, 0644);
+
+    return [
+        'success' => true,
+        'filename' => $filename,
+        'filepath' => $destinationPath,
+        'relative_path' => 'uploads/products/' . $filename,
+        'mime_type' => $mimeType,
+        'size' => (int)$file['size']
+    ];
+}
+
+/**
+ * Safely delete an old product image file inside the uploads/products directory
+ *
+ * Only deletes files whose relative path is confirmed to be within
+ * uploads/products/ to prevent arbitrary file deletion.
+ *
+ * @param string|null $relativePath e.g. uploads/products/product_xxx.jpg
+ * @return void
+ */
+function delete_old_product_image(?string $relativePath): void {
+    if (empty($relativePath)) {
+        return;
+    }
+
+    $normalized = str_replace('\\', '/', ltrim($relativePath, '/'));
+    if (!str_starts_with($normalized, 'uploads/products/') || strpos($normalized, '..') !== false) {
         return;
     }
 

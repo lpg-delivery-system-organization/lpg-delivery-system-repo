@@ -17,6 +17,7 @@
  * 12. test_purge.php          - Rejected ID grace period, reminders & auto-purge lifecycle
  * 13. test_delivery_coverage.php - 3 km Haversine geofence, boundary rules & Order::place() enforcement
  * 14. test_cart.php          - Persistent DB cart model, per-line guards & api/cart.php endpoint
+ * 15. test_location_tracking.php - Live GPS tracking: accuracy-aware resolution, RBAC & CSRF guards
  *
  * Usage:
  *   php tests/run_all_tests.php              # Standard run with aggregated table
@@ -165,6 +166,12 @@ $testSuites = [
         'name'        => 'Shopping Cart & Checkout',
         'file'        => 'test_cart.php',
         'description' => 'Persistent DB cart model, per-line guards & api/cart.php endpoint'
+    ],
+    [
+        'id'          => 'location_tracking',
+        'name'        => 'Live GPS Tracking',
+        'file'        => 'test_location_tracking.php',
+        'description' => 'Accuracy-aware location resolution, RBAC, CSRF & state guards'
     ],
 ];
 

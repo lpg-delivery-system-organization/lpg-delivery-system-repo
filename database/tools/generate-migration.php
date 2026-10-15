@@ -30,7 +30,7 @@ $config = require __DIR__ . '/../../config/database.php';
 // "Created" header must use the same clock the application does, or the
 // recorded order will not match the order things actually happened in.
 if (!defined('APP_TIMEZONE')) {
-    define('APP_TIMEZONE', 'Asia/Manila');
+    define('APP_TIMEZONE', 'Asia/Singapore');
 }
 date_default_timezone_set(APP_TIMEZONE);
 

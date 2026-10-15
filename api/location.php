@@ -205,7 +205,11 @@ switch ($action) {
             }
         }
 
-        $location = $locationModel->getLatestByOrder($orderId);
+        $location = $locationModel->getBestByOrder(
+            $orderId,
+            (int)(defined('LOCATION_MAX_ACCURACY_M') ? LOCATION_MAX_ACCURACY_M : 100),
+            (int)(defined('LOCATION_STALE_AFTER_S') ? LOCATION_STALE_AFTER_S : 180)
+        );
 
         json_response([
             'success' => true,

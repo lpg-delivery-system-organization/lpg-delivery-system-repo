@@ -18,9 +18,10 @@ migrations can be identified, ordered and applied without opening them:
 2026-09-30_183331_alter_orders_table.sql
 ```
 
-- Timestamps use **Asia/Manila**, the same clock the application runs on
-  (`APP_TIMEZONE` in `includes/helpers.php`). Using the host's own timezone would
-  put the recorded order out of step with reality.
+- Timestamps use **Asia/Singapore** (UTC+8, shared by Malaysia and Singapore),
+  the same clock the application runs on (`APP_TIMEZONE` in
+  `includes/helpers.php`). Using the host's own timezone would put the recorded
+  order out of step with reality.
 - Timestamps are strictly increasing and **never sort before an existing
   migration**, so filename order is always the correct apply order.
 - `<verb>` is `create` for a new table, `alter` for a column/index/constraint

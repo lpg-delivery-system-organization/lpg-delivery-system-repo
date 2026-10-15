@@ -12,8 +12,8 @@
  *   - geocode()              Nominatim address lookup
  *   - initPinLocationMaps()  static "Exact Location Pin" maps (.pin-location-map)
  *   - startLiveTracking()    universal live rider tracking engine
- *                            (GPS polling -> marker/route updates -> arrival state,
- *                             with simulated approach until the first real fix)
+ *                            (accuracy-aware GPS polling -> marker/route/accuracy
+ *                             circle updates -> arrival state; no simulation)
  *
  * AppChat
  *   - initPanel()            rider-customer chat offcanvas panel
@@ -30,6 +30,14 @@
 
     function escapeHtml(text) {
         return $('<div>').text(text || '').html();
+    }
+
+    /** Read a numeric <meta> value with a fallback (used for GPS thresholds). */
+    function metaNumber(name, fallback) {
+        const el = document.querySelector('meta[name="' + name + '"]');
+        const raw = el ? el.getAttribute('content') : null;
+        const parsed = raw == null ? NaN : parseInt(raw, 10);
+        return isNaN(parsed) ? fallback : parsed;
     }
 
     window.AppMaps = {
@@ -289,30 +297,33 @@
         /**
          * Universal live rider tracking engine.
          *
-         * Polls api/location.php?action=get for the rider's real GPS fix and moves
-         * the rider marker + route line accordingly. Until the first real fix
-         * arrives, the rider marker advances toward the destination with a
-         * simulated approach animation (legacy behavior).
+         * Polls api/location.php?action=get for the rider's best real GPS fix
+         * (accuracy-aware) and moves the rider marker + route line + accuracy
+         * circle accordingly. The marker/route stay hidden and a "Waiting for
+         * rider's live GPS…" status is shown until the first real fix arrives —
+         * there is no simulated movement.
          *
          * @param {object} config
          *   map               {L.Map} required
          *   orderId           {number} required
          *   customerCoord     {[lat,lng]} required destination
-         *   riderStart        {[lat,lng]} required initial rider position
+         *   riderStart        {[lat,lng]} initial (hidden) rider position
          *   riderMarker       {L.Marker} required
          *   routeLine         {L.Polyline} required
          *   riderName         {string} label used in popups/status
          *   fitPadding        {[x,y]} fitBounds padding (default [40,40])
          *   pollMs            polling interval (default 4000)
          *   initialPollDelayMs first poll delay (default 500)
-         *   simulateTickMs    simulation tick interval (default 1200)
-         *   simulateStep      fraction of remaining distance per tick (default 0.045)
-         *   statusEl          {jQuery} optional element receiving enroute/arrived text
-         *   texts             {enroute(name,pct), arrived(), arrivedPopup(name)}
+         *   maxAccuracyM      accuracy threshold in metres (default from meta)
+         *   staleAfterS       staleness threshold in seconds (default from meta)
+         *   arriveAfterMeters arrival radius in metres (default 35)
+         *   statusEl          {jQuery} optional element receiving status text
+         *   texts             {waiting(), enroute(name,pct,remainingM), weak(acc,age),
+         *                      stale(age), arrived(), arrivedPopup(name)}
          *   onRealFix()       optional callback on first real GPS fix
          *   onArrive()        optional extra arrival UI hook
          *   onTick(html)      optional custom per-tick renderer (used instead of statusEl)
-         * @returns {{stop: Function}} handle
+         * @returns {{stop: Function, setRider: Function}} handle
          */
         startLiveTracking: function (config) {
             const map = config.map;
@@ -325,12 +336,27 @@
             const padding = config.fitPadding || [40, 40];
             const pollMs = config.pollMs || 4000;
             const initialDelayMs = (config.initialPollDelayMs == null) ? 500 : config.initialPollDelayMs;
-            const tickMs = config.simulateTickMs || 1200;
-            const stepRatio = config.simulateStep || 0.045;
+
+            // GPS quality thresholds (mirrored from config/app.php via <meta>).
+            const maxAccuracyM = config.maxAccuracyM || metaNumber('location-max-accuracy', 100);
+            const staleAfterS = config.staleAfterS || metaNumber('location-stale-seconds', 180);
+            const arriveAfterM = config.arriveAfterMeters || 35;
 
             const texts = $.extend({
-                enroute: function (name, pct) {
-                    return '<i class="bi bi-bicycle me-1"></i>' + escapeHtml(name) + ' is on the way (' + pct + '% arrived)';
+                waiting: function () {
+                    return '<i class="bi bi-hourglass-split me-1"></i>Waiting for rider\'s live GPS&hellip;';
+                },
+                enroute: function (name, pct, remainingMeters) {
+                    const away = AppMaps.formatDistance(remainingMeters || 0);
+                    return '<i class="bi bi-bicycle me-1"></i>' + escapeHtml(name) + ' is ' + away + ' from the drop-off';
+                },
+                weak: function (accuracyM, ageSeconds) {
+                    return '<i class="bi bi-exclamation-triangle me-1"></i>GPS signal weak (&asymp;'
+                        + Math.round(accuracyM) + ' m) &middot; updated ' + ageSeconds + 's ago';
+                },
+                stale: function (ageSeconds) {
+                    return '<i class="bi bi-exclamation-triangle me-1"></i>Rider GPS signal lost (last update '
+                        + ageSeconds + 's ago)';
                 },
                 arrived: function () {
                     return '<i class="bi bi-check-circle-fill me-1"></i>Rider has arrived at your location!';
@@ -344,7 +370,10 @@
             let hasRealLocation = false;
             let stopped = false;
             let pollIntervalId = null;
-            let simulateIntervalId = null;
+            let emptyPolls = 0;
+            let initialDistanceM = null;
+            let arrivedShown = false;
+            let accuracyCircle = null;
 
             // Real-time road-route state (throttled OSRM re-routing).
             let routedTo = null;
@@ -396,6 +425,75 @@
                 }
             }
 
+            /**
+             * Reveal the rider marker + route only after a real fix arrives, so
+             * we never paint a fabricated rider position on screen.
+             */
+            function revealRider() {
+                if (hasRealLocation) return;
+                hasRealLocation = true;
+                if (riderMarker && riderMarker.setOpacity) riderMarker.setOpacity(1);
+                if (routeLine && routeLine.setStyle) routeLine.setStyle({ opacity: 0.85 });
+            }
+
+            function accuracyRadius(data) {
+                const acc = (data && data.accuracy != null) ? parseFloat(data.accuracy) : NaN;
+                return (isNaN(acc) || acc < 0) ? 0 : acc;
+            }
+
+            function renderAccuracy(coord, radiusM) {
+                if (!accuracyCircle) {
+                    accuracyCircle = L.circle(coord, {
+                        radius: Math.max(radiusM, 1),
+                        color: '#0d9488',
+                        weight: 1,
+                        fillColor: '#14b8a6',
+                        fillOpacity: 0.18,
+                        opacity: 0.7,
+                        interactive: false
+                    }).addTo(map);
+                } else {
+                    accuracyCircle.setLatLng(coord);
+                    accuracyCircle.setRadius(Math.max(radiusM, 1));
+                }
+                accuracyCircle.setStyle({
+                    opacity: radiusM > 0 ? 0.7 : 0,
+                    fillOpacity: radiusM > 0 ? 0.18 : 0
+                });
+            }
+
+            function computeStatus(data, remainingM) {
+                const age = (data.age_seconds != null) ? parseInt(data.age_seconds, 10) : 0;
+                const radius = accuracyRadius(data);
+
+                if (data.is_stale === true || age > staleAfterS) {
+                    return { html: texts.stale(age), arrived: false };
+                }
+                if (data.is_accurate === false || (radius > maxAccuracyM && radius > 0)) {
+                    return { html: texts.weak(radius, age), arrived: false };
+                }
+                if (remainingM <= arriveAfterM) {
+                    return { html: texts.arrived(), arrived: true };
+                }
+
+                const pct = (initialDistanceM && initialDistanceM > 0)
+                    ? Math.min(99, Math.max(0, Math.round((1 - remainingM / initialDistanceM) * 100)))
+                    : 0;
+                return { html: texts.enroute(config.riderName, pct, remainingM), arrived: false };
+            }
+
+            function markArrived() {
+                if (arrivedShown) return;
+                arrivedShown = true;
+                if (riderMarker) {
+                    riderMarker.bindPopup(texts.arrivedPopup(config.riderName)).openPopup();
+                }
+                if ($statusEl && $statusEl.length) {
+                    $statusEl.removeClass('text-primary').addClass('text-success fw-bold').html(texts.arrived());
+                }
+                if (config.onArrive) config.onArrive();
+            }
+
             function pollOnce() {
                 if (stopped) return;
                 const baseUrl = $('meta[name="base-url"]').attr('content') || '';
@@ -405,55 +503,65 @@
                     data: { action: 'get', order_id: config.orderId },
                     dataType: 'json',
                     success: function (res) {
-                        if (stopped || !res || !res.success || !res.data) return;
-                        hasRealLocation = true;
-                        setRider([parseFloat(res.data.latitude), parseFloat(res.data.longitude)]);
+                        if (stopped) return;
+
+                        if (!res || !res.success || !res.data) {
+                            emptyPolls++;
+                            if (emptyPolls >= 3 || !hasRealLocation) {
+                                renderStatus(texts.waiting());
+                            }
+                            return;
+                        }
+
+                        emptyPolls = 0;
+                        const lat = parseFloat(res.data.latitude);
+                        const lng = parseFloat(res.data.longitude);
+                        if (isNaN(lat) || isNaN(lng)) return;
+
+                        const isFirstFix = !hasRealLocation;
+                        revealRider();
+                        setRider([lat, lng]);
+
+                        const radius = accuracyRadius(res.data);
+                        renderAccuracy(riderCoord, radius);
+
+                        const remainingM = AppMaps.distanceMeters(
+                            riderCoord[0], riderCoord[1], customerCoord[0], customerCoord[1]
+                        );
+
+                        if (isFirstFix) {
+                            initialDistanceM = remainingM;
+                            map.fitBounds(L.latLngBounds([riderCoord, customerCoord]), { padding: padding });
+                        }
+
                         updateRoute();
-                        map.fitBounds(L.latLngBounds([riderCoord, customerCoord]), { padding: padding });
-                        if (config.onRealFix) config.onRealFix();
+
+                        const status = computeStatus(res.data, remainingM);
+                        if (status.arrived) {
+                            markArrived();
+                        } else {
+                            renderStatus(status.html);
+                        }
+
+                        if (isFirstFix && config.onRealFix) config.onRealFix();
                     }
                 });
             }
 
+            // Start in an honest "waiting" state: the marker and route stay
+            // hidden until the rider's first real GPS fix arrives.
+            if (riderMarker && riderMarker.setOpacity) riderMarker.setOpacity(0);
+            if (routeLine && routeLine.setStyle) routeLine.setStyle({ opacity: 0 });
+            renderStatus(texts.waiting());
+
             pollIntervalId = setInterval(pollOnce, pollMs);
             setTimeout(pollOnce, initialDelayMs);
-
-            simulateIntervalId = setInterval(function () {
-                if (stopped || hasRealLocation) return;
-
-                const latDiff = customerCoord[0] - riderCoord[0];
-                const lngDiff = customerCoord[1] - riderCoord[1];
-                const distanceRemaining = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-
-                if (distanceRemaining < 0.0006) {
-                    stop();
-                    setRider([customerCoord[0], customerCoord[1]]);
-                    riderMarker.bindPopup(texts.arrivedPopup(config.riderName)).openPopup();
-                    if ($statusEl && $statusEl.length) {
-                        $statusEl.removeClass('text-primary').addClass('text-success fw-bold').html(texts.arrived());
-                    }
-                    if (config.onArrive) config.onArrive();
-                    return;
-                }
-
-                riderCoord = [riderCoord[0] + latDiff * stepRatio, riderCoord[1] + lngDiff * stepRatio];
-                riderMarker.setLatLng(riderCoord);
-                routeLine.setLatLngs([riderCoord, customerCoord]);
-                updateRoute();
-
-                const progressPercent = Math.min(95, Math.round((1 - (distanceRemaining / 0.022)) * 100));
-                renderStatus(texts.enroute(config.riderName, Math.max(5, progressPercent)));
-            }, tickMs);
 
             function stop() {
                 stopped = true;
                 if (pollIntervalId) {
                     clearInterval(pollIntervalId);
                     pollIntervalId = null;
-                }
-                if (simulateIntervalId) {
-                    clearInterval(simulateIntervalId);
-                    simulateIntervalId = null;
                 }
             }
 

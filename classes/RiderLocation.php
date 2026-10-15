@@ -62,7 +62,7 @@ class RiderLocation {
             SELECT id, order_id, rider_id, latitude, longitude, accuracy, recorded_at
             FROM rider_locations
             WHERE order_id = ? AND rider_id = ?
-            ORDER BY recorded_at DESC
+            ORDER BY id DESC
             LIMIT 1
         ");
         $stmt->execute([$orderId, $riderId]);
@@ -83,7 +83,7 @@ class RiderLocation {
             FROM rider_locations rl
             JOIN users u ON rl.rider_id = u.id
             WHERE rl.order_id = ?
-            ORDER BY rl.recorded_at DESC
+            ORDER BY rl.id DESC
             LIMIT 1
         ");
         $stmt->execute([$orderId]);
@@ -109,6 +109,91 @@ class RiderLocation {
         ");
         $stmt->execute([$orderId, $riderId, $limit]);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Get the best available GPS fix for an order, preferring quality over
+     * recency so a single coarse WiFi/IP reading cannot yank the marker off a
+     * good satellite fix.
+     *
+     * Resolution order:
+     *   1. Most recent fix that is both accurate (<= $maxAccuracy metres) and
+     *      fresh (within $maxAgeSeconds).
+     *   2. Otherwise the most accurate recent fix (null accuracy last).
+     *   3. Otherwise the latest fix of any age/quality (never regress to null
+     *      while data exists).
+     *
+     * The returned row is enriched with `age_seconds` (int, relative to MySQL
+     * NOW()) and the derived booleans `is_accurate` / `is_stale`.
+     *
+     * @param int $orderId
+     * @param int $maxAccuracy  Maximum acceptable accuracy radius, in metres
+     * @param int $maxAgeSeconds Age after which a fix is considered stale
+     * @return array|null
+     */
+    public function getBestByOrder(int $orderId, int $maxAccuracy = 100, int $maxAgeSeconds = 180): ?array {
+        $select = "
+            SELECT rl.id, rl.order_id, rl.rider_id, rl.latitude, rl.longitude, rl.accuracy, rl.recorded_at,
+                   u.full_name AS rider_name,
+                   TIMESTAMPDIFF(SECOND, rl.recorded_at, NOW()) AS age_seconds
+            FROM rider_locations rl
+            JOIN users u ON u.id = rl.rider_id
+            WHERE rl.order_id = ?";
+
+        // 1. Recent + accurate.
+        $row = $this->fetchFirst(
+            $select . "
+              AND rl.accuracy IS NOT NULL
+              AND rl.accuracy <= ?
+              AND rl.recorded_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+            ORDER BY rl.id DESC
+            LIMIT 1",
+            [$orderId, $maxAccuracy, $maxAgeSeconds]
+        );
+
+        // 2. Most accurate recent fix (regardless of radius).
+        if ($row === null) {
+            $row = $this->fetchFirst(
+                $select . "
+                  AND rl.recorded_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+                ORDER BY (rl.accuracy IS NULL) ASC, rl.accuracy ASC, rl.id DESC
+                LIMIT 1",
+                [$orderId, $maxAgeSeconds]
+            );
+        }
+
+        // 3. Latest fix of any age/quality.
+        if ($row === null) {
+            $row = $this->fetchFirst($select . " ORDER BY rl.id DESC LIMIT 1", [$orderId]);
+        }
+
+        if ($row === null) {
+            return null;
+        }
+
+        $accuracy = ($row['accuracy'] !== null) ? (float)$row['accuracy'] : null;
+        $age = ($row['age_seconds'] !== null) ? (int)$row['age_seconds'] : null;
+
+        $row['accuracy'] = $accuracy;
+        $row['age_seconds'] = $age;
+        $row['is_accurate'] = ($accuracy !== null && $accuracy <= $maxAccuracy);
+        $row['is_stale'] = ($age === null || $age > $maxAgeSeconds);
+
+        return $row;
+    }
+
+    /**
+     * Execute a prepared SELECT and return the first row (or null).
+     *
+     * @param string $sql
+     * @param array  $params
+     * @return array|null
+     */
+    private function fetchFirst(string $sql, array $params): ?array {
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch();
+        return $row ?: null;
     }
 
     /**

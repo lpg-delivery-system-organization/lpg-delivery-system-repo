@@ -71,6 +71,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $status = 'active';
                 }
 
+                // A directly uploaded image takes precedence over a posted URL.
+                if (!empty($_FILES['image_file']['name']) && ($_FILES['image_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                    $imageResult = validate_product_image_upload($_FILES['image_file']);
+                    if (!$imageResult['success']) {
+                        throw new InvalidArgumentException($imageResult['error']);
+                    }
+                    $imageUrl = $imageResult['relative_path'];
+                }
+
                 $newId = $productModel->create([
                     'name'      => $name,
                     'brand'     => $brand,
@@ -145,6 +154,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $status = 'active';
                 }
 
+                // A directly uploaded image replaces the existing one; otherwise
+                // the (hidden) existing image_url is preserved.
+                $newImageUploaded = false;
+                if (!empty($_FILES['image_file']['name']) && ($_FILES['image_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                    $imageResult = validate_product_image_upload($_FILES['image_file']);
+                    if (!$imageResult['success']) {
+                        throw new InvalidArgumentException($imageResult['error']);
+                    }
+                    $imageUrl = $imageResult['relative_path'];
+                    $newImageUploaded = true;
+                }
+
+                $previousImageUrl = $foundProduct['image_url'] ?? null;
+
                 $productModel->update($productId, [
                     'name'      => $name,
                     'brand'     => $brand,
@@ -154,6 +177,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'image_url' => $imageUrl,
                     'status'    => $status
                 ]);
+
+                // Clean up the old uploaded file once the DB points at the new one.
+                if ($newImageUploaded && $previousImageUrl !== $imageUrl) {
+                    delete_old_product_image($previousImageUrl);
+                }
 
                 if (is_ajax()) {
                     json_response([
@@ -539,7 +567,7 @@ require_once __DIR__ . '/../../templates/header.php';
 <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <form action="<?= url('pages/admin/inventory.php') ?>" method="POST" id="addProductForm">
+            <form action="<?= url('pages/admin/inventory.php') ?>" method="POST" id="addProductForm" enctype="multipart/form-data">
                 <?= csrf_input() ?>
                 <input type="hidden" name="action" value="create_product">
 
@@ -578,8 +606,12 @@ require_once __DIR__ . '/../../templates/header.php';
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="addProdImage" class="form-label fw-semibold">Image URL (Optional)</label>
-                        <input type="text" class="form-control" name="image_url" id="addProdImage" placeholder="assets/img/products/solane-11kg.png">
+                        <label for="addProdImage" class="form-label fw-semibold">Product Image (Optional)</label>
+                        <input type="file" class="form-control" name="image_file" id="addProdImage" accept="image/jpeg,image/png,image/webp">
+                        <div class="form-text small">JPG, PNG, or WebP. Maximum 5 MB.</div>
+                        <div class="mt-2 d-none" id="addProdImagePreviewWrap">
+                            <img src="" alt="Selected product image preview" id="addProdImagePreview" class="img-thumbnail" style="max-height: 120px;">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="addProdStatus" class="form-label fw-semibold">Catalog Status</label>
@@ -650,10 +682,11 @@ require_once __DIR__ . '/../../templates/header.php';
 <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <form action="<?= url('pages/admin/inventory.php') ?>" method="POST" id="editProductForm">
+            <form action="<?= url('pages/admin/inventory.php') ?>" method="POST" id="editProductForm" enctype="multipart/form-data">
                 <?= csrf_input() ?>
                 <input type="hidden" name="action" value="update_product">
                 <input type="hidden" name="product_id" id="editProdId" value="0">
+                <input type="hidden" name="image_url" id="editProdImageUrl" value="">
 
                 <div class="modal-header bg-light border-bottom">
                     <h5 class="modal-title fw-bold" id="editProductModalLabel">
@@ -690,8 +723,12 @@ require_once __DIR__ . '/../../templates/header.php';
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="editProdImage" class="form-label fw-semibold">Image URL</label>
-                        <input type="text" class="form-control" name="image_url" id="editProdImage">
+                        <label for="editProdImage" class="form-label fw-semibold">Product Image</label>
+                        <input type="file" class="form-control" name="image_file" id="editProdImage" accept="image/jpeg,image/png,image/webp">
+                        <div class="form-text small">Leave empty to keep the current image. JPG, PNG, or WebP. Maximum 5 MB.</div>
+                        <div class="mt-2 d-none" id="editProdImagePreviewWrap">
+                            <img src="" alt="Current product image" id="editProdImagePreview" class="img-thumbnail" style="max-height: 120px;">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="editProdStatus" class="form-label fw-semibold">Catalog Status</label>

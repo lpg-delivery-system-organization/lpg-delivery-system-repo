@@ -1019,6 +1019,115 @@ it('inventory.php creates a new LPG product successfully', function () use ($db,
     assert_equals('active', $created['status']);
 });
 
+it('inventory.php stores an uploaded product image on update and removes the replaced file', function () use ($db, $testAdmin, $productModel) {
+    reset_admin_env();
+    login_user($testAdmin);
+    $token = csrf_token();
+
+    // Create a dedicated product with an existing uploaded image to replace.
+    $uniqueName = 'Upload Test ' . bin2hex(random_bytes(3));
+    $oldRel = 'uploads/products/product_' . bin2hex(random_bytes(8)) . '.png';
+    $oldAbs = dirname(__DIR__) . '/' . $oldRel;
+    @mkdir(dirname($oldAbs), 0755, true);
+    file_put_contents($oldAbs, 'old');
+
+    $pId = $productModel->create([
+        'name' => $uniqueName,
+        'brand' => 'Brand',
+        'weight' => '11kg',
+        'price' => 500.00,
+        'stock' => 10,
+        'image_url' => $oldRel,
+        'status' => 'active'
+    ]);
+
+    // Simulate a new PNG upload.
+    $pngData = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+    $tmpFile = tempnam(sys_get_temp_dir(), 'lpg_prod_');
+    file_put_contents($tmpFile, $pngData);
+
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_POST['csrf_token'] = $token;
+    $_POST['action'] = 'update_product';
+    $_POST['product_id'] = $pId;
+    $_POST['name'] = $uniqueName;
+    $_POST['brand'] = 'Brand';
+    $_POST['weight'] = '11kg';
+    $_POST['price'] = 500.00;
+    $_POST['stock'] = 10;
+    $_POST['status'] = 'active';
+    $_POST['image_url'] = $oldRel;
+    $_FILES['image_file'] = [
+        'name' => 'product.png',
+        'type' => 'image/png',
+        'tmp_name' => $tmpFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => strlen($pngData)
+    ];
+
+    render_admin_page(__DIR__ . '/../pages/admin/inventory.php');
+
+    assert_true(has_flash());
+    $flash = get_flash();
+    assert_equals('success', $flash['type']);
+
+    $updated = $productModel->findById($pId);
+    assert_true(str_starts_with((string)$updated['image_url'], 'uploads/products/'), 'image_url must point to uploads/products/');
+    assert_true($updated['image_url'] !== $oldRel, 'image_url must be replaced');
+    assert_true(is_file(dirname(__DIR__) . '/' . $updated['image_url']), 'new uploaded file must exist on disk');
+    assert_true(!is_file($oldAbs), 'previous uploaded file must be deleted');
+
+    // Cleanup
+    @unlink(dirname(__DIR__) . '/' . $updated['image_url']);
+    @unlink($oldAbs);
+    @unlink($tmpFile);
+    $db->prepare("DELETE FROM products WHERE id = ?")->execute([$pId]);
+});
+
+it('inventory.php rejects a non-image upload for product images', function () use ($db, $testAdmin, $productModel) {
+    reset_admin_env();
+    login_user($testAdmin);
+    $token = csrf_token();
+
+    $txtFile = tempnam(sys_get_temp_dir(), 'lpg_txt_');
+    file_put_contents($txtFile, 'this is definitely not an image');
+
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_POST['csrf_token'] = $token;
+    $_POST['action'] = 'create_product';
+    $_POST['name'] = 'Bad Image ' . bin2hex(random_bytes(3));
+    $_POST['brand'] = 'Brand';
+    $_POST['weight'] = '11kg';
+    $_POST['price'] = 500.00;
+    $_POST['stock'] = 10;
+    $_POST['status'] = 'active';
+    $_FILES['image_file'] = [
+        'name' => 'malicious.txt',
+        'type' => 'text/plain',
+        'tmp_name' => $txtFile,
+        'error' => UPLOAD_ERR_OK,
+        'size' => filesize($txtFile)
+    ];
+
+    render_admin_page(__DIR__ . '/../pages/admin/inventory.php');
+
+    assert_true(has_flash());
+    $flash = get_flash();
+    assert_equals('error', $flash['type']);
+
+    // No product should have been created.
+    $found = null;
+    foreach ($productModel->getAll() as $p) {
+        if ($p['name'] === $_POST['name']) {
+            $found = $p;
+            break;
+        }
+    }
+    assert_true($found === null, 'product must not be created when the image is invalid');
+
+    @unlink($txtFile);
+});
+
 it('inventory.php adjusts stock count and unit price via quick modal', function () use ($db, $testAdmin, $productModel) {
     reset_admin_env();
     login_user($testAdmin);

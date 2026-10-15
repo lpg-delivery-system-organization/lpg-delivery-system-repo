@@ -240,8 +240,8 @@ function receipt_fixture(array $overrides = []): array {
 
 echo "\n--- 1. Philippine formatting helpers ---\n";
 
-it('app timezone is set to Asia/Manila (PHT)', function () {
-    assert_equals('Asia/Manila', date_default_timezone_get(), 'Receipt timestamps must be Philippine time');
+it('app timezone is set to Asia/Singapore (UTC+8)', function () {
+    assert_equals('Asia/Singapore', date_default_timezone_get(), 'Timestamps must use Malaysia/Singapore time');
     assert_true(defined('APP_TIMEZONE'), 'APP_TIMEZONE constant should be defined');
 });
 
