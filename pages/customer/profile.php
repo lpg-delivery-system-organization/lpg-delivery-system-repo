@@ -4,7 +4,7 @@
  * LPG Delivery System v2
  *
  * View and update personal information, delivery address, contact phone,
- * and account password security.
+ * government ID verification status, and account password security.
  */
 
 require_once __DIR__ . '/../../includes/helpers.php';
@@ -269,6 +269,34 @@ require_once __DIR__ . '/../../templates/header.php';
                         <span class="text-muted d-block extra-small text-uppercase fw-semibold">Default Delivery Address</span>
                         <span class="fw-medium text-dark"><i class="bi bi-geo-alt me-2 text-danger"></i><?= e($customer['address'] ?? 'Not provided') ?></span>
                     </div>
+                </div>
+            </div>
+
+            <!-- Valid ID Verification Card -->
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                        <i class="bi bi-card-heading text-primary"></i>Valid ID Verification
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <?php if (!empty($customer['valid_id_path'])): ?>
+                        <div class="alert alert-success d-flex align-items-center p-3 mb-2 rounded-3" role="alert">
+                            <i class="bi bi-shield-check fs-4 me-2 text-success flex-shrink-0"></i>
+                            <div>
+                                <strong class="d-block">Government ID Verified</strong>
+                                <small class="text-muted">Document on file</small>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <div class="alert alert-warning d-flex align-items-center p-3 mb-2 rounded-3" role="alert">
+                            <i class="bi bi-exclamation-circle fs-4 me-2 text-warning flex-shrink-0"></i>
+                            <div>
+                                <strong class="d-block">No Valid ID Uploaded</strong>
+                                <small class="text-muted">Optional: Upload a government ID to speed up order confirmation.</small>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

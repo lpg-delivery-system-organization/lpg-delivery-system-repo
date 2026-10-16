@@ -754,7 +754,7 @@ it('orders.php prevents customer from cancelling orders that are already non-pen
 // =========================================================================
 echo "\nGroup 6: Profile Management (profile.php)\n";
 
-it('profile.php renders user details and update forms', function () use ($userModel, $customerId) {
+it('profile.php renders user details, valid ID status card, and update forms', function () use ($userModel, $customerId) {
     reset_customer_env();
     $cust = $userModel->findById($customerId);
     login_user($cust);
@@ -766,11 +766,36 @@ it('profile.php renders user details and update forms', function () use ($userMo
     assert_contains($cust['email'], $html);
     assert_contains('Edit Profile Information', $html);
     assert_contains('Change Account Password', $html);
+    assert_contains('Valid ID Verification', $html);
     assert_contains('name="full_name"', $html);
     assert_contains('name="phone"', $html);
     assert_contains('name="address"', $html);
     assert_contains('name="current_password"', $html);
     assert_contains('name="new_password"', $html);
+});
+
+it('profile.php shows the Government ID Verified badge for a verified ID', function () use ($db, $userModel, $customerId) {
+    // Capture original verification state so this test is repeatable.
+    $original    = $userModel->findById($customerId);
+    $origValidId = $original['valid_id_path'] ?? null;
+    $origStatus  = (string)($original['id_verification_status'] ?? 'approved');
+
+    try {
+        $db->prepare("UPDATE users SET valid_id_path = ?, id_verification_status = 'approved' WHERE id = ?")
+           ->execute(['uploads/ids/test_verified_badge.png', $customerId]);
+
+        reset_customer_env();
+        login_user($userModel->findById($customerId));
+        $html = render_page(__DIR__ . '/../pages/customer/profile.php');
+
+        assert_contains('Government ID Verified', $html);
+        assert_not_contains('No Valid ID Uploaded', $html);
+    } finally {
+        $db->prepare("UPDATE users SET valid_id_path = ?, id_verification_status = ? WHERE id = ?")
+           ->execute([$origValidId, $origStatus, $customerId]);
+    }
+
+    return true;
 });
 
 it('profile.php updates full name, phone number, and delivery address', function () use ($testCustomer, $userModel, $customerId) {
