@@ -447,7 +447,7 @@ require_once __DIR__ . '/../../templates/header.php';
                                     <td>
                                         <div class="d-flex align-items-center gap-3">
                                             <div class="app-product-icon p-1 bg-light rounded text-center flex-shrink-0 overflow-hidden" style="width: 40px; height: 40px;">
-                                                <?php if (!empty($prod['image_url']) && is_file(dirname(__DIR__, 2) . '/' . ltrim($prod['image_url'], '/'))): ?>
+                                                <?php if (!empty($prod['image_url']) && public_file_exists($prod['image_url'])): ?>
                                                     <img src="<?= e(asset($prod['image_url'])) ?>" alt="<?= e($prod['name']) ?>" class="rounded" style="width: 100%; height: 100%; object-fit: cover;">
                                                 <?php else: ?>
                                                     <i class="bi bi-fire text-warning fs-5"></i>

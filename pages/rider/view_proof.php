@@ -64,16 +64,10 @@ if (!str_starts_with($relativePath, 'uploads/proofs/')) {
     die('Requested proof file is outside the permitted directory.');
 }
 
-$baseUploadDir = defined('UPLOAD_PATH') ? realpath(UPLOAD_PATH) : realpath(dirname(__DIR__, 2) . '/uploads');
-if (!$baseUploadDir) {
-    $baseUploadDir = dirname(__DIR__, 2) . '/uploads';
-}
-
-$fullPath = dirname(__DIR__, 2) . '/' . $relativePath;
-$realPath = realpath($fullPath);
+$realPath = upload_abs_path($order['delivery_proof_path']);
 
 // Security Check: Path Traversal Protection
-if (!$realPath || !file_exists($realPath) || !str_starts_with($realPath, $baseUploadDir)) {
+if ($realPath === null) {
     if (!empty($GLOBALS['TEST_MODE'])) {
         $GLOBALS['LAST_HTTP_CODE'] = 404;
         return;

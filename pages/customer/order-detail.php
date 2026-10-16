@@ -198,7 +198,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <div class="d-flex align-items-center gap-3 p-3 rounded-3 mb-4 border">
                         <div class="app-product-icon rounded-3 bg-primary text-white flex-shrink-0 overflow-hidden" style="width: 64px; height: 64px;">
                             <?php $detailImage = $order['product_image'] ?? ''; ?>
-                            <?php if (!empty($detailImage) && is_file(dirname(__DIR__, 2) . '/' . ltrim($detailImage, '/'))): ?>
+                            <?php if (!empty($detailImage) && public_file_exists($detailImage)): ?>
                                 <img src="<?= e(asset($detailImage)) ?>" alt="<?= e($order['product_name'] ?? 'LPG') ?>" style="width: 100%; height: 100%; object-fit: cover;">
                             <?php else: ?>
                                 <i class="bi bi-fire fs-4"></i>

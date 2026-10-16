@@ -205,6 +205,83 @@ function asset_v(string $path): string {
 }
 
 /**
+ * Resolve a stored upload relative path to an absolute filesystem path.
+ *
+ * Stored values look like "uploads/ids/id_<hex>.jpg" and are written by the
+ * validate_*_upload() helpers. Because the upload destination is driven by the
+ * UPLOAD_PATH constant (configurable in config/app.php), readers/deleters must
+ * resolve against that same root instead of assuming the project directory.
+ * A fallback to the project's own uploads/ directory preserves files written
+ * before UPLOAD_PATH was customised.
+ *
+ * Path traversal is rejected and the resolved file is confined to whichever
+ * root matched.
+ *
+ * @param string|null $relativePath e.g. uploads/ids/id_ab12.png
+ * @return string|null Absolute, real path when the file exists; null otherwise
+ */
+function upload_abs_path(?string $relativePath): ?string {
+    $normalized = str_replace('\\', '/', ltrim(trim((string)$relativePath), '/'));
+    if ($normalized === '' || strpos($normalized, '..') !== false) {
+        return null;
+    }
+
+    $suffix = str_starts_with($normalized, 'uploads/')
+        ? substr($normalized, strlen('uploads/'))
+        : $normalized;
+
+    $roots = array_values(array_unique(array_filter([
+        defined('UPLOAD_PATH') ? UPLOAD_PATH : null,
+        dirname(__DIR__) . '/uploads',
+    ])));
+
+    foreach ($roots as $root) {
+        $rootReal = realpath($root);
+        if ($rootReal === false) {
+            continue;
+        }
+
+        $candidate = realpath($rootReal . DIRECTORY_SEPARATOR . $suffix);
+        if ($candidate === false || !is_file($candidate)) {
+            continue;
+        }
+
+        $prefix = rtrim($rootReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (strncmp($candidate, $prefix, strlen($prefix)) !== 0) {
+            continue;
+        }
+
+        return $candidate;
+    }
+
+    return null;
+}
+
+/**
+ * Check whether a stored image path resolves to a real file, for display.
+ *
+ * Unlike upload_abs_path(), this also supports bundled static assets (e.g.
+ * "assets/img/products/1.png") which are always relative to the project root.
+ * Paths under "uploads/" are resolved through upload_abs_path() so they honour
+ * the configured UPLOAD_PATH.
+ *
+ * @param string $path
+ * @return bool
+ */
+function public_file_exists(string $path): bool {
+    $normalized = str_replace('\\', '/', ltrim(trim($path), '/'));
+    if ($normalized === '' || strpos($normalized, '..') !== false) {
+        return false;
+    }
+
+    if (str_starts_with($normalized, 'uploads/')) {
+        return upload_abs_path($normalized) !== null;
+    }
+
+    return is_file(dirname(__DIR__) . '/' . $normalized);
+}
+
+/**
  * Redirect to a specified path or URL
  *
  * @param string $path
@@ -630,8 +707,8 @@ function delete_old_avatar(?string $relativePath): void {
         return;
     }
 
-    $absolutePath = dirname(__DIR__) . '/' . $normalized;
-    if (is_file($absolutePath)) {
+    $absolutePath = upload_abs_path($normalized);
+    if ($absolutePath !== null) {
         @unlink($absolutePath);
     }
 }
@@ -815,8 +892,8 @@ function delete_old_product_image(?string $relativePath): void {
         return;
     }
 
-    $absolutePath = dirname(__DIR__) . '/' . $normalized;
-    if (is_file($absolutePath)) {
+    $absolutePath = upload_abs_path($normalized);
+    if ($absolutePath !== null) {
         @unlink($absolutePath);
     }
 }
@@ -1002,8 +1079,8 @@ function delete_old_delivery_proof(?string $relativePath): void {
         return;
     }
 
-    $absolutePath = dirname(__DIR__) . '/' . $normalized;
-    if (is_file($absolutePath)) {
+    $absolutePath = upload_abs_path($normalized);
+    if ($absolutePath !== null) {
         @unlink($absolutePath);
     }
 }

@@ -429,7 +429,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                         <div class="d-flex align-items-center gap-2">
                                             <?php $adminOrderImage = $order['product_image'] ?? ''; ?>
                                             <div class="flex-shrink-0 rounded overflow-hidden" style="width: 36px; height: 36px;">
-                                                <?php if (!empty($adminOrderImage) && is_file(dirname(__DIR__, 2) . '/' . ltrim($adminOrderImage, '/'))): ?>
+                                                <?php if (!empty($adminOrderImage) && public_file_exists($adminOrderImage)): ?>
                                                     <img src="<?= e(asset($adminOrderImage)) ?>" alt="<?= e($order['product_name'] ?? '') ?>" style="width: 100%; height: 100%; object-fit: cover;">
                                                 <?php else: ?>
                                                     <div class="bg-light d-flex align-items-center justify-content-center w-100 h-100"><i class="bi bi-fire text-warning"></i></div>
@@ -614,7 +614,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                     <div class="d-flex align-items-center gap-2 min-w-0">
                                         <div class="admin-order-card-thumb flex-shrink-0 rounded overflow-hidden">
                                             <?php $mImg = $order['product_image'] ?? ''; ?>
-                                            <?php if (!empty($mImg) && is_file(dirname(__DIR__, 2) . '/' . ltrim($mImg, '/'))): ?>
+                                            <?php if (!empty($mImg) && public_file_exists($mImg)): ?>
                                                 <img src="<?= e(asset($mImg)) ?>" alt="<?= e($order['product_name'] ?? '') ?>">
                                             <?php else: ?>
                                                 <div class="bg-light d-flex align-items-center justify-content-center w-100 h-100"><i class="bi bi-fire text-warning"></i></div>

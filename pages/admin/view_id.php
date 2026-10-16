@@ -41,19 +41,10 @@ if (!$user || empty($user['valid_id_path'])) {
     die('Valid ID document not found for this user.');
 }
 
-$relativePath = ltrim($user['valid_id_path'], '/\\');
-
-// Determine base upload directory
-$baseUploadDir = defined('UPLOAD_PATH') ? realpath(UPLOAD_PATH) : realpath(dirname(__DIR__, 2) . '/uploads');
-if (!$baseUploadDir) {
-    $baseUploadDir = dirname(__DIR__, 2) . '/uploads';
-}
-
-$fullPath = dirname(__DIR__, 2) . '/' . $relativePath;
-$realPath = realpath($fullPath);
+$realPath = upload_abs_path($user['valid_id_path']);
 
 // Security Check: Path Traversal Protection
-if (!$realPath || !file_exists($realPath) || !str_starts_with($realPath, $baseUploadDir)) {
+if ($realPath === null) {
     if (!empty($GLOBALS['TEST_MODE'])) {
         $GLOBALS['LAST_HTTP_CODE'] = 404;
         return;

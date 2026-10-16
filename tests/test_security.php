@@ -1006,6 +1006,76 @@ it('delete_old_delivery_proof deletes only files under uploads/proofs', function
 @rmdir($testProofUploadDir);
 
 // =========================================================================
+// Group 9: Upload Path Resolution (upload_abs_path / public_file_exists)
+// =========================================================================
+echo "\nGroup 9: Upload Path Resolution\n";
+
+it('upload_abs_path resolves an existing stored upload relative to the uploads root', function () {
+    $rel = 'uploads/ids/' . 'id_' . bin2hex(random_bytes(8)) . '.jpg';
+    $abs = dirname(__DIR__) . '/' . $rel;
+    @mkdir(dirname($abs), 0755, true);
+    file_put_contents($abs, 'temp');
+
+    $resolved = upload_abs_path($rel);
+    assert_true($resolved !== null, 'existing stored upload must resolve');
+    assert_true(is_file($resolved), 'resolved path must be a real file');
+    assert_equals(realpath($abs), realpath($resolved), 'resolved path must point at the stored file');
+
+    // Bare form (no "uploads/" prefix) also resolves.
+    $bare = upload_abs_path('ids/' . basename($abs));
+    assert_true($bare !== null, 'bare ids/ path must resolve');
+
+    @unlink($abs);
+});
+
+it('upload_abs_path rejects traversal and missing files', function () {
+    assert_true(upload_abs_path('') === null, 'empty path must not resolve');
+    assert_true(upload_abs_path(null) === null, 'null path must not resolve');
+    assert_true(upload_abs_path('uploads/ids/../../config/app.php') === null, 'traversal must be rejected');
+    assert_true(upload_abs_path('uploads/ids/does_not_exist_' . bin2hex(random_bytes(4)) . '.jpg') === null, 'missing file must not resolve');
+    assert_true(upload_abs_path('config/app.php') === null, 'non-upload path must not resolve');
+});
+
+it('upload_abs_path honours a custom UPLOAD_PATH', function () {
+    $tmp = sys_get_temp_dir() . '/lpg_upload_root_' . bin2hex(random_bytes(6));
+    @mkdir($tmp . '/ids', 0755, true);
+    file_put_contents($tmp . '/ids/custom.jpg', 'x');
+
+    $helpers = dirname(__DIR__) . '/includes/helpers.php';
+    $php = "<?php define('UPLOAD_PATH', " . var_export($tmp, true) . ");"
+        . " require " . var_export($helpers, true) . ";"
+        . " \$r = upload_abs_path('uploads/ids/custom.jpg');"
+        . " echo (\$r !== null && is_file(\$r)) ? 'OK' : 'FAIL';";
+
+    $scriptFile = tempnam(sys_get_temp_dir(), 'lpg_custom_root_');
+    file_put_contents($scriptFile, $php);
+    exec('php ' . escapeshellarg($scriptFile) . ' 2>&1', $output, $code);
+    $out = implode("\n", $output);
+
+    assert_true(str_contains($out, 'OK'), 'upload_abs_path must resolve against a custom UPLOAD_PATH: ' . $out);
+    assert_equals(0, $code, 'subprocess should exit cleanly');
+
+    @unlink($scriptFile);
+    @unlink($tmp . '/ids/custom.jpg');
+    @rmdir($tmp . '/ids');
+    @rmdir($tmp);
+});
+
+it('public_file_exists handles uploads and bundled static assets', function () {
+    $rel = 'uploads/products/product_' . bin2hex(random_bytes(8)) . '.png';
+    $abs = dirname(__DIR__) . '/' . $rel;
+    @mkdir(dirname($abs), 0755, true);
+    file_put_contents($abs, 'temp');
+
+    assert_true(public_file_exists($rel), 'stored upload must exist');
+    assert_true(public_file_exists('uploads/products/../products/../../config/app.php') === false, 'traversal must be rejected');
+    assert_true(public_file_exists('uploads/products/missing_' . bin2hex(random_bytes(4)) . '.png') === false, 'missing upload must not exist');
+    assert_false(public_file_exists('assets/img/products/definitely_missing.png'), 'missing static asset must not exist');
+
+    @unlink($abs);
+});
+
+// =========================================================================
 // Test Summary
 // =========================================================================
 echo "\n====================================================\n";

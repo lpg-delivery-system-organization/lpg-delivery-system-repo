@@ -4,7 +4,7 @@
  * LPG Delivery System v2
  *
  * View and update personal information, delivery address, contact phone,
- * optional government ID document upload, and account password security.
+ * and account password security.
  */
 
 require_once __DIR__ . '/../../includes/helpers.php';
@@ -12,7 +12,6 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/middleware.php';
 require_once __DIR__ . '/../../classes/Database.php';
 require_once __DIR__ . '/../../classes/User.php';
-require_once __DIR__ . '/../../includes/verification.php';
 
 // Enforce customer access
 require_role('customer');
@@ -87,16 +86,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $profileErrors[] = 'Delivery address cannot be empty.';
         }
 
-        $validIdRelativePath = null;
-        if (!empty($_FILES['valid_id']['name']) && $_FILES['valid_id']['error'] !== UPLOAD_ERR_NO_FILE) {
-            $uploadResult = validate_id_upload($_FILES['valid_id']);
-            if (!$uploadResult['success']) {
-                $profileErrors[] = $uploadResult['error'];
-            } else {
-                $validIdRelativePath = $uploadResult['relative_path'];
-            }
-        }
-
         $avatarRelativePath = null;
         if (!empty($_FILES['profile_picture']['name']) && $_FILES['profile_picture']['error'] !== UPLOAD_ERR_NO_FILE) {
             $avatarResult = validate_profile_picture_upload($_FILES['profile_picture']);
@@ -132,20 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($avatarRelativePath !== null) {
                             $_SESSION['user']['profile_picture'] = $avatarRelativePath;
                         }
-                    }
-
-                    // A newly uploaded ID replaces the verified document and must be
-                    // re-reviewed, resetting the account back to "pending".
-                    if ($validIdRelativePath !== null) {
-                        $userModel->submitId($customerId, $validIdRelativePath);
-                        notify_admins_pending_verification($customerId, $fullName);
-                        if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
-                            $_SESSION['user']['valid_id_path'] = $validIdRelativePath;
-                            $_SESSION['user']['id_verification_status'] = 'pending';
-                        }
-                        set_flash('info', 'Your new government ID was submitted and is pending verification. You can continue once an administrator approves it.');
-                        redirect('/pages/customer/verification.php');
-                        return;
                     }
 
                     set_flash('success', 'Your profile details have been successfully updated.');
@@ -249,7 +224,7 @@ require_once __DIR__ . '/../../templates/header.php';
             <!-- User Summary Card -->
             <div class="card border-0 shadow-sm text-center p-4 rounded-3 mb-4">
                 <div class="mx-auto mb-3">
-                    <?php if (!empty($customer['profile_picture']) && is_file(dirname(__DIR__, 2) . '/' . ltrim($customer['profile_picture'], '/'))): ?>
+                    <?php if (!empty($customer['profile_picture']) && upload_abs_path($customer['profile_picture']) !== null): ?>
                         <img src="<?= e(url($customer['profile_picture'])) ?>"
                              alt="Profile picture of <?= e($customer['full_name'] ?? 'Customer') ?>"
                              class="rounded-circle shadow-sm profile-avatar-lg"
@@ -296,34 +271,6 @@ require_once __DIR__ . '/../../templates/header.php';
                     </div>
                 </div>
             </div>
-
-            <!-- Valid ID Verification Card -->
-            <div class="card border-0 shadow-sm rounded-3">
-                <div class="card-header bg-white py-3 border-bottom">
-                    <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
-                        <i class="bi bi-card-heading text-primary"></i>Valid ID Verification
-                    </h6>
-                </div>
-                <div class="card-body p-3">
-                    <?php if (!empty($customer['valid_id_path'])): ?>
-                        <div class="alert alert-success d-flex align-items-center p-3 mb-2 rounded-3" role="alert">
-                            <i class="bi bi-shield-check fs-4 me-2 text-success flex-shrink-0"></i>
-                            <div>
-                                <strong class="d-block">Government ID Verified</strong>
-                                <small class="text-muted">Document on file</small>
-                            </div>
-                        </div>
-                    <?php else: ?>
-                        <div class="alert alert-warning d-flex align-items-center p-3 mb-2 rounded-3" role="alert">
-                            <i class="bi bi-exclamation-circle fs-4 me-2 text-warning flex-shrink-0"></i>
-                            <div>
-                                <strong class="d-block">No Valid ID Uploaded</strong>
-                                <small class="text-muted">Optional: Upload a government ID to speed up order confirmation.</small>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
         </div>
 
         <!-- Forms Column -->
@@ -348,7 +295,7 @@ require_once __DIR__ . '/../../templates/header.php';
                         </div>
                     <?php endif; ?>
 
-                    <form action="<?= url('pages/customer/profile.php') ?>" method="POST" enctype="multipart/form-data" id="customerProfileForm">
+                    <form action="<?= url('pages/customer/profile.php') ?>" method="POST" id="customerProfileForm">
                         <?= csrf_input() ?>
                         <input type="hidden" name="action" value="update_profile">
 
@@ -396,19 +343,6 @@ require_once __DIR__ . '/../../templates/header.php';
                                            required>
                                 </div>
                                 <div class="form-text extra-small">11-digit Philippine mobile format starting with 09.</div>
-                            </div>
-
-                            <!-- Valid ID Upload (Optional) -->
-                            <div class="col-md-6">
-                                <label for="valid_id" class="form-label fw-semibold small text-dark">
-                                    Valid ID Document <span class="text-muted extra-small fw-normal">(Optional, JPG/PNG/PDF max 5MB)</span>
-                                </label>
-                                <input type="file" 
-                                       name="valid_id" 
-                                       id="valid_id" 
-                                       class="form-control" 
-                                       accept="image/jpeg,image/png,image/webp,application/pdf">
-                                <div class="form-text extra-small">Upload government-issued ID (Passport, Driver's License, UMID, National ID).</div>
                             </div>
 
                             <!-- Delivery Address -->

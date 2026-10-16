@@ -252,7 +252,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                                 <h6 class="text-muted text-uppercase fw-semibold small mb-3">Item Summary</h6>
                                 <div class="d-flex align-items-start gap-3">
                                     <div class="app-product-icon p-2 bg-light rounded text-center flex-shrink-0" style="width: 64px; height: 64px;">
-                                        <?php if (!empty($productImage) && is_file(dirname(__DIR__, 2) . '/' . ltrim($productImage, '/'))): ?>
+                                        <?php if (!empty($productImage) && public_file_exists($productImage)): ?>
                                             <img src="<?= e(asset($productImage)) ?>" alt="<?= e($productName) ?>" class="rounded" style="width: 100%; height: 100%; object-fit: cover;">
                                         <?php else: ?>
                                             <i class="bi bi-fire fs-2 text-warning"></i>

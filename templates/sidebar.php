@@ -143,7 +143,7 @@ if ($role === 'customer') {
             <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-2 overflow-hidden">
                     <?php $sidebarAvatar = $_SESSION['user']['profile_picture'] ?? null; ?>
-                    <?php if ($sidebarAvatar && is_file(dirname(__DIR__) . '/' . ltrim($sidebarAvatar, '/'))): ?>
+                    <?php if ($sidebarAvatar && upload_abs_path($sidebarAvatar) !== null): ?>
                         <img src="<?= e(url($sidebarAvatar)) ?>" alt="Your profile picture" class="rounded-circle flex-shrink-0" style="width: 38px; height: 38px; object-fit: cover;">
                     <?php else: ?>
                         <div class="user-avatar-circle flex-shrink-0">

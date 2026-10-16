@@ -245,7 +245,7 @@ require_once __DIR__ . '/../../templates/header.php';
             <!-- User Summary Card -->
             <div class="card border-0 shadow-sm text-center p-4 rounded-3 mb-4" data-aos="fade-right">
                 <div class="mx-auto mb-3">
-                    <?php if (!empty($rider['profile_picture']) && is_file(dirname(__DIR__, 2) . '/' . ltrim($rider['profile_picture'], '/'))): ?>
+                    <?php if (!empty($rider['profile_picture']) && upload_abs_path($rider['profile_picture']) !== null): ?>
                         <img src="<?= e(url($rider['profile_picture'])) ?>"
                              alt="Profile picture of <?= e($rider['full_name'] ?? 'Rider') ?>"
                              class="rounded-circle shadow-sm profile-avatar-lg"

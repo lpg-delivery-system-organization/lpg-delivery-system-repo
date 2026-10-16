@@ -754,7 +754,7 @@ it('orders.php prevents customer from cancelling orders that are already non-pen
 // =========================================================================
 echo "\nGroup 6: Profile Management (profile.php)\n";
 
-it('profile.php renders user details, valid ID status, and update forms', function () use ($userModel, $customerId) {
+it('profile.php renders user details and update forms', function () use ($userModel, $customerId) {
     reset_customer_env();
     $cust = $userModel->findById($customerId);
     login_user($cust);

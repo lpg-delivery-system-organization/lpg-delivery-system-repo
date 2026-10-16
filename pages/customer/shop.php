@@ -352,7 +352,7 @@ require_once __DIR__ . '/../../templates/header.php';
                         <div class="col-md-6 col-xl-4" data-aos="fade-up" data-aos-delay="<?= ($pId % 3) * 80 ?>">
                             <div class="card app-product-card h-100 border-0 shadow-sm" id="productCard_<?= $pId ?>">
                                 <div class="app-product-img-wrapper position-relative text-center p-3">
-                                    <?php if (!empty($product['image_url']) && file_exists(dirname(__DIR__, 2) . '/' . ltrim($product['image_url'], '/'))): ?>
+                                    <?php if (!empty($product['image_url']) && public_file_exists($product['image_url'])): ?>
                                         <img src="<?= asset($product['image_url']) ?>" alt="<?= e($product['name']) ?>" style="max-height: 140px; max-width: 80%; object-fit: contain;">
                                     <?php else: ?>
                                         <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">

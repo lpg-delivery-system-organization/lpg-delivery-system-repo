@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 class User {
     /**
@@ -473,23 +474,12 @@ class User {
             return false;
         }
 
-        $projectRoot = dirname(__DIR__);
-        $uploadsRoot = realpath($projectRoot . '/uploads');
-        if ($uploadsRoot === false) {
+        $absolute = upload_abs_path($relativePath);
+        if ($absolute === null) {
             return false;
         }
 
-        $absolute = realpath($projectRoot . '/' . ltrim($relativePath, '/\\'));
-        if ($absolute === false) {
-            return false;
-        }
-
-        $uploadsRoot = rtrim($uploadsRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-        if (strncmp($absolute, $uploadsRoot, strlen($uploadsRoot)) !== 0) {
-            return false;
-        }
-
-        return is_file($absolute) && @unlink($absolute);
+        return @unlink($absolute);
     }
 
     /**
