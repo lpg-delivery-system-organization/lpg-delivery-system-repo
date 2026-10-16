@@ -118,6 +118,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <?= $isGcash ? '— payment is still pending, please complete GCash checkout.' : '— please have the exact amount ready for cash on delivery.' ?>
                 </span>
             </div>
+    <!--
             <div class="d-flex gap-2 flex-shrink-0">
                 <a href="<?= url('pages/customer/receipt.php?id=' . $orderId) ?>" target="_blank" rel="noopener" class="btn btn-light border px-3 fw-semibold">
                     <i class="bi bi-eye me-1"></i>View Receipt
@@ -126,6 +127,7 @@ require_once __DIR__ . '/../../templates/components/order-card.php';
                     <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
                 </a>
             </div>
+    -->
         </div>
     <?php endif; ?>
 
